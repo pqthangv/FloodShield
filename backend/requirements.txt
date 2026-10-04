@@ -1,0 +1,10 @@
+fastapi>=0.118,<1.0
+uvicorn[standard]>=0.37
+SQLAlchemy[asyncio]>=2.0.44
+aiosqlite>=0.21
+asyncpg>=0.30
+httpx>=0.28
+python-multipart>=0.0.20
+pillow>=11.3
+pydantic>=2.12
+pydantic-settings>=2.10

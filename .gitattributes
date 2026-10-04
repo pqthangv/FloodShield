@@ -1,0 +1,14 @@
+# Normalize line endings so the project builds on Windows, macOS and Linux.
+* text=auto
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+gradlew text eol=lf
+*.sh text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.jar binary
+*.keystore binary
+*.ttf binary

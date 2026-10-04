@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+.git
+.gitignore
+store.db
+# Add other files or directories you want to ignore
+.venv/
+tests/

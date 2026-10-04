@@ -1,0 +1,8 @@
+# Root-level ignores (each project has its own .gitignore too)
+*.zip
+*.aab
+*.apk
+.DS_Store
+Thumbs.db
+.vscode/
+docs/screenshots/raw/

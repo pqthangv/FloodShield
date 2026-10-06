@@ -18,10 +18,12 @@ import {DEFAULT_LOCATIONS} from '../../services/locationService';
 import {Place} from '../../services/model';
 import {errorMessage} from '../../services/axiosClient';
 import {vh, vw} from '../../services/styleProps';
+import {useI18n} from '../../i18n';
 
 const LocationPickerScreen = () => {
   const navigation = useNavigation();
   const {setManualLocation, switchToGps, locationError, locating} = useApp();
+  const {t, lang} = useI18n();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Place[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -47,7 +49,7 @@ const LocationPickerScreen = () => {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, lang]);
 
   const choose = async (place: {name: string; latitude: number; longitude: number}) => {
     navigation.goBack();
@@ -60,7 +62,8 @@ const LocationPickerScreen = () => {
   };
 
   const data: {name: string; region?: string; latitude: number; longitude: number}[] =
-    results ?? DEFAULT_LOCATIONS;
+    results ??
+    DEFAULT_LOCATIONS.map(city => ({...city, name: lang === 'en' ? city.nameEn : city.name}));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -69,19 +72,19 @@ const LocationPickerScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           {backIcon(vw(6), vw(6))}
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chọn vị trí</Text>
+        <Text style={styles.headerTitle}>{t('chooseLocation')}</Text>
       </View>
       <TouchableOpacity style={styles.gpsButton} onPress={chooseGps} disabled={locating}>
         {locating ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text style={styles.gpsText}>📍 Dùng vị trí hiện tại (GPS)</Text>
+          <Text style={styles.gpsText}>{t('useCurrentLocation')}</Text>
         )}
       </TouchableOpacity>
       {locationError ? <Text style={styles.error}>{locationError}</Text> : null}
       <TextInput
         style={styles.search}
-        placeholder="Tìm tỉnh, thành phố, phường xã..."
+        placeholder={t('searchPlaceholder')}
         placeholderTextColor="#9AA5B1"
         value={query}
         onChangeText={setQuery}
@@ -89,7 +92,7 @@ const LocationPickerScreen = () => {
       />
       {searching && <ActivityIndicator style={styles.spinner} color="#1F2D54" />}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Text style={styles.section}>{results ? 'Kết quả tìm kiếm' : 'Thành phố lớn'}</Text>
+      <Text style={styles.section}>{results ? t('searchResults') : t('bigCities')}</Text>
       <FlatList
         data={data}
         keyExtractor={(item, i) => `${item.name}-${item.latitude}-${i}`}
@@ -110,7 +113,7 @@ const LocationPickerScreen = () => {
         )}
         ListEmptyComponent={
           results && !searching ? (
-            <Text style={styles.empty}>Không tìm thấy địa điểm phù hợp.</Text>
+            <Text style={styles.empty}>{t('noPlaces')}</Text>
           ) : undefined
         }
       />

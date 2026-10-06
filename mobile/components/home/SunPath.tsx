@@ -2,6 +2,7 @@ import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import Svg, {Circle, Line, Path} from 'react-native-svg';
 import {timeOf} from '../../services/format';
+import {useI18n} from '../../i18n';
 import {vw} from '../../services/styleProps';
 
 interface Props {
@@ -21,6 +22,7 @@ function toEpoch(local: string, utcOffsetSeconds: number) {
 
 /** Arc from sunrise to sunset with the sun at its current position. */
 const SunPath = ({sunrise, sunset, utcOffsetSeconds = 7 * 3600}: Props) => {
+  const {t} = useI18n();
   const width = vw(84);
   const height = vw(24);
   const baseY = height - 8;
@@ -40,9 +42,10 @@ const SunPath = ({sunrise, sunset, utcOffsetSeconds = 7 * 3600}: Props) => {
   // Quadratic curve; its highest point is halfway between baseY and controlY.
   const controlY = -height * 0.55;
   const path = `M ${left} ${baseY} Q ${width / 2} ${controlY} ${right} ${baseY}`;
-  const point = (t: number) => ({
-    x: (1 - t) ** 2 * left + 2 * (1 - t) * t * (width / 2) + t ** 2 * right,
-    y: (1 - t) ** 2 * baseY + 2 * (1 - t) * t * controlY + t ** 2 * baseY,
+  // Point on the curve at fraction f (0 = sunrise, 1 = sunset).
+  const point = (f: number) => ({
+    x: (1 - f) ** 2 * left + 2 * (1 - f) * f * (width / 2) + f ** 2 * right,
+    y: (1 - f) ** 2 * baseY + 2 * (1 - f) * f * controlY + f ** 2 * baseY,
   });
   const sun = progress !== null ? point(progress) : null;
 
@@ -50,11 +53,11 @@ const SunPath = ({sunrise, sunset, utcOffsetSeconds = 7 * 3600}: Props) => {
     <View style={styles.container}>
       <View style={styles.labels}>
         <View>
-          <Text style={styles.label}>Bình minh</Text>
+          <Text style={styles.label}>{t('sunrise')}</Text>
           <Text style={styles.time}>{sunrise ? timeOf(sunrise) : '--:--'}</Text>
         </View>
         <View style={styles.right}>
-          <Text style={styles.label}>Hoàng hôn</Text>
+          <Text style={styles.label}>{t('sunset')}</Text>
           <Text style={styles.time}>{sunset ? timeOf(sunset) : '--:--'}</Text>
         </View>
       </View>

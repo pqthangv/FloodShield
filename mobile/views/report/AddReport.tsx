@@ -24,14 +24,8 @@ import storage from '../../services/storage';
 import locationService from '../../services/locationService';
 import {errorMessage} from '../../services/axiosClient';
 import {PostCategory, WaterLevel} from '../../services/model';
-import {CATEGORY_LABEL, WATER_LEVEL_LABEL} from '../bottomtabs/Report';
-
-const COMMUNITY_RULES =
-  '• Chỉ chia sẻ thông tin thật, do bạn trực tiếp chứng kiến.\n' +
-  '• Không đăng nội dung xúc phạm, quảng cáo, lừa đảo hoặc thông tin cá nhân của người khác.\n' +
-  '• Bài viết, ảnh và vị trí bạn gửi sẽ được hiển thị công khai.\n' +
-  '• Bài viết vi phạm sẽ bị ẩn hoặc xóa.\n' +
-  '• Khi gặp nguy hiểm, hãy gọi 112 / 114 / 115 trước tiên.';
+import {CATEGORIES, WATER_LEVELS, categoryLabel, waterLevelLabel} from '../bottomtabs/Report';
+import {useI18n} from '../../i18n';
 
 const pickerOptions = {
   mediaType: 'photo' as const,
@@ -44,6 +38,7 @@ const pickerOptions = {
 const AddReport = () => {
   const navigation = useNavigation();
   const {location, weather} = useApp();
+  const {t} = useI18n();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<PostCategory>('flood');
   const [waterLevel, setWaterLevel] = useState<WaterLevel | null>(null);
@@ -63,9 +58,9 @@ const AddReport = () => {
     try {
       const pos = await locationService.getCurrentPosition();
       setCoords({...pos, mode: 'gps'});
-      setPlaceName('Vị trí GPS hiện tại');
+      setPlaceName(t('currentGps'));
     } catch (e: any) {
-      Alert.alert('Không lấy được vị trí', e.message);
+      Alert.alert(t('locationFailed'), e.message);
     } finally {
       setLocating(false);
     }
@@ -76,7 +71,7 @@ const AddReport = () => {
       ? await launchCamera(pickerOptions)
       : await launchImageLibrary({...pickerOptions, selectionLimit: 1});
     if (result.errorCode) {
-      Alert.alert('Không thể mở', result.errorMessage || 'Vui lòng thử lại.');
+      Alert.alert(t('cannotOpen'), result.errorMessage || t('pleaseRetry'));
     } else if (result.assets?.[0]) {
       setImage(result.assets[0]);
     }
@@ -88,10 +83,10 @@ const AddReport = () => {
       return true;
     }
     return new Promise<boolean>(resolve =>
-      Alert.alert('Quy tắc cộng đồng', COMMUNITY_RULES, [
-        {text: 'Hủy', style: 'cancel', onPress: () => resolve(false)},
+      Alert.alert(t('communityRulesTitle'), t('communityRules'), [
+        {text: t('cancel'), style: 'cancel', onPress: () => resolve(false)},
         {
-          text: 'Tôi đồng ý',
+          text: t('agree'),
           onPress: async () => {
             await storage.setRulesAccepted();
             resolve(true);
@@ -103,15 +98,15 @@ const AddReport = () => {
 
   const handleSubmit = async () => {
     if (!coords) {
-      Alert.alert('Thiếu vị trí', 'Hãy cho phép truy cập vị trí hoặc chọn vị trí trước.');
+      Alert.alert(t('missingLocation'), t('missingLocationMessage'));
       return;
     }
     if (!name.trim()) {
-      Alert.alert('Thiếu tên', 'Hãy nhập tên hiển thị của bạn.');
+      Alert.alert(t('missingName'), t('missingNameMessage'));
       return;
     }
     if (description.trim().length < 3) {
-      Alert.alert('Thiếu mô tả', 'Hãy mô tả ngắn gọn tình hình tại chỗ của bạn.');
+      Alert.alert(t('missingDescription'), t('missingDescriptionMessage'));
       return;
     }
     if (!(await ensureRulesAccepted())) {
@@ -131,10 +126,10 @@ const AddReport = () => {
         address: coords.mode === 'manual' ? coords.name : null,
         image: image?.uri ? {uri: image.uri, type: image.type, fileName: image.fileName} : null,
       });
-      Alert.alert('Đã gửi', 'Cảm ơn bạn đã chia sẻ thông tin với cộng đồng!');
+      Alert.alert(t('sent'), t('sentMessage'));
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Không gửi được', errorMessage(error));
+      Alert.alert(t('sendFailed'), errorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -150,7 +145,7 @@ const AddReport = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           {backIcon(24, 24, '#2A4B8D')}
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Gửi cảnh báo thực tế</Text>
+        <Text style={styles.headerTitle}>{t('newReportTitle')}</Text>
       </View>
       <KeyboardAvoidingView
         style={styles.flex}
@@ -159,35 +154,35 @@ const AddReport = () => {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled">
-          <Text style={styles.label}>Loại sự việc</Text>
+          <Text style={styles.label}>{t('incidentType')}</Text>
           <View style={styles.chips}>
-            {(Object.keys(CATEGORY_LABEL) as PostCategory[]).map(key => (
+            {CATEGORIES.map((key: PostCategory) => (
               <TouchableOpacity key={key} style={chip(category === key)} onPress={() => setCategory(key)}>
-                <Text style={chipText(category === key)}>{CATEGORY_LABEL[key]}</Text>
+                <Text style={chipText(category === key)}>{categoryLabel(key)}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {category === 'flood' && (
             <>
-              <Text style={styles.label}>Mức nước</Text>
+              <Text style={styles.label}>{t('waterLevel')}</Text>
               <View style={styles.chips}>
-                {(Object.keys(WATER_LEVEL_LABEL) as WaterLevel[]).map(key => (
+                {WATER_LEVELS.map((key: WaterLevel) => (
                   <TouchableOpacity
                     key={key}
                     style={chip(waterLevel === key)}
                     onPress={() => setWaterLevel(waterLevel === key ? null : key)}>
-                    <Text style={chipText(waterLevel === key)}>{WATER_LEVEL_LABEL[key]}</Text>
+                    <Text style={chipText(waterLevel === key)}>{waterLevelLabel(key)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </>
           )}
 
-          <Text style={styles.label}>Mô tả thông tin</Text>
+          <Text style={styles.label}>{t('description')}</Text>
           <TextInput
             style={[styles.input, styles.multiline]}
-            placeholder="Ví dụ: Đường Nguyễn Hữu Cảnh ngập sâu, xe máy không đi được"
+            placeholder={t('descriptionPlaceholder')}
             placeholderTextColor="#9AA5B1"
             value={description}
             onChangeText={setDescription}
@@ -195,52 +190,49 @@ const AddReport = () => {
             maxLength={1000}
           />
 
-          <Text style={styles.label}>Vị trí</Text>
+          <Text style={styles.label}>{t('location')}</Text>
           <View style={styles.locationRow}>
             <Text style={styles.locationText} numberOfLines={2}>
-              📍 {coords ? placeName : 'Chưa có vị trí'}
+              📍 {coords ? placeName : t('noLocation')}
             </Text>
             <TouchableOpacity onPress={locateNow} disabled={locating}>
               {locating ? (
                 <ActivityIndicator color="#2A4B8D" />
               ) : (
-                <Text style={styles.linkText}>Dùng GPS</Text>
+                <Text style={styles.linkText}>{t('useGps')}</Text>
               )}
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>Tên hiển thị</Text>
+          <Text style={styles.label}>{t('displayName')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Tên của bạn"
+            placeholder={t('yourName')}
             placeholderTextColor="#9AA5B1"
             value={name}
             onChangeText={setName}
             maxLength={40}
           />
 
-          <Text style={styles.imageSectionTitle}>Thêm ảnh liên quan</Text>
+          <Text style={styles.imageSectionTitle}>{t('addPhoto')}</Text>
           {image?.uri ? (
             <TouchableOpacity style={styles.imagePickerBox} onPress={() => setImage(null)}>
               <Image source={{uri: image.uri}} style={styles.previewImage} />
-              <Text style={styles.removeImage}>✕ Bỏ ảnh</Text>
+              <Text style={styles.removeImage}>{t('removePhoto')}</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.imageButtons}>
               <TouchableOpacity style={styles.imagePickerBox} onPress={() => handlePick(true)}>
                 {cameraIcon(40, 40, '#B0B0B0')}
-                <Text style={styles.imagePickerText}>Chụp ảnh</Text>
+                <Text style={styles.imagePickerText}>{t('takePhoto')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.imagePickerBox} onPress={() => handlePick(false)}>
                 {imageIcon(40, 40, '#B0B0B0')}
-                <Text style={styles.imagePickerText}>Chọn ảnh</Text>
+                <Text style={styles.imagePickerText}>{t('choosePhoto')}</Text>
               </TouchableOpacity>
             </View>
           )}
-          <Text style={styles.privacyNote}>
-            Bài viết, ảnh và vị trí sẽ hiển thị công khai. Ảnh được xóa thông tin GPS trước khi
-            đăng.
-          </Text>
+          <Text style={styles.privacyNote}>{t('publicNote')}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
       <View style={styles.footer}>
@@ -251,7 +243,7 @@ const AddReport = () => {
           {submitting ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.submitButtonText}>Gửi báo cáo</Text>
+            <Text style={styles.submitButtonText}>{t('submitReport')}</Text>
           )}
         </TouchableOpacity>
       </View>

@@ -22,10 +22,11 @@ import {
   fireFighterIcon,
   rescueIcon,
 } from '../../assets/svgIcon';
+import {MessageKey, translate, useI18n} from '../../i18n';
 
 interface EmergencyContact {
   id: string;
-  name: string;
+  name: MessageKey;
   number: string;
   icon: JSX.Element;
   color: string;
@@ -36,7 +37,7 @@ interface EmergencyContact {
 const emergencyContactsData: EmergencyContact[] = [
   {
     id: '115',
-    name: 'Cấp cứu y tế',
+    name: 'contact115',
     number: '115',
     icon: ambulanceIcon(vw(6.5), vw(6.5)),
     color: '#F0F4C3',
@@ -44,7 +45,7 @@ const emergencyContactsData: EmergencyContact[] = [
   },
   {
     id: '114',
-    name: 'Cứu hỏa, cứu nạn cứu hộ',
+    name: 'contact114',
     number: '114',
     icon: fireFighterIcon(vw(6.5), vw(6.5)),
     color: '#FFCDD2',
@@ -52,7 +53,7 @@ const emergencyContactsData: EmergencyContact[] = [
   },
   {
     id: '113',
-    name: 'Công an',
+    name: 'contact113',
     number: '113',
     icon: copIcon(vw(6.5), vw(6.5)),
     color: '#FFCCBC',
@@ -60,7 +61,7 @@ const emergencyContactsData: EmergencyContact[] = [
   },
   {
     id: '112',
-    name: 'Tìm kiếm cứu nạn',
+    name: 'contact112',
     number: '112',
     icon: rescueIcon(vw(6.5), vw(6.5)),
     color: '#FFF9C4',
@@ -68,7 +69,7 @@ const emergencyContactsData: EmergencyContact[] = [
   },
   {
     id: '111',
-    name: 'Bảo vệ trẻ em',
+    name: 'contact111',
     number: '111',
     icon: contactIcon(vw(6.5), vw(6.5)),
     color: '#E1BEE7',
@@ -84,12 +85,13 @@ const SLIDE_TO_CALL_THRESHOLD = SLIDE_FULL_RANGE * 0.6;
 const callNumber = (phoneNumber: string) => Linking.openURL(`tel:${phoneNumber}`);
 
 const confirmCall = (item: EmergencyContact) =>
-  Alert.alert(`Gọi ${item.number}?`, item.name, [
-    {text: 'Hủy', style: 'cancel'},
-    {text: 'Gọi', onPress: () => callNumber(item.number)},
+  Alert.alert(translate('callNumberQ', {number: item.number}), translate(item.name), [
+    {text: translate('cancel'), style: 'cancel'},
+    {text: translate('call'), onPress: () => callNumber(item.number)},
   ]);
 
 const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
+  const {t} = useI18n();
   const translateX = useRef(new Animated.Value(0)).current;
 
   const panResponder = useMemo(
@@ -122,14 +124,14 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
       onPress={() => confirmCall(item)}
       style={[styles.itemContainer, {backgroundColor: item.color}]}
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, số ${item.number}. Nhấn để gọi`}>
+      accessibilityLabel={t('contactA11y', {name: t(item.name), number: item.number})}>
       <View style={styles.staticContentContainer}>
         <View style={styles.infoContainer}>
-          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.itemName}>{t(item.name)}</Text>
           <Text style={styles.itemNumber}>{item.number}</Text>
         </View>
         <View style={styles.slidePromptContainer}>
-          <Text style={styles.slidePromptText}>{'Trượt để gọi >>>'}</Text>
+          <Text style={styles.slidePromptText}>{t('slideToCall')}</Text>
         </View>
       </View>
 
@@ -148,6 +150,7 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
 
 const EmergencyContactsScreen = () => {
   const navigation = useNavigation();
+  const {t} = useI18n();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -156,7 +159,7 @@ const EmergencyContactsScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           {backIcon(vw(6), vw(6))}
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Liên lạc khẩn cấp</Text>
+        <Text style={styles.headerTitle}>{t('emergencyContacts')}</Text>
       </View>
       <FlatList
         data={emergencyContactsData}
@@ -165,10 +168,7 @@ const EmergencyContactsScreen = () => {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         ListFooterComponent={
-          <Text style={styles.footer}>
-            Các số khẩn cấp gọi miễn phí từ mọi điện thoại. Hãy nói rõ địa chỉ, tình
-            trạng và số người cần hỗ trợ.
-          </Text>
+          <Text style={styles.footer}>{t('emergencyFooter')}</Text>
         }
       />
     </SafeAreaView>

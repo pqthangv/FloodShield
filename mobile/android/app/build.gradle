@@ -91,9 +91,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.pqt_mobile"
+    namespace "com.floodshield.app"
     defaultConfig {
-        applicationId "com.pqt_mobile"
+        applicationId "com.floodshield.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Increase versionCode for every upload to Google Play.

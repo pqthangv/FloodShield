@@ -10,7 +10,8 @@ import React, {
 import {AppState} from 'react-native';
 import disasterAPI from '../apis/disasterAPI';
 import {errorMessage, initApiBaseUrl} from '../services/axiosClient';
-import locationService from '../services/locationService';
+import locationService, {DEFAULT_LOCATIONS} from '../services/locationService';
+import {getLanguage, translate, useI18n} from '../i18n';
 import {Alert, WeatherData} from '../services/model';
 import storage, {SavedLocation} from '../services/storage';
 import {
@@ -107,7 +108,7 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
       const coords = await locationService.getCurrentPosition();
       await applyLocation({...coords, mode: 'gps'});
     } catch (e: any) {
-      setLocationError(e?.message || 'Không lấy được vị trí.');
+      setLocationError(e?.message || translate('errLocationShort'));
       // Keep showing data for the last known position.
       if (locationRef.current) {
         await loadData(locationRef.current);
@@ -140,6 +141,20 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
       }
     })();
   }, [applyLocation, locateWithGps]);
+
+  // The API returns alerts and weather texts in the app's language: reload them when the user
+  // switches language, and tell the background checker.
+  const {lang} = useI18n();
+  const firstLang = useRef(lang);
+  useEffect(() => {
+    const loc = locationRef.current;
+    if (lang === firstLang.current || !loc) {
+      return;
+    }
+    firstLang.current = lang;
+    syncAlertScheduler(loc.latitude, loc.longitude, notificationsRef.current);
+    loadData(loc);
+  }, [lang, loadData]);
 
   // Refresh when the app comes back to the foreground after a while.
   useEffect(() => {
@@ -235,7 +250,12 @@ export function locationLabel(
   weather: WeatherData | null,
 ) {
   if (location?.mode === 'manual' && location.name) {
+    // Built-in cities have a name in each language.
+    const city = DEFAULT_LOCATIONS.find(c => c.name === location.name || c.nameEn === location.name);
+    if (city) {
+      return getLanguage() === 'en' ? city.nameEn : city.name;
+    }
     return location.name;
   }
-  return weather?.location.display || weather?.location.name || 'Vị trí của bạn';
+  return weather?.location.display || weather?.location.name || translate('yourLocation');
 }

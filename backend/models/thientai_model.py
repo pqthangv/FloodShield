@@ -1,4 +1,3 @@
-# filepath: c:\\ZTalJaZ\\AS\\Projects\\PhungQuangThang\\PQT_API\\models\\thientai_model.py
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, ConfigDict

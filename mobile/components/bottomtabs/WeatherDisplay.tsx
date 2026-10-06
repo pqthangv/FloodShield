@@ -10,7 +10,8 @@ import {
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {vw, vh} from '../../services/styleProps';
 import {locationLabel, useApp} from '../../context/AppContext';
-import {longDateVi, timeOf, weatherImage} from '../../services/format';
+import {longDate, timeOf, weatherImage} from '../../services/format';
+import {useI18n} from '../../i18n';
 
 interface WeatherDisplayProps {
   textColor: string;
@@ -24,6 +25,7 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
   const navigation = useNavigation<NavigationProp<any>>();
   const {weather, weatherError, location, locationError, locating, loading, refresh} =
     useApp();
+  const {t} = useI18n();
 
   const dynamicStyles = StyleSheet.create({
     dateText: {
@@ -82,7 +84,7 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
       <View style={container}>
         <ActivityIndicator size="large" color={textColor} />
         <Text style={[dynamicStyles.dateText, styles.loadingText]}>
-          {locating ? 'Đang xác định vị trí...' : 'Đang tải dữ liệu thời tiết...'}
+          {locating ? t('locating') : t('loadingWeather')}
         </Text>
       </View>
     );
@@ -91,19 +93,19 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
   if (!weather) {
     return (
       <View style={container}>
-        <Text style={dynamicStyles.dateText}>{longDateVi()}</Text>
+        <Text style={dynamicStyles.dateText}>{longDate()}</Text>
         <Text style={dynamicStyles.weatherConditionText}>
           {!location
-            ? locationError || 'Chưa có vị trí'
-            : weatherError || 'Không thể tải dữ liệu thời tiết'}
+            ? locationError || t('noLocation')
+            : weatherError || t('weatherFailed')}
         </Text>
         {!location ? (
           <Text style={dynamicStyles.linkText} onPress={openPicker}>
-            Chọn vị trí của bạn
+            {t('chooseYourLocation')}
           </Text>
         ) : (
           <Text style={dynamicStyles.linkText} onPress={refresh}>
-            Nhấn để thử lại
+            {t('tapToRetry')}
           </Text>
         )}
       </View>
@@ -113,7 +115,7 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
   const {current} = weather;
   return (
     <View style={container}>
-      <Text style={dynamicStyles.dateText}>{longDateVi()}</Text>
+      <Text style={dynamicStyles.dateText}>{longDate()}</Text>
 
       <View style={styles.weatherSection}>
         <Image source={weatherImage(current.icon)} style={styles.weatherIcon} />
@@ -131,7 +133,7 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
         style={styles.locationSection}
         onPress={openPicker}
         accessibilityRole="button"
-        accessibilityLabel="Đổi vị trí">
+        accessibilityLabel={t('changeLocation')}>
         <Text style={dynamicStyles.locationIcon}>📍</Text>
         <Text style={dynamicStyles.locationText} numberOfLines={1}>
           {locationLabel(location, weather)}
@@ -141,28 +143,28 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
 
       <View style={styles.detailsSection}>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>CẬP NHẬT</Text>
+          <Text style={dynamicStyles.detailLabel}>{t('updated')}</Text>
           <Text style={dynamicStyles.detailValue}>{timeOf(current.time)}</Text>
         </View>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>GIÓ</Text>
+          <Text style={dynamicStyles.detailLabel}>{t('wind')}</Text>
           <Text style={dynamicStyles.detailValue}>
             {current.wind_speed} km/h
           </Text>
         </View>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>CẢM THẤY</Text>
+          <Text style={dynamicStyles.detailLabel}>{t('feelsLike')}</Text>
           <Text style={dynamicStyles.detailValue}>
             {Math.round(current.apparent_temperature)}°
           </Text>
         </View>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>ĐỘ ẨM</Text>
+          <Text style={dynamicStyles.detailLabel}>{t('humidity')}</Text>
           <Text style={dynamicStyles.detailValue}>{current.humidity}%</Text>
         </View>
       </View>
       <Text style={[dynamicStyles.detailLabel, styles.attribution]}>
-        Dữ liệu thời tiết: Open-Meteo.com
+        {t('weatherAttribution')}
       </Text>
     </View>
   );

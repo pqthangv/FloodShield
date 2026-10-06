@@ -1,4 +1,3 @@
-# filepath: c:\\ZTalJaZ\\AS\\Projects\\PhungQuangThang\\PQT_API\\models\\action_model.py
 from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel, ConfigDict

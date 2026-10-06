@@ -1,43 +1,45 @@
 """Weather forecast from Open-Meteo (https://open-meteo.com, free, no API key)."""
 
 from datetime import datetime, timezone
+from i18n import Lang
 from services.cache import cache
 from services.geo import snap
 from services.http import get_client
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
-# WMO weather interpretation codes -> (Vietnamese text, icon key understood by the app)
-WMO_CODES: dict[int, tuple[str, str]] = {
-    0: ("Trời quang", "clear"),
-    1: ("Ít mây", "clear"),
-    2: ("Có mây", "cloudy"),
-    3: ("Nhiều mây", "cloudy"),
-    45: ("Sương mù", "cloudy"),
-    48: ("Sương mù đóng băng", "cloudy"),
-    51: ("Mưa phùn nhẹ", "drizzle"),
-    53: ("Mưa phùn", "drizzle"),
-    55: ("Mưa phùn dày", "drizzle"),
-    56: ("Mưa phùn lạnh", "drizzle"),
-    57: ("Mưa phùn lạnh dày", "drizzle"),
-    61: ("Mưa nhỏ", "drizzle"),
-    63: ("Mưa vừa", "rain"),
-    65: ("Mưa to", "rain"),
-    66: ("Mưa lạnh", "rain"),
-    67: ("Mưa lạnh to", "rain"),
-    71: ("Tuyết nhẹ", "snow"),
-    73: ("Tuyết", "snow"),
-    75: ("Tuyết dày", "snow"),
-    77: ("Mưa tuyết", "snow"),
-    80: ("Mưa rào nhẹ", "drizzle"),
-    81: ("Mưa rào", "rain"),
-    82: ("Mưa rào rất to", "rain"),
-    85: ("Mưa tuyết nhẹ", "snow"),
-    86: ("Mưa tuyết to", "snow"),
-    95: ("Dông", "thunderstorm"),
-    96: ("Dông kèm mưa đá", "thunderstorm"),
-    99: ("Dông kèm mưa đá lớn", "thunderstorm"),
+# WMO weather interpretation codes -> (Vietnamese, English, icon key understood by the app)
+WMO_CODES: dict[int, tuple[str, str, str]] = {
+    0: ("Trời quang", "Clear sky", "clear"),
+    1: ("Ít mây", "Mostly clear", "clear"),
+    2: ("Có mây", "Partly cloudy", "cloudy"),
+    3: ("Nhiều mây", "Overcast", "cloudy"),
+    45: ("Sương mù", "Fog", "cloudy"),
+    48: ("Sương mù đóng băng", "Freezing fog", "cloudy"),
+    51: ("Mưa phùn nhẹ", "Light drizzle", "drizzle"),
+    53: ("Mưa phùn", "Drizzle", "drizzle"),
+    55: ("Mưa phùn dày", "Dense drizzle", "drizzle"),
+    56: ("Mưa phùn lạnh", "Freezing drizzle", "drizzle"),
+    57: ("Mưa phùn lạnh dày", "Dense freezing drizzle", "drizzle"),
+    61: ("Mưa nhỏ", "Light rain", "drizzle"),
+    63: ("Mưa vừa", "Moderate rain", "rain"),
+    65: ("Mưa to", "Heavy rain", "rain"),
+    66: ("Mưa lạnh", "Freezing rain", "rain"),
+    67: ("Mưa lạnh to", "Heavy freezing rain", "rain"),
+    71: ("Tuyết nhẹ", "Light snow", "snow"),
+    73: ("Tuyết", "Snow", "snow"),
+    75: ("Tuyết dày", "Heavy snow", "snow"),
+    77: ("Mưa tuyết", "Snow grains", "snow"),
+    80: ("Mưa rào nhẹ", "Light showers", "drizzle"),
+    81: ("Mưa rào", "Showers", "rain"),
+    82: ("Mưa rào rất to", "Violent showers", "rain"),
+    85: ("Mưa tuyết nhẹ", "Light snow showers", "snow"),
+    86: ("Mưa tuyết to", "Heavy snow showers", "snow"),
+    95: ("Dông", "Thunderstorm", "thunderstorm"),
+    96: ("Dông kèm mưa đá", "Thunderstorm with hail", "thunderstorm"),
+    99: ("Dông kèm mưa đá lớn", "Thunderstorm with heavy hail", "thunderstorm"),
 }
+_UNKNOWN = ("Không rõ", "Unknown", "cloudy")
 
 CURRENT_VARS = (
     "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,"
@@ -54,10 +56,10 @@ DAILY_VARS = (
 )
 
 
-def describe(code) -> tuple[str, str]:
-    if code is None:
-        return ("Không rõ", "cloudy")
-    return WMO_CODES.get(int(code), ("Không rõ", "cloudy"))
+def describe(code, lang: Lang = "vi") -> tuple[str, str]:
+    """(text, icon) for a WMO weather code."""
+    vi, en, icon = WMO_CODES.get(int(code), _UNKNOWN) if code is not None else _UNKNOWN
+    return (en if lang == "en" else vi), icon
 
 
 def _round(value, digits=0):
@@ -90,9 +92,9 @@ async def fetch_raw_forecast(lat: float, lon: float) -> dict:
     return await cache.get_or_set(f"forecast:{lat_s}:{lon_s}", 15 * 60, load)
 
 
-def normalize_forecast(raw: dict, hours: int = 48) -> dict:
+def normalize_forecast(raw: dict, hours: int = 48, lang: Lang = "vi") -> dict:
     cur = raw.get("current", {})
-    text, icon = describe(cur.get("weather_code"))
+    text, icon = describe(cur.get("weather_code"), lang)
     current = {
         "time": cur.get("time"),
         "temperature": _round(cur.get("temperature_2m"), 1),
@@ -114,7 +116,7 @@ def normalize_forecast(raw: dict, hours: int = 48) -> dict:
     now_hour = (cur.get("time") or "")[:13]
     start = next((i for i, t in enumerate(times) if t[:13] >= now_hour), 0) if now_hour else 0
     for i in range(start, min(start + hours, len(times))):
-        text, icon = describe(h["weather_code"][i])
+        text, icon = describe(h["weather_code"][i], lang)
         hourly.append(
             {
                 "time": times[i],
@@ -131,7 +133,7 @@ def normalize_forecast(raw: dict, hours: int = 48) -> dict:
     daily = []
     d = raw.get("daily", {})
     for i, date in enumerate(d.get("time", [])):
-        text, icon = describe(d["weather_code"][i])
+        text, icon = describe(d["weather_code"][i], lang)
         daily.append(
             {
                 "date": date,

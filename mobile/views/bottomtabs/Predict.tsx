@@ -6,12 +6,14 @@ import CustomStatusBar from '../../components/CustomStatusBar';
 import WeatherDisplay from '../../components/bottomtabs/WeatherDisplay';
 import WeatherTabView, {PredictTab} from '../../components/predict/WeatherTabView';
 import {useApp} from '../../context/AppContext';
+import {useI18n} from '../../i18n';
 
 type PredictRoute = RouteProp<{Predict: {tab?: PredictTab} | undefined}, 'Predict'>;
 
 const Predict = () => {
   const route = useRoute<PredictRoute>();
   const {refresh} = useApp();
+  const {t} = useI18n();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = React.useCallback(async () => {
@@ -31,7 +33,7 @@ const Predict = () => {
             onRefresh={onRefresh}
             colors={['#1F2D54']} // Android
             tintColor="#FFFFFF" // iOS - white spinner
-            title="Đang tải lại..." // iOS
+            title={t('reloading')} // iOS
             titleColor="#FFFFFF" // iOS - white text
           />
         }>

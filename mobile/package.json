@@ -1,5 +1,5 @@
 {
-  "name": "PQT_Mobile",
+  "name": "floodshield",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -56,7 +56,7 @@
     "type": "modules",
     "jsSrcsDir": "specs",
     "android": {
-      "javaPackageName": "com.pqt_mobile.specs"
+      "javaPackageName": "com.floodshield.app.specs"
     }
   }
 }

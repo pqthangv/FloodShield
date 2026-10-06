@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from typing import Optional
+from i18n import MESSAGES, Lang, t
 from services.cache import cache
 from services.geo import bounding_box, haversine_km, snap
 from services.http import get_client
@@ -16,19 +17,12 @@ OVERPASS_URLS = [
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 
-# Places that local authorities in Vietnam commonly use as evacuation points.
-KIND_LABELS = {
-    "assembly_point": "Điểm tập kết sơ tán",
-    "shelter": "Nhà tránh trú",
-    "school": "Trường học",
-    "university": "Trường đại học",
-    "college": "Trường cao đẳng",
-    "community_centre": "Nhà văn hóa",
-    "townhall": "Trụ sở UBND",
-    "hospital": "Bệnh viện",
-    "fire_station": "Đội PCCC",
-    "police": "Công an",
-}
+
+def kind_label(kind: str, lang: Lang, fallback: str = "kind_other") -> str:
+    """Label for a kind of evacuation place (school, ward office...), see i18n.py."""
+    key = f"kind_{kind}"
+    return t(lang, key if key in MESSAGES else fallback)
+
 
 # Nominatim allows at most one request per second.
 _nominatim_lock = asyncio.Lock()
@@ -69,7 +63,9 @@ def _address(tags: dict) -> Optional[str]:
     return text or None
 
 
-async def find_shelters(lat: float, lon: float, radius_km: float) -> list[dict]:
+async def find_shelters(lat: float, lon: float, radius_km: float, lang: Lang = "vi") -> list[dict]:
+    """Evacuation places from OpenStreetMap: schools, community centres, ward offices...
+    (the kinds local authorities in Vietnam commonly use)."""
     lat_s, lon_s = snap(lat, 0.02), snap(lon, 0.02)
     radius_m = int(radius_km * 1000)
 
@@ -101,9 +97,9 @@ async def find_shelters(lat: float, lon: float, radius_km: float) -> list[dict]:
                 {
                     "id": f"osm-{el['type']}-{el['id']}",
                     "name": name,
+                    "name_en": tags.get("name:en"),
                     "address": _address(tags),
                     "kind": kind,
-                    "kind_label": KIND_LABELS.get(kind, "Nơi trú ẩn"),
                     "latitude": p_lat,
                     "longitude": p_lon,
                     "phone": tags.get("phone") or tags.get("contact:phone"),
@@ -120,12 +116,18 @@ async def find_shelters(lat: float, lon: float, radius_km: float) -> list[dict]:
     for p in places:
         distance = haversine_km(lat, lon, p["latitude"], p["longitude"])
         if distance <= radius_km:
-            result.append({**p, "distance_km": round(distance, 2)})
+            place = {k: v for k, v in p.items() if k != "name_en"}
+            if lang == "en" and p.get("name_en"):
+                place["name"] = p["name_en"]
+            place["kind_label"] = kind_label(p["kind"], lang)
+            place["distance_km"] = round(distance, 2)
+            result.append(place)
     return result
 
 
-async def reverse_geocode(lat: float, lon: float) -> Optional[dict]:
-    """Ward / district / province for a coordinate, in Vietnamese. Best effort."""
+async def reverse_geocode(lat: float, lon: float, lang: Lang = "vi") -> Optional[dict]:
+    """Ward / district / province for a coordinate. Best effort. Most places in Vietnam have no
+    English name in OpenStreetMap, so names usually stay Vietnamese in English too."""
     lat_s, lon_s = snap(lat, 0.01), snap(lon, 0.01)
 
     async def load():
@@ -137,7 +139,7 @@ async def reverse_geocode(lat: float, lon: float) -> Optional[dict]:
                     "lon": lon_s,
                     "format": "jsonv2",
                     "zoom": 16,
-                    "accept-language": "vi",
+                    "accept-language": lang,
                 },
                 timeout=10,
             )
@@ -164,20 +166,20 @@ async def reverse_geocode(lat: float, lon: float) -> Optional[dict]:
             if part and part not in seen:
                 seen.add(part)
                 display.append(part)
-        return {"name": name or "Vị trí của bạn", "region": region, "display": ", ".join(display)}
+        return {"name": name or t(lang, "your_location"), "region": region, "display": ", ".join(display)}
 
     try:
-        return await cache.get_or_set(f"rev:{lat_s}:{lon_s}", 30 * 24 * 3600, load)
+        return await cache.get_or_set(f"rev:{lang}:{lat_s}:{lon_s}", 30 * 24 * 3600, load)
     except Exception as e:
         logger.warning(f"Reverse geocoding failed: {e}")
         return None
 
 
-async def search_places(query: str) -> list[dict]:
+async def search_places(query: str, lang: Lang = "vi") -> list[dict]:
     async def load():
         resp = await get_client().get(
             GEOCODING_URL,
-            params={"name": query, "count": 10, "language": "vi", "format": "json"},
+            params={"name": query, "count": 10, "language": lang, "format": "json"},
         )
         resp.raise_for_status()
         results = resp.json().get("results", []) or []
@@ -193,4 +195,4 @@ async def search_places(query: str) -> list[dict]:
             for r in results
         ]
 
-    return await cache.get_or_set(f"search:{query.lower().strip()}", 24 * 3600, load)
+    return await cache.get_or_set(f"search:{lang}:{query.lower().strip()}", 24 * 3600, load)

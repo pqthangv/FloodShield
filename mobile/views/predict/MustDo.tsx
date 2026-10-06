@@ -16,6 +16,7 @@ import disasterAPI from '../../apis/disasterAPI';
 import {Dissater} from '../../services/model';
 import storage from '../../services/storage';
 import {errorMessage} from '../../services/axiosClient';
+import {useI18n} from '../../i18n';
 import type {RootStackParamList} from '../../App';
 
 type MustDoScreenRouteProp = RouteProp<RootStackParamList, 'MustDo'>;
@@ -30,6 +31,7 @@ const MustDoScreen = () => {
   const route = useRoute<MustDoScreenRouteProp>();
   const navigation = useNavigation();
   const {disasterTypeId, title} = route.params;
+  const {t, lang} = useI18n();
   const [disaster, setDisaster] = useState<Dissater | null>(null);
   const [done, setDone] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +50,10 @@ const MustDoScreen = () => {
     }
   }, [disasterTypeId]);
 
+  // Reload when the language changes: texts come from the API in the current language.
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, lang]);
 
   const toggle = (actionId: number) => {
     const next = done.includes(actionId)
@@ -67,8 +70,11 @@ const MustDoScreen = () => {
 
   const actions = disaster?.actions || [];
   const screenTitle = disaster
-    ? `${actions.length} việc cần làm khi có ${disaster.name.toLowerCase()}`
-    : 'Kỹ năng ứng phó';
+    ? t('thingsToDo', {
+        count: actions.length,
+        name: lang === 'vi' ? disaster.name.toLowerCase() : disaster.name,
+      })
+    : t('responseSkills');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -77,22 +83,24 @@ const MustDoScreen = () => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.headerButtonLeft}
-          accessibilityLabel="Quay lại">
+          accessibilityLabel={t('back')}>
           {backIcon(vw(7), vw(7), '#1F2D54')}
         </TouchableOpacity>
         {done.length > 0 && (
           <TouchableOpacity onPress={reset} style={styles.headerButtonRight}>
-            <Text style={styles.headerButtonText}>Đặt lại</Text>
+            <Text style={styles.headerButtonText}>{t('reset')}</Text>
           </TouchableOpacity>
         )}
       </View>
       <ScrollView style={styles.container}>
         <Text style={styles.headerTitle}>{screenTitle}</Text>
-        {title ? <Text style={styles.context}>Liên quan: {title}</Text> : null}
+        {title ? <Text style={styles.context}>{t('relatedTo', {title})}</Text> : null}
         {disaster && (
           <Text style={styles.progress}>
-            Đã hoàn thành {done.filter(id => actions.some(a => a.action_id === id)).length}/
-            {actions.length}
+            {t('progress', {
+              done: done.filter(id => actions.some(a => a.action_id === id)).length,
+              total: actions.length,
+            })}
           </Text>
         )}
         {!disaster && !error && (
@@ -100,7 +108,7 @@ const MustDoScreen = () => {
         )}
         {error && (
           <Text style={[styles.itemDescription, styles.noItemsText]} onPress={load}>
-            {error} Nhấn để thử lại.
+            {error} {t('tapToRetry')}
           </Text>
         )}
         {actions.map(item => {

@@ -21,6 +21,7 @@ import EmergencyContactsScreen from './components/home/EmergencyContactsScreen';
 import SettingsScreen from './views/settings/Settings';
 import LocationPickerScreen from './views/settings/LocationPicker';
 import {AppProvider} from './context/AppContext';
+import {I18nProvider, useI18n} from './i18n';
 
 export type RootStackParamList = {
   MainTabs: {screen?: string; params?: object} | undefined;
@@ -37,6 +38,7 @@ const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
+  const {t} = useI18n();
   const createTabBarIcon =
     (iconComponent: Function) =>
     ({color, focused}: {color: string; focused: boolean}) => {
@@ -84,22 +86,22 @@ const TabNavigator = () => {
       <Tab.Screen
         name="Home"
         component={Home}
-        options={{tabBarIcon: createTabBarIcon(homeIcon), title: 'Trang chủ'}}
+        options={{tabBarIcon: createTabBarIcon(homeIcon), title: t('tabHome')}}
       />
       <Tab.Screen
         name="Predict"
         component={Predict}
-        options={{tabBarIcon: createTabBarIcon(predictIcon), title: 'Dự báo'}}
+        options={{tabBarIcon: createTabBarIcon(predictIcon), title: t('tabForecast')}}
       />
       <Tab.Screen
         name="Abilities"
         component={Abilities}
-        options={{tabBarIcon: createTabBarIcon(menuIcon), title: 'Kỹ năng'}}
+        options={{tabBarIcon: createTabBarIcon(menuIcon), title: t('tabSkills')}}
       />
       <Tab.Screen
         name="Report"
         component={Report}
-        options={{tabBarIcon: createTabBarIcon(reportIcon), title: 'Cộng đồng'}}
+        options={{tabBarIcon: createTabBarIcon(reportIcon), title: t('tabCommunity')}}
       />
     </Tab.Navigator>
   );
@@ -108,30 +110,32 @@ const TabNavigator = () => {
 const App = () => {
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName="MainTabs"
-            screenOptions={{headerShown: false}}>
-            <Stack.Screen name="MainTabs" component={TabNavigator} />
-            <Stack.Screen name="MustDo" component={MustDoScreen} />
-            <Stack.Screen name="AddReport" component={AddReport} />
-            <Stack.Screen
-              name="NearbyShelters"
-              component={NearbySheltersScreen}
-            />
-            <Stack.Screen
-              name="EmergencyContacts"
-              component={EmergencyContactsScreen}
-            />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen
-              name="LocationPicker"
-              component={LocationPickerScreen}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </AppProvider>
+      <I18nProvider>
+        <AppProvider>
+          <NavigationContainer>
+            <Stack.Navigator
+              initialRouteName="MainTabs"
+              screenOptions={{headerShown: false}}>
+              <Stack.Screen name="MainTabs" component={TabNavigator} />
+              <Stack.Screen name="MustDo" component={MustDoScreen} />
+              <Stack.Screen name="AddReport" component={AddReport} />
+              <Stack.Screen
+                name="NearbyShelters"
+                component={NearbySheltersScreen}
+              />
+              <Stack.Screen
+                name="EmergencyContacts"
+                component={EmergencyContactsScreen}
+              />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen
+                name="LocationPicker"
+                component={LocationPickerScreen}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </AppProvider>
+      </I18nProvider>
     </SafeAreaProvider>
   );
 };

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">FloodShield</string>
+    <string name="alert_channel_name">Disaster alerts</string>
+    <string name="alert_channel_description">Flood, heavy rain, storm and other disaster alerts for your location</string>
 </resources>

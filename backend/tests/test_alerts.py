@@ -111,3 +111,20 @@ def test_flood_classification():
     assert flood.classify(160, 200, thr) == "high"
     assert flood.classify(210, 250, thr) == "severe"
     assert flood.classify(210, 250, None) == "unknown"
+
+
+def test_gdacs_alerts_in_english():
+    events = [{
+        "geometry": {"coordinates": [111.3, 16.5]},
+        "properties": {"eventtype": "TC", "eventid": 1, "alertlevel": "Orange", "eventname": "YAGI-26"},
+    }]
+    vi = alerts.gdacs_alerts(events, 16.46, 107.59)[0]
+    en = alerts.gdacs_alerts(events, 16.46, 107.59, "en")[0]
+    assert en["id"] == vi["id"]
+    assert en["title"] == "Tropical cyclone YAGI-26"
+    assert en["details"][0]["label"] == "Distance"
+
+
+def test_every_vietnamese_message_has_english():
+    from i18n import MESSAGES
+    assert all(entry.get("vi") and entry.get("en") for entry in MESSAGES.values())

@@ -1,4 +1,4 @@
-package com.pqt_mobile.alerts
+package com.floodshield.app.alerts
 
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -8,7 +8,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableArray
-import com.pqt_mobile.specs.NativeAlertSchedulerSpec
+import com.floodshield.app.specs.NativeAlertSchedulerSpec
 import java.util.concurrent.TimeUnit
 
 /** JS entry point for the background alert checker (specs/NativeAlertScheduler.ts). */
@@ -18,11 +18,18 @@ class AlertSchedulerModule(reactContext: ReactApplicationContext) :
   private val prefs = AlertPrefs(reactContext)
   private val workManager = WorkManager.getInstance(reactContext)
 
-  override fun configure(apiBaseUrl: String, latitude: Double, longitude: Double, enabled: Boolean) {
+  override fun configure(
+      apiBaseUrl: String,
+      latitude: Double,
+      longitude: Double,
+      enabled: Boolean,
+      language: String,
+  ) {
     prefs.apiBaseUrl = apiBaseUrl.trimEnd('/')
     prefs.latitude = latitude
     prefs.longitude = longitude
     prefs.enabled = enabled
+    prefs.language = language
     AlertWorker.createChannel(reactApplicationContext)
 
     if (!enabled) {

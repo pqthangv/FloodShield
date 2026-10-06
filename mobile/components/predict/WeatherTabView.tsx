@@ -5,18 +5,20 @@ import ThoiTietTab from './ThoiTietTab';
 import CanhBaoTab from './CanhBaoTab';
 import LuSongTab from './LuSongTab';
 import {useApp} from '../../context/AppContext';
+import {MessageKey, useI18n} from '../../i18n';
 
 export type PredictTab = 'THOI_TIET' | 'LU_SONG' | 'CANH_BAO';
 
-const TABS: {key: PredictTab; label: string}[] = [
-  {key: 'THOI_TIET', label: 'THỜI TIẾT'},
-  {key: 'LU_SONG', label: 'LŨ SÔNG'},
-  {key: 'CANH_BAO', label: 'CẢNH BÁO'},
+const TABS: {key: PredictTab; label: MessageKey}[] = [
+  {key: 'THOI_TIET', label: 'tabWeather'},
+  {key: 'LU_SONG', label: 'tabRiver'},
+  {key: 'CANH_BAO', label: 'tabAlerts'},
 ];
 
 const WeatherTabView = ({initialTab}: {initialTab?: PredictTab}) => {
   const [activeTab, setActiveTab] = useState<PredictTab>(initialTab || 'THOI_TIET');
   const {alerts} = useApp();
+  const {t} = useI18n();
 
   useEffect(() => {
     if (initialTab) {
@@ -33,7 +35,7 @@ const WeatherTabView = ({initialTab}: {initialTab?: PredictTab}) => {
             style={[styles.tabButton, activeTab === tab.key && styles.activeTabButton]}
             onPress={() => setActiveTab(tab.key)}>
             <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>
-              {tab.label}
+              {t(tab.label)}
               {tab.key === 'CANH_BAO' && alerts.length > 0 ? ` (${alerts.length})` : ''}
             </Text>
           </TouchableOpacity>

@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from i18n import Lang, short_date, t
 from models.river_model import RiverThreshold
 from services.cache import cache
 from services.geo import haversine_km, snap
@@ -38,14 +39,8 @@ logger = logging.getLogger(__name__)
 _budget = {"day": None, "used": 0}
 _threshold_locks: dict[str, asyncio.Lock] = {}
 
-RISK_LABELS = {
-    "none": "Bình thường",
-    "watch": "Theo dõi",
-    "moderate": "Cảnh báo lũ",
-    "high": "Nguy hiểm",
-    "severe": "Rất nguy hiểm",
-    "unknown": "Không có dữ liệu",
-}
+# Return period (years) of the flood level each risk level exceeds.
+_RISK_YEARS = {"moderate": 2, "high": 5, "severe": 20}
 
 
 def gumbel_thresholds(annual_maxima: list[float]) -> Optional[dict]:
@@ -240,7 +235,7 @@ async def _forecast(cell_lat: float, cell_lon: float) -> dict:
     return await cache.get_or_set(f"flood-fc:{cell_lat}:{cell_lon}", 3 * 3600, load)
 
 
-async def get_flood_outlook(db: AsyncSession, lat: float, lon: float) -> dict:
+async def get_flood_outlook(db: AsyncSession, lat: float, lon: float, lang: Lang = "vi") -> dict:
     cell = await _find_river_cell(lat, lon)
     if not cell:
         return {
@@ -249,8 +244,8 @@ async def get_flood_outlook(db: AsyncSession, lat: float, lon: float) -> dict:
             "forecast": [],
             "peak": None,
             "risk": "unknown",
-            "risk_label": RISK_LABELS["unknown"],
-            "summary": "Không tìm thấy sông lớn trong bán kính khoảng 15 km quanh vị trí của bạn.",
+            "risk_label": t(lang, "risk_unknown"),
+            "summary": t(lang, "flood_no_river"),
         }
 
     c_lat, c_lon = cell["latitude"], cell["longitude"]
@@ -281,15 +276,18 @@ async def get_flood_outlook(db: AsyncSession, lat: float, lon: float) -> dict:
 
     distance = round(haversine_km(lat, lon, c_lat, c_lon), 1)
     if risk == "unknown":
-        summary = "Chưa đủ dữ liệu lịch sử để đánh giá nguy cơ lũ cho sông gần bạn."
+        summary = t(lang, "flood_no_history")
     elif risk == "none":
-        summary = "Mực nước sông gần bạn dự kiến ở mức bình thường trong 10 ngày tới."
+        summary = t(lang, "flood_normal")
     elif risk == "watch":
-        summary = "Có khả năng (thấp) lưu lượng sông vượt mức báo động. Tiếp tục theo dõi."
+        summary = t(lang, "flood_watch")
     else:
-        summary = (
-            f"Lưu lượng sông dự kiến đạt khoảng {peak['discharge']:,.0f} m³/s vào ngày "
-            f"{_vn_date(peak['date'])}, vượt mức lũ chu kỳ {_period_text(risk)}."
+        summary = t(
+            lang,
+            "flood_exceeds",
+            flow=f"{peak['discharge']:,.0f}",
+            date=short_date(peak["date"], lang),
+            years=_RISK_YEARS[risk],
         )
 
     return {
@@ -303,15 +301,6 @@ async def get_flood_outlook(db: AsyncSession, lat: float, lon: float) -> dict:
         "forecast": forecast,
         "peak": {"date": peak["date"], "discharge": peak["discharge"]} if peak else None,
         "risk": risk,
-        "risk_label": RISK_LABELS[risk],
+        "risk_label": t(lang, f"risk_{risk}"),
         "summary": summary,
     }
-
-
-def _period_text(risk: str) -> str:
-    return {"moderate": "2 năm", "high": "5 năm", "severe": "20 năm"}.get(risk, "")
-
-
-def _vn_date(iso_day: str) -> str:
-    y, m, d = iso_day.split("-")
-    return f"{d}/{m}"

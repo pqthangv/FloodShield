@@ -16,28 +16,21 @@ import {vh, vw} from '../../services/styleProps';
 import {NavigationProp, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {communityAPI} from '../../apis/disasterAPI';
 import {useApp} from '../../context/AppContext';
-import {Post} from '../../services/model';
+import {Post, PostCategory, WaterLevel} from '../../services/model';
 import storage from '../../services/storage';
 import {errorMessage} from '../../services/axiosClient';
 import {formatDistance, timeAgo} from '../../services/format';
 import {moreIcon} from '../../assets/svgIcon';
+import {translate, useI18n} from '../../i18n';
 
-export const CATEGORY_LABEL: Record<string, string> = {
-  flood: '🌊 Ngập lụt',
-  landslide: '⛰️ Sạt lở',
-  storm: '🌀 Bão, gió lớn',
-  rescue: '🆘 Cần cứu trợ',
-  other: '📢 Khác',
-};
+export const CATEGORIES: PostCategory[] = ['flood', 'landslide', 'storm', 'rescue', 'other'];
+export const WATER_LEVELS: WaterLevel[] = ['none', 'ankle', 'knee', 'waist', 'chest', 'over_head'];
 
-export const WATER_LEVEL_LABEL: Record<string, string> = {
-  none: 'Không ngập',
-  ankle: 'Ngập mắt cá',
-  knee: 'Ngập đầu gối',
-  waist: 'Ngập ngang hông',
-  chest: 'Ngập ngang ngực',
-  over_head: 'Ngập quá đầu',
-};
+export const categoryLabel = (category: string) =>
+  CATEGORIES.includes(category as PostCategory)
+    ? translate(`category_${category as PostCategory}`)
+    : category;
+export const waterLevelLabel = (level: WaterLevel) => translate(`water_${level}`);
 
 const avatarSource = require('../../assets/report/avatar.png');
 const myAvatarSource = require('../../assets/report/user.png');
@@ -47,6 +40,7 @@ const REFRESH_MS = 60 * 1000;
 const Report = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {location} = useApp();
+  const {t} = useI18n();
   const [posts, setPosts] = useState<Post[]>([]);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,35 +90,35 @@ const Report = () => {
         list.map(p => (p.id === post.id ? {...p, ...res} : p)),
       );
     } catch (e) {
-      Alert.alert('Lỗi', errorMessage(e));
+      Alert.alert(t('error'), errorMessage(e));
     }
   };
 
   const reportPost = (post: Post) =>
-    Alert.alert('Báo cáo bài viết', 'Lý do báo cáo bài viết này?', [
-      {text: 'Thông tin sai', onPress: () => sendReport(post, 'false_info')},
-      {text: 'Nội dung xấu / spam', onPress: () => sendReport(post, 'abuse')},
-      {text: 'Hủy', style: 'cancel'},
+    Alert.alert(t('reportPostTitle'), t('reportPostQuestion'), [
+      {text: t('reasonFalse'), onPress: () => sendReport(post, 'false_info')},
+      {text: t('reasonAbuse'), onPress: () => sendReport(post, 'abuse')},
+      {text: t('cancel'), style: 'cancel'},
     ]);
 
   const sendReport = async (post: Post, reason: string) => {
     try {
       await communityAPI.report(post.id, reason);
       setPosts(list => list.filter(p => p.id !== post.id));
-      Alert.alert('Cảm ơn bạn', 'Bài viết đã được báo cáo và sẽ được kiểm tra.');
+      Alert.alert(t('thanks'), t('reportedMessage'));
     } catch (e) {
-      Alert.alert('Lỗi', errorMessage(e));
+      Alert.alert(t('error'), errorMessage(e));
     }
   };
 
   const blockAuthor = (post: Post) =>
     Alert.alert(
-      `Ẩn bài của ${post.author_name}?`,
-      'Bạn sẽ không thấy bài viết của người này nữa. Có thể bỏ chặn trong Cài đặt.',
+      t('hideAuthorQ', {name: post.author_name}),
+      t('hideAuthorMessage'),
       [
-        {text: 'Hủy', style: 'cancel'},
+        {text: t('cancel'), style: 'cancel'},
         {
-          text: 'Ẩn',
+          text: t('hide'),
           style: 'destructive',
           onPress: async () => {
             const next = [...new Set([...blocked, post.author_id])];
@@ -136,17 +130,17 @@ const Report = () => {
     );
 
   const deletePost = (post: Post) =>
-    Alert.alert('Xóa bài viết?', 'Bài viết sẽ bị xóa vĩnh viễn.', [
-      {text: 'Hủy', style: 'cancel'},
+    Alert.alert(t('deletePostQ'), t('deletePostMessage'), [
+      {text: t('cancel'), style: 'cancel'},
       {
-        text: 'Xóa',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await communityAPI.remove(post.id);
             setPosts(list => list.filter(p => p.id !== post.id));
           } catch (e) {
-            Alert.alert('Lỗi', errorMessage(e));
+            Alert.alert(t('error'), errorMessage(e));
           }
         },
       },
@@ -154,14 +148,14 @@ const Report = () => {
 
   const openMenu = (post: Post) =>
     post.is_mine
-      ? Alert.alert('Bài viết của bạn', undefined, [
-          {text: 'Xóa bài viết', style: 'destructive', onPress: () => deletePost(post)},
-          {text: 'Đóng', style: 'cancel'},
+      ? Alert.alert(t('yourPost'), undefined, [
+          {text: t('deletePost'), style: 'destructive', onPress: () => deletePost(post)},
+          {text: t('close'), style: 'cancel'},
         ])
-      : Alert.alert('Tùy chọn', undefined, [
-          {text: 'Báo cáo vi phạm', onPress: () => reportPost(post)},
-          {text: 'Ẩn bài của người này', onPress: () => blockAuthor(post)},
-          {text: 'Đóng', style: 'cancel'},
+      : Alert.alert(t('options'), undefined, [
+          {text: t('reportAbuse'), onPress: () => reportPost(post)},
+          {text: t('hideThisAuthor'), onPress: () => blockAuthor(post)},
+          {text: t('close'), style: 'cancel'},
         ]);
 
   const visible = posts.filter(p => !blocked.includes(p.author_id));
@@ -180,16 +174,16 @@ const Report = () => {
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => openMenu(post)}
-          accessibilityLabel="Tùy chọn bài viết">
+          accessibilityLabel={t('postOptions')}>
           {moreIcon(vw(6), vw(6))}
         </TouchableOpacity>
       </View>
 
       <View style={styles.badges}>
-        <Text style={styles.badge}>{CATEGORY_LABEL[post.category] || post.category}</Text>
+        <Text style={styles.badge}>{categoryLabel(post.category)}</Text>
         {post.water_level && post.water_level !== 'none' && (
           <Text style={[styles.badge, styles.waterBadge]}>
-            {WATER_LEVEL_LABEL[post.water_level]}
+            {waterLevelLabel(post.water_level)}
           </Text>
         )}
       </View>
@@ -203,7 +197,8 @@ const Report = () => {
         onPress={() => toggleConfirm(post)}
         disabled={post.is_mine}>
         <Text style={[styles.confirmText, post.confirmed_by_me && styles.confirmTextActive]}>
-          👁 Tôi cũng thấy{post.confirm_count ? ` · ${post.confirm_count}` : ''}
+          {t('iSeeItToo')}
+          {post.confirm_count ? ` · ${post.confirm_count}` : ''}
         </Text>
       </TouchableOpacity>
     </View>
@@ -229,14 +224,12 @@ const Report = () => {
                 <View style={styles.plusIconContainer}>
                   <Text style={styles.plusIcon}>+</Text>
                 </View>
-                <Text style={styles.sendAlertButtonText}>GỬI CẢNH BÁO THỰC TẾ</Text>
+                <Text style={styles.sendAlertButtonText}>{t('sendRealAlert')}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Cảnh báo thực tế gần bạn</Text>
-              <Text style={styles.sectionSubtitle}>
-                Trong bán kính 50 km, 7 ngày gần nhất. Tự động cập nhật mỗi phút.
-              </Text>
+              <Text style={styles.sectionTitle}>{t('realAlertsNearYou')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('feedSubtitle')}</Text>
             </View>
           </>
         }
@@ -246,11 +239,11 @@ const Report = () => {
           ) : (
             <View style={styles.empty}>
               <Text style={styles.emptyText}>
-                {error || 'Chưa có báo cáo nào gần bạn. Hãy là người đầu tiên chia sẻ tình hình!'}
+                {error || t('noPosts')}
               </Text>
               {error && (
                 <Text style={styles.retry} onPress={load}>
-                  Thử lại
+                  {t('retry')}
                 </Text>
               )}
             </View>

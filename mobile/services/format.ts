@@ -1,6 +1,16 @@
 import {Severity, WeatherIcon} from './model';
+import {getLanguage, translate} from '../i18n';
 
-const WEEKDAYS = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+const WEEKDAYS = {
+  vi: ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+};
+const WEEKDAYS_LONG_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_LONG_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 /** Parses "2026-10-04" or "2026-10-04T15:00" as local time. */
 export function parseLocal(value: string): Date {
@@ -10,17 +20,27 @@ export function parseLocal(value: string): Date {
   return new Date(y, m - 1, d, hh || 0, mm || 0);
 }
 
-export function weekdayVi(date: Date) {
-  return WEEKDAYS[date.getDay()];
+export function weekdayName(date: Date) {
+  return WEEKDAYS[getLanguage()][date.getDay()];
 }
 
+/** "4/10" in Vietnamese, "4 Oct" in English. */
 export function shortDate(value: string) {
   const d = parseLocal(value);
-  return `${d.getDate()}/${d.getMonth() + 1}`;
+  return getLanguage() === 'en'
+    ? `${d.getDate()} ${MONTHS_EN[d.getMonth()]}`
+    : `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
-export function longDateVi(date: Date = new Date()) {
-  return `Ngày ${date.getDate()} tháng ${date.getMonth() + 1} năm ${date.getFullYear()}`;
+/** "Ngày 4 tháng 10 năm 2026" / "Sunday, 4 October 2026". */
+export function longDate(date: Date = new Date()) {
+  return translate('longDate', {
+    weekday: WEEKDAYS_LONG_EN[date.getDay()],
+    day: date.getDate(),
+    month: date.getMonth() + 1,
+    monthName: MONTHS_LONG_EN[date.getMonth()],
+    year: date.getFullYear(),
+  });
 }
 
 export function timeOf(value: string) {
@@ -30,17 +50,17 @@ export function timeOf(value: string) {
 export function timeAgo(iso: string): string {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) {
-    return 'Vừa xong';
+    return translate('justNow');
   }
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) {
-    return `${minutes} phút trước`;
+    return translate('minutesAgo', {count: minutes});
   }
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
-    return `${hours} giờ trước`;
+    return translate('hoursAgo', {count: hours});
   }
-  return `${Math.floor(hours / 24)} ngày trước`;
+  return translate('daysAgo', {count: Math.floor(hours / 24)});
 }
 
 export function formatDistance(km: number | null | undefined) {
@@ -50,12 +70,7 @@ export function formatDistance(km: number | null | undefined) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-export const SEVERITY_LABEL: Record<Severity, string> = {
-  info: 'Theo dõi',
-  moderate: 'Cảnh báo',
-  high: 'Nguy hiểm',
-  severe: 'Rất nguy hiểm',
-};
+export const severityLabel = (severity: Severity) => translate(`severity_${severity}`);
 
 export const SEVERITY_COLOR: Record<Severity, string> = {
   info: '#4A90D9',

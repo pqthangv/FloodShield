@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from i18n import COUNTRY_VI, Lang, day_label, t
 from models.alert_model import ManualAlert
 from services import flood, gdacs, osm, weather
 from services.geo import haversine_km
@@ -32,18 +33,12 @@ TYPE_STORM, TYPE_FLOOD, TYPE_WILDFIRE, TYPE_LANDSLIDE, TYPE_DROUGHT, TYPE_HEAT, 
 
 # Upper bounds (km/h) of Beaufort levels 0..16; Vietnam uses the extended scale up to 17.
 _BEAUFORT_KMH = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118, 134, 150, 167, 184, 202]
-_WEEKDAYS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
 
 
 def beaufort(kmh: Optional[float]) -> int:
     if kmh is None:
         return 0
     return sum(1 for limit in _BEAUFORT_KMH if kmh >= limit)
-
-
-def vn_day(iso_day: str) -> str:
-    d = datetime.fromisoformat(iso_day[:10])
-    return f"{_WEEKDAYS[d.weekday()]}, {d.day:02d}/{d.month:02d}"
 
 
 def _alert(**kwargs) -> dict:
@@ -62,7 +57,7 @@ def _alert(**kwargs) -> dict:
 # --- Forecast-based alerts --------------------------------------------------------------
 
 
-def rain_alerts(raw: dict, area: str) -> list[dict]:
+def rain_alerts(raw: dict, area: str, lang: Lang = "vi") -> list[dict]:
     daily = raw.get("daily", {})
     days = list(zip(daily.get("time", []), daily.get("precipitation_sum", [])))[:3]
     days = [(d, mm or 0) for d, mm in days]
@@ -73,26 +68,30 @@ def rain_alerts(raw: dict, area: str) -> list[dict]:
     worst_day, worst_mm = max(days, key=lambda x: x[1])
     severity, label = None, None
     if worst_mm >= 200:
-        severity, label = "severe", "Mưa đặc biệt to"
+        severity, label = "severe", t(lang, "rain_extreme")
     elif worst_mm >= 100:
-        severity, label = "high", "Mưa rất to"
+        severity, label = "high", t(lang, "rain_very_heavy")
     elif worst_mm >= 50:
-        severity, label = "moderate", "Mưa to"
+        severity, label = "moderate", t(lang, "rain_heavy")
     if severity:
+        mm = f"{worst_mm:.0f}"
         alerts.append(
             _alert(
                 id=f"rain-{worst_day}-{severity}",
                 category="heavy_rain",
                 severity=severity,
-                title=f"{label} - {worst_mm:.0f} mm/ngày",
+                title=t(lang, "rain_title", label=label, mm=mm),
                 area=area,
-                description=(
-                    f"Dự báo {label.lower()} vào {vn_day(worst_day)}, lượng mưa khoảng "
-                    f"{worst_mm:.0f} mm. Đề phòng ngập úng ở vùng trũng thấp, lũ trên sông suối "
-                    "nhỏ. Hạn chế ra đường khi mưa lớn."
+                description=t(
+                    lang,
+                    "rain_desc",
+                    label=label,
+                    label_lower=label.lower(),
+                    day=day_label(worst_day, lang),
+                    mm=mm,
                 ),
                 starts_at=worst_day,
-                details=[{"label": vn_day(d), "value": f"{mm:.0f} mm"} for d, mm in days],
+                details=[{"label": day_label(d, lang), "value": f"{v:.0f} mm"} for d, v in days],
                 disaster_type_id=TYPE_FLOOD,
                 source="Open-Meteo",
             )
@@ -108,17 +107,15 @@ def rain_alerts(raw: dict, area: str) -> list[dict]:
                 id=f"landslide-{worst_day}-{sev}",
                 category="landslide",
                 severity=sev,
-                title="Nguy cơ sạt lở đất, lũ quét",
+                title=t(lang, "landslide_title"),
                 area=area,
-                description=(
-                    f"Khu vực đồi núi (độ cao ~{elevation:.0f} m) có mưa lớn, tổng lượng mưa "
-                    f"3 ngày khoảng {total_72h:.0f} mm. Nguy cơ cao xảy ra sạt lở đất và lũ quét. "
-                    "Tránh xa sườn dốc, khe suối; sẵn sàng sơ tán khi có dấu hiệu nứt đất."
+                description=t(
+                    lang, "landslide_desc", elevation=f"{elevation:.0f}", total=f"{total_72h:.0f}"
                 ),
                 starts_at=worst_day,
                 details=[
-                    {"label": "Tổng mưa 3 ngày", "value": f"{total_72h:.0f} mm"},
-                    {"label": "Độ cao địa hình", "value": f"{elevation:.0f} m"},
+                    {"label": t(lang, "detail_rain_3days"), "value": f"{total_72h:.0f} mm"},
+                    {"label": t(lang, "detail_elevation"), "value": f"{elevation:.0f} m"},
                 ],
                 disaster_type_id=TYPE_LANDSLIDE,
                 source="Open-Meteo",
@@ -127,7 +124,7 @@ def rain_alerts(raw: dict, area: str) -> list[dict]:
     return alerts
 
 
-def intense_rain_alert(raw: dict, area: str) -> Optional[dict]:
+def intense_rain_alert(raw: dict, area: str, lang: Lang = "vi") -> Optional[dict]:
     """Short, very intense rain causes street flooding in cities even when the daily total is moderate."""
     hourly = raw.get("hourly", {})
     times = hourly.get("time", [])
@@ -147,21 +144,19 @@ def intense_rain_alert(raw: dict, area: str) -> Optional[dict]:
         id=f"urban-{when[:10]}-{severity}",
         category="urban_flood",
         severity=severity,
-        title="Mưa lớn cường độ mạnh - nguy cơ ngập úng",
+        title=t(lang, "urban_title"),
         area=area,
-        description=(
-            f"Dự báo mưa khoảng {best_sum:.0f} mm trong 3 giờ, bắt đầu từ {when[11:16]} "
-            f"{vn_day(when)}. Nhiều tuyến đường có thể bị ngập. Không đi qua đoạn đường ngập sâu, "
-            "nước chảy xiết; ngắt điện nếu nước tràn vào nhà."
+        description=t(
+            lang, "urban_desc", mm=f"{best_sum:.0f}", time=when[11:16], day=day_label(when, lang)
         ),
         starts_at=when,
-        details=[{"label": "Lượng mưa 3 giờ", "value": f"{best_sum:.0f} mm"}],
+        details=[{"label": t(lang, "detail_rain_3h"), "value": f"{best_sum:.0f} mm"}],
         disaster_type_id=TYPE_FLOOD,
         source="Open-Meteo",
     )
 
 
-def wind_alert(raw: dict, area: str) -> Optional[dict]:
+def wind_alert(raw: dict, area: str, lang: Lang = "vi") -> Optional[dict]:
     daily = raw.get("daily", {})
     rows = list(
         zip(daily.get("time", []), daily.get("wind_speed_10m_max", []), daily.get("wind_gusts_10m_max", []))
@@ -182,23 +177,26 @@ def wind_alert(raw: dict, area: str) -> Optional[dict]:
         id=f"wind-{day}-{severity}",
         category="wind",
         severity=severity,
-        title=f"Gió mạnh cấp {beaufort(wind)}, giật cấp {level}",
+        title=t(lang, "wind_title", wind=beaufort(wind), gust=level),
         area=area,
-        description=(
-            f"Dự báo gió giật tới {gust:.0f} km/h vào {vn_day(day)}. Chằng chống nhà cửa, "
-            "tránh xa cây cao, biển quảng cáo, cột điện. Không ra khơi."
-        ),
+        description=t(lang, "wind_desc", kmh=f"{gust:.0f}", day=day_label(day, lang)),
         starts_at=day,
         details=[
-            {"label": "Gió mạnh nhất", "value": f"{wind:.0f} km/h (cấp {beaufort(wind)})"},
-            {"label": "Gió giật", "value": f"{gust:.0f} km/h (cấp {level})"},
+            {
+                "label": t(lang, "detail_strongest_wind"),
+                "value": t(lang, "beaufort_value", kmh=f"{wind:.0f}", level=beaufort(wind)),
+            },
+            {
+                "label": t(lang, "detail_gusts"),
+                "value": t(lang, "beaufort_value", kmh=f"{gust:.0f}", level=level),
+            },
         ],
         disaster_type_id=TYPE_STORM,
         source="Open-Meteo",
     )
 
 
-def heat_alert(raw: dict, area: str) -> Optional[dict]:
+def heat_alert(raw: dict, area: str, lang: Lang = "vi") -> Optional[dict]:
     daily = raw.get("daily", {})
     rows = list(zip(daily.get("time", []), daily.get("temperature_2m_max", [])))[:3]
     rows = [(d, t) for d, t in rows if t is not None]
@@ -206,31 +204,28 @@ def heat_alert(raw: dict, area: str) -> Optional[dict]:
         return None
     day, temp = max(rows, key=lambda r: r[1])
     if temp >= 39:
-        severity, label = "high", "Nắng nóng đặc biệt gay gắt"
+        severity, label = "high", t(lang, "heat_extreme")
     elif temp >= 37:
-        severity, label = "moderate", "Nắng nóng gay gắt"
+        severity, label = "moderate", t(lang, "heat_severe")
     elif temp >= 35:
-        severity, label = "info", "Nắng nóng"
+        severity, label = "info", t(lang, "heat_hot")
     else:
         return None
     return _alert(
         id=f"heat-{day}-{severity}",
         category="heat",
         severity=severity,
-        title=f"{label} - {temp:.0f}°C",
+        title=t(lang, "heat_title", label=label, temp=f"{temp:.0f}"),
         area=area,
-        description=(
-            f"Nhiệt độ cao nhất dự báo khoảng {temp:.0f}°C vào {vn_day(day)}. Uống đủ nước, "
-            "hạn chế ra ngoài từ 11h đến 15h, chú ý người già và trẻ nhỏ."
-        ),
+        description=t(lang, "heat_desc", temp=f"{temp:.0f}", day=day_label(day, lang)),
         starts_at=day,
-        details=[{"label": "Nhiệt độ cao nhất", "value": f"{temp:.0f}°C"}],
+        details=[{"label": t(lang, "detail_max_temp"), "value": f"{temp:.0f}°C"}],
         disaster_type_id=TYPE_HEAT,
         source="Open-Meteo",
     )
 
 
-def flood_alert(outlook: dict, area: str) -> Optional[dict]:
+def flood_alert(outlook: dict, area: str, lang: Lang = "vi") -> Optional[dict]:
     risk = outlook.get("risk")
     if risk not in ("watch", "moderate", "high", "severe"):
         return None
@@ -238,20 +233,18 @@ def flood_alert(outlook: dict, area: str) -> Optional[dict]:
     river = outlook["river"]
     thr = outlook.get("thresholds") or {}
     peak = outlook.get("peak") or {}
-    details = [{"label": "Khoảng cách đến sông", "value": f"{river['distance_km']} km"}]
+    details = [{"label": t(lang, "detail_river_distance"), "value": f"{river['distance_km']} km"}]
     if peak:
         details.append(
-            {"label": "Lưu lượng đỉnh dự báo", "value": f"{peak['discharge']:,.0f} m³/s ({vn_day(peak['date'])})"}
+            {
+                "label": t(lang, "detail_peak_flow"),
+                "value": f"{peak['discharge']:,.0f} m³/s ({day_label(peak['date'], lang)})",
+            }
         )
     if thr:
-        details.append({"label": "Mức lũ chu kỳ 2 năm", "value": f"{thr['rp2']:,.0f} m³/s"})
-        details.append({"label": "Mức lũ chu kỳ 20 năm", "value": f"{thr['rp20']:,.0f} m³/s"})
-    title = {
-        "watch": "Theo dõi mực nước sông",
-        "moderate": "Cảnh báo lũ trên sông gần bạn",
-        "high": "Lũ lớn trên sông gần bạn",
-        "severe": "Lũ rất lớn trên sông gần bạn",
-    }[risk]
+        details.append({"label": t(lang, "detail_rp2"), "value": f"{thr['rp2']:,.0f} m³/s"})
+        details.append({"label": t(lang, "detail_rp20"), "value": f"{thr['rp20']:,.0f} m³/s"})
+    title = t(lang, f"flood_title_{risk}")
     return _alert(
         id=f"flood-{river['latitude']}-{river['longitude']}-{severity}-{(peak.get('date') or '')[:7]}",
         category="flood",
@@ -263,18 +256,16 @@ def flood_alert(outlook: dict, area: str) -> Optional[dict]:
         distance_km=river["distance_km"],
         details=details,
         disaster_type_id=TYPE_FLOOD,
-        source="GloFAS (Copernicus) qua Open-Meteo",
+        source=t(lang, "source_glofas"),
     )
 
 
 # --- GDACS ------------------------------------------------------------------------------
 
 _GDACS_SEVERITY = {"green": "moderate", "orange": "high", "red": "severe"}
-_COUNTRY_VI = {"Viet Nam": "Việt Nam", "Vietnam": "Việt Nam", "Laos": "Lào", "Cambodia": "Campuchia",
-               "China": "Trung Quốc", "Philippines": "Philippines", "Thailand": "Thái Lan"}
 
 
-def gdacs_alerts(events: list[dict], lat: float, lon: float) -> list[dict]:
+def gdacs_alerts(events: list[dict], lat: float, lon: float, lang: Lang = "vi") -> list[dict]:
     alerts = []
     for feature in events:
         props = feature.get("properties", {})
@@ -287,62 +278,62 @@ def gdacs_alerts(events: list[dict], lat: float, lon: float) -> list[dict]:
         severity = _GDACS_SEVERITY.get(level, "moderate")
         countries = [c.get("iso3") for c in props.get("affectedcountries") or []]
         in_vietnam = "VNM" in countries or props.get("iso3") == "VNM"
-        country = _COUNTRY_VI.get(props.get("country", ""), props.get("country", ""))
+        country = props.get("country", "")
+        if lang == "vi":
+            country = COUNTRY_VI.get(country, country)
+        km = f"{distance:,.0f}"
         sev_text = (props.get("severitydata") or {}).get("severitytext", "")
         name = props.get("eventname") or ""
 
         if etype == "TC":
             if distance > 1500 or (level == "green" and distance > 700):
                 continue
-            title = f"Bão {name}" if name else "Bão / áp thấp nhiệt đới"
-            description = (
-                f"{title} đang ở cách bạn khoảng {distance:,.0f} km. Theo dõi tin bão chính thức "
-                "từ Trung tâm Dự báo KTTV Quốc gia (nchmf.gov.vn) và chuẩn bị phương án phòng tránh."
-            )
+            title = t(lang, "tc_title", name=name) if name else t(lang, "tc_title_unnamed")
+            description = t(lang, "tc_desc", title=title, km=km)
             type_id, category = TYPE_STORM, "storm"
         elif etype == "FL":
             if not (in_vietnam or distance <= 300):
                 continue
-            title = f"Lũ lụt tại {country}" if country else "Lũ lụt"
-            description = f"GDACS ghi nhận lũ lụt cách bạn khoảng {distance:,.0f} km."
+            title = t(lang, "fl_title", country=country) if country else t(lang, "fl_title_unnamed")
+            description = t(lang, "fl_desc", km=km)
             type_id, category = TYPE_FLOOD, "flood"
         elif etype == "EQ":
             magnitude = (props.get("severitydata") or {}).get("severity") or 0
             if distance > 300 or (level == "green" and magnitude < 5):
                 continue
-            title = f"Động đất {magnitude:.1f} độ richter"
-            description = f"Động đất xảy ra cách bạn khoảng {distance:,.0f} km. Đề phòng dư chấn."
+            title = t(lang, "eq_title", mag=f"{magnitude:.1f}")
+            description = t(lang, "eq_desc", km=km)
             type_id, category = TYPE_EARTHQUAKE, "earthquake"
         elif etype == "DR":
             if not in_vietnam:
                 continue
-            title, description = "Hạn hán", "GDACS ghi nhận tình trạng hạn hán trong khu vực."
+            title, description = t(lang, "dr_title"), t(lang, "dr_desc")
             type_id, category = TYPE_DROUGHT, "drought"
         elif etype == "WF":
             if distance > 100:
                 continue
-            title = "Cháy rừng"
-            description = f"Phát hiện cháy rừng cách bạn khoảng {distance:,.0f} km."
+            title = t(lang, "wf_title")
+            description = t(lang, "wf_desc", km=km)
             type_id, category = TYPE_WILDFIRE, "wildfire"
         elif etype == "VO":
             if distance > 300:
                 continue
-            title, description = "Núi lửa hoạt động", f"Núi lửa hoạt động cách bạn khoảng {distance:,.0f} km."
+            title, description = t(lang, "vo_title"), t(lang, "vo_desc", km=km)
             type_id, category = None, "volcano"
         else:
             continue
 
-        details = [{"label": "Khoảng cách", "value": f"{distance:,.0f} km"}]
+        details = [{"label": t(lang, "detail_distance"), "value": f"{km} km"}]
         if sev_text:
-            details.append({"label": "Cường độ", "value": sev_text})
-        details.append({"label": "Cấp cảnh báo GDACS", "value": level.capitalize()})
+            details.append({"label": t(lang, "detail_intensity"), "value": sev_text})
+        details.append({"label": t(lang, "detail_gdacs_level"), "value": level.capitalize()})
         alerts.append(
             _alert(
                 id=f"gdacs-{etype}-{props.get('eventid')}-{level}",
                 category=category,
                 severity=severity,
                 title=title,
-                area=country or "Khu vực lân cận",
+                area=country or t(lang, "nearby_region"),
                 description=description,
                 starts_at=props.get("fromdate"),
                 ends_at=props.get("todate"),
@@ -359,7 +350,8 @@ def gdacs_alerts(events: list[dict], lat: float, lon: float) -> list[dict]:
 # --- Manual alerts ----------------------------------------------------------------------
 
 
-async def manual_alerts(db: AsyncSession, lat: float, lon: float) -> list[dict]:
+async def manual_alerts(db: AsyncSession, lat: float, lon: float, lang: Lang = "vi") -> list[dict]:
+    """Alerts written by an administrator are returned as written (not translated)."""
     now = datetime.now(timezone.utc)
     rows = (await db.execute(select(ManualAlert))).scalars().all()
     alerts = []
@@ -377,7 +369,7 @@ async def manual_alerts(db: AsyncSession, lat: float, lon: float) -> list[dict]:
                 category=a.category,
                 severity=a.severity,
                 title=a.title,
-                area=a.area or "Khu vực của bạn",
+                area=a.area or t(lang, "your_area"),
                 description=a.description,
                 starts_at=starts.isoformat() if starts else None,
                 ends_at=ends.isoformat() if ends else None,
@@ -413,31 +405,39 @@ def _type_for_category(category: str) -> Optional[int]:
 # --- Entry point ------------------------------------------------------------------------
 
 
-async def build_alerts(db: AsyncSession, lat: float, lon: float) -> list[dict]:
+async def build_alerts(db: AsyncSession, lat: float, lon: float, lang: Lang = "vi") -> list[dict]:
     raw, outlook, events, place = await asyncio.gather(
         weather.fetch_raw_forecast(lat, lon),
-        flood.get_flood_outlook(db, lat, lon),
+        flood.get_flood_outlook(db, lat, lon, lang),
         gdacs.fetch_events(),
-        osm.reverse_geocode(lat, lon),
+        osm.reverse_geocode(lat, lon, lang),
         return_exceptions=True,
     )
-    area = place["display"] if isinstance(place, dict) and place.get("display") else "Khu vực của bạn"
+    area = place["display"] if isinstance(place, dict) and place.get("display") else t(lang, "your_area")
 
     alerts: list[dict] = []
     if isinstance(raw, Exception):
         logger.warning(f"Forecast unavailable for alerts: {raw}")
     else:
-        alerts += rain_alerts(raw, area)
-        alerts += [a for a in (intense_rain_alert(raw, area), wind_alert(raw, area), heat_alert(raw, area)) if a]
+        alerts += rain_alerts(raw, area, lang)
+        alerts += [
+            a
+            for a in (
+                intense_rain_alert(raw, area, lang),
+                wind_alert(raw, area, lang),
+                heat_alert(raw, area, lang),
+            )
+            if a
+        ]
     if isinstance(outlook, Exception):
         logger.warning(f"Flood outlook unavailable for alerts: {outlook}")
     else:
-        a = flood_alert(outlook, area)
+        a = flood_alert(outlook, area, lang)
         if a:
             alerts.append(a)
     if not isinstance(events, Exception):
-        alerts += gdacs_alerts(events, lat, lon)
-    alerts += await manual_alerts(db, lat, lon)
+        alerts += gdacs_alerts(events, lat, lon, lang)
+    alerts += await manual_alerts(db, lat, lon, lang)
 
     alerts.sort(key=lambda a: (-SEVERITY_RANK.get(a["severity"], 0), a["distance_km"] or 0))
     return alerts

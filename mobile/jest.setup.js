@@ -53,3 +53,7 @@ jest.mock('react-native-safe-area-context', () => {
     initialWindowMetrics: {insets, frame},
   };
 });
+
+// Tests run in Node, whose locale is usually en-US. Pin Vietnamese (the app's default for its
+// main audience); English is tested explicitly where needed.
+require('./i18n').setLanguageForTests('vi');

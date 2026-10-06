@@ -21,6 +21,12 @@ import {checkAlertsNow} from '../../services/alertNotifications';
 import storage from '../../services/storage';
 import {APP_VERSION, DEFAULT_API_URL} from '../../config';
 import {vh, vw} from '../../services/styleProps';
+import {Language, useI18n} from '../../i18n';
+
+const LANGUAGES: {code: Language; label: string}[] = [
+  {code: 'vi', label: 'Tiếng Việt'},
+  {code: 'en', label: 'English'},
+];
 
 const Row = ({
   title,
@@ -54,6 +60,7 @@ const SettingsScreen = () => {
     switchToGps,
     refresh,
   } = useApp();
+  const {t, lang, setLanguage} = useI18n();
   const [nickname, setNickname] = useState('');
   const [blockedCount, setBlockedCount] = useState(0);
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
@@ -68,21 +75,21 @@ const SettingsScreen = () => {
 
   const deleteMyData = () =>
     Alert.alert(
-      'Xóa dữ liệu của tôi?',
-      'Toàn bộ bài viết, ảnh và lượt xác nhận bạn đã gửi sẽ bị xóa khỏi máy chủ. Không thể hoàn tác.',
+      t('deleteMyDataQ'),
+      t('deleteMyDataMessage'),
       [
-        {text: 'Hủy', style: 'cancel'},
+        {text: t('cancel'), style: 'cancel'},
         {
-          text: 'Xóa',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               const res = await communityAPI.deleteMyData();
               await storage.setNickname('');
               setNickname('');
-              Alert.alert('Đã xóa', `Đã xóa ${res.deleted_posts} bài viết.`);
+              Alert.alert(t('deleted'), t('deletedPosts', {count: res.deleted_posts}));
             } catch (e) {
-              Alert.alert('Không xóa được', errorMessage(e));
+              Alert.alert(t('deleteFailed'), errorMessage(e));
             }
           },
         },
@@ -94,7 +101,7 @@ const SettingsScreen = () => {
     await setApiBaseUrl(url && url !== DEFAULT_API_URL ? url : null);
     setServerUrl(getApiBaseUrl());
     await refresh();
-    Alert.alert('Đã lưu', `Máy chủ: ${getApiBaseUrl()}`);
+    Alert.alert(t('saved'), t('serverIs', {url: getApiBaseUrl()}));
   };
 
   return (
@@ -104,27 +111,37 @@ const SettingsScreen = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           {backIcon(vw(6), vw(6))}
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Cài đặt</Text>
+        <Text style={styles.headerTitle}>{t('settings')}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.section}>Vị trí</Text>
+        <Text style={styles.section}>{t('sectionLanguage')}</Text>
+        {LANGUAGES.map(option => (
+          <Row
+            key={option.code}
+            title={option.label}
+            onPress={() => setLanguage(option.code)}
+            right={lang === option.code ? <Text style={styles.check}>✓</Text> : undefined}
+          />
+        ))}
+
+        <Text style={styles.section}>{t('sectionLocation')}</Text>
         <Row
           title={locationLabel(location, weather)}
           subtitle={
             location?.mode === 'manual'
-              ? 'Vị trí chọn thủ công · Nhấn để đổi'
-              : 'Theo GPS · Nhấn để chọn vị trí khác'
+              ? t('manualLocationHint')
+              : t('gpsLocationHint')
           }
           onPress={() => navigation.navigate('LocationPicker')}
         />
         {location?.mode === 'manual' && (
-          <Row title="Dùng vị trí GPS" onPress={switchToGps} />
+          <Row title={t('useGpsLocation')} onPress={switchToGps} />
         )}
 
-        <Text style={styles.section}>Thông báo</Text>
+        <Text style={styles.section}>{t('sectionNotifications')}</Text>
         <Row
-          title="Cảnh báo thiên tai"
-          subtitle="Kiểm tra khoảng 30 phút một lần, kể cả khi đóng ứng dụng"
+          title={t('disasterAlerts')}
+          subtitle={t('disasterAlertsHint')}
           right={
             <Switch
               value={notificationsEnabled}
@@ -135,19 +152,19 @@ const SettingsScreen = () => {
         />
         {notificationsEnabled && (
           <Row
-            title="Kiểm tra cảnh báo ngay"
+            title={t('checkNow')}
             onPress={() => {
               checkAlertsNow();
-              Alert.alert('Đang kiểm tra', 'Bạn sẽ nhận thông báo nếu có cảnh báo mới.');
+              Alert.alert(t('checking'), t('checkingMessage'));
             }}
           />
         )}
 
-        <Text style={styles.section}>Cộng đồng</Text>
-        <Row title="Tên hiển thị" subtitle={nickname || 'Chưa đặt (đặt khi gửi bài)'} />
+        <Text style={styles.section}>{t('sectionCommunity')}</Text>
+        <Row title={t('displayName')} subtitle={nickname || t('nicknameNotSet')} />
         <Row
-          title="Bỏ ẩn tất cả người dùng"
-          subtitle={`${blockedCount} người đang bị ẩn`}
+          title={t('unhideAll')}
+          subtitle={t('hiddenCount', {count: blockedCount})}
           onPress={
             blockedCount
               ? async () => {
@@ -157,31 +174,20 @@ const SettingsScreen = () => {
               : undefined
           }
         />
-        <Row title="Xóa dữ liệu của tôi" danger onPress={deleteMyData} />
+        <Row title={t('deleteMyData')} danger onPress={deleteMyData} />
 
-        <Text style={styles.section}>Thông tin</Text>
-        <Row title="Chính sách quyền riêng tư" onPress={() => Linking.openURL(privacyUrl)} />
+        <Text style={styles.section}>{t('sectionInfo')}</Text>
+        <Row title={t('privacyPolicy')} onPress={() => Linking.openURL(privacyUrl)} />
+        <Row title={t('dataSources')} subtitle={t('dataSourcesList')} />
+        <Row title={t('note')} subtitle={t('disclaimer')} />
         <Row
-          title="Nguồn dữ liệu"
-          subtitle={
-            'Thời tiết: Open-Meteo.com (CC BY 4.0)\n' +
-            'Lũ sông: GloFAS - Copernicus Emergency Management Service\n' +
-            'Thiên tai: GDACS (Liên Hợp Quốc & Ủy ban châu Âu)\n' +
-            'Bản đồ, nơi sơ tán: © OpenStreetMap contributors'
-          }
-        />
-        <Row
-          title="Lưu ý"
-          subtitle="Thông tin chỉ mang tính tham khảo. Luôn làm theo hướng dẫn của chính quyền và Trung tâm Dự báo KTTV Quốc gia (nchmf.gov.vn)."
-        />
-        <Row
-          title={`Phiên bản ${APP_VERSION}`}
-          subtitle={showAdvanced ? undefined : 'Nhấn để hiện cài đặt nâng cao'}
+          title={t('version', {version: APP_VERSION})}
+          subtitle={showAdvanced ? undefined : t('showAdvanced')}
           onPress={() => setShowAdvanced(!showAdvanced)}
         />
         {showAdvanced && (
           <View style={styles.advanced}>
-            <Text style={styles.rowTitle}>Máy chủ API</Text>
+            <Text style={styles.rowTitle}>{t('apiServer')}</Text>
             <TextInput
               style={styles.input}
               value={serverUrl}
@@ -191,7 +197,7 @@ const SettingsScreen = () => {
               keyboardType="url"
             />
             <TouchableOpacity style={styles.saveButton} onPress={saveServer}>
-              <Text style={styles.saveText}>Lưu</Text>
+              <Text style={styles.saveText}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -261,6 +267,11 @@ const styles = StyleSheet.create({
   danger: {
     color: '#D32F2F',
     fontWeight: '600',
+  },
+  check: {
+    color: '#2A78D6',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   advanced: {
     backgroundColor: 'white',

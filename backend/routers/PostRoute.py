@@ -10,6 +10,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import settings
 from database import get_db
+from i18n import Lang, get_lang, t
 from models.post_model import (
     ConfirmResponse,
     Post,
@@ -30,9 +31,9 @@ router = APIRouter()
 MAX_IMAGE_SIDE = 1600
 
 
-def require_device(x_device_id: Optional[str]) -> str:
+def require_device(x_device_id: Optional[str], lang: Lang = "vi") -> str:
     if not x_device_id or not (8 <= len(x_device_id) <= 64):
-        raise HTTPException(status_code=400, detail="Thiếu mã thiết bị (X-Device-Id)")
+        raise HTTPException(status_code=400, detail=t(lang, "err_device_id"))
     return x_device_id
 
 
@@ -72,14 +73,14 @@ def to_response(request: Request, post: Post, device_id: Optional[str], confirme
     )
 
 
-def encode_image(data: bytes) -> bytes:
+def encode_image(data: bytes, lang: Lang = "vi") -> bytes:
     """Re-encode the upload as JPEG: validates it is a real image, strips EXIF (which may
     contain the exact GPS position of the user's home) and limits the size."""
     try:
         img = Image.open(io.BytesIO(data))
         img = ImageOps.exif_transpose(img)
     except (UnidentifiedImageError, OSError):
-        raise HTTPException(status_code=400, detail="Ảnh không hợp lệ")
+        raise HTTPException(status_code=400, detail=t(lang, "err_bad_image"))
     img = img.convert("RGB")
     img.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))
     out = io.BytesIO()
@@ -146,10 +147,10 @@ async def list_posts(
 
 
 @router.get("/images/{name}", include_in_schema=False)
-async def get_image(name: str, db: AsyncSession = Depends(get_db)):
+async def get_image(name: str, db: AsyncSession = Depends(get_db), lang: Lang = Depends(get_lang)):
     image = await db.get(PostImage, name)
     if image is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh")
+        raise HTTPException(status_code=404, detail=t(lang, "err_image_not_found"))
     # Names are random and never reused, so phones may cache them for good.
     return Response(
         content=image.data,
@@ -171,23 +172,24 @@ async def create_post(
     image: Optional[UploadFile] = File(None),
     x_device_id: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
+    lang: Lang = Depends(get_lang),
 ):
-    device_id = require_device(x_device_id)
+    device_id = require_device(x_device_id, lang)
 
     hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     recent = await db.scalar(
         select(func.count(Post.id)).where(Post.device_id == device_id, Post.created_at >= hour_ago)
     )
     if recent >= settings.max_posts_per_hour:
-        raise HTTPException(status_code=429, detail="Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau.")
+        raise HTTPException(status_code=429, detail=t(lang, "err_too_many_posts"))
 
     image_path = None
     if image is not None and image.filename:
         data = await image.read(settings.max_upload_mb * 1024 * 1024 + 1)
         if len(data) > settings.max_upload_mb * 1024 * 1024:
-            raise HTTPException(status_code=413, detail=f"Ảnh tối đa {settings.max_upload_mb} MB")
+            raise HTTPException(status_code=413, detail=t(lang, "err_image_too_large", mb=settings.max_upload_mb))
         image_path = f"{uuid.uuid4().hex}.jpg"
-        db.add(PostImage(name=image_path, data=encode_image(data)))
+        db.add(PostImage(name=image_path, data=encode_image(data, lang)))
 
     if not address:
         place = await osm.reverse_geocode(latitude, longitude)
@@ -211,12 +213,17 @@ async def create_post(
 
 
 @router.post("/posts/{post_id}/confirm", response_model=ConfirmResponse)
-async def toggle_confirm(post_id: int, x_device_id: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)):
+async def toggle_confirm(
+    post_id: int,
+    x_device_id: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+    lang: Lang = Depends(get_lang),
+):
     """'Tôi cũng thấy' - confirms the situation is real. Calling again removes the confirmation."""
-    device_id = require_device(x_device_id)
+    device_id = require_device(x_device_id, lang)
     post = await db.get(Post, post_id)
     if post is None or post.hidden:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
+        raise HTTPException(status_code=404, detail=t(lang, "err_post_not_found"))
     vote = await db.scalar(
         select(PostVote).where(PostVote.post_id == post_id, PostVote.device_id == device_id, PostVote.kind == "confirm")
     )
@@ -234,13 +241,17 @@ async def toggle_confirm(post_id: int, x_device_id: Optional[str] = Header(None)
 
 @router.post("/posts/{post_id}/report")
 async def report_post(
-    post_id: int, body: ReportRequest, x_device_id: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)
+    post_id: int,
+    body: ReportRequest,
+    x_device_id: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+    lang: Lang = Depends(get_lang),
 ):
     """Flag a post as false or abusive. Posts are hidden automatically after a few reports."""
-    device_id = require_device(x_device_id)
+    device_id = require_device(x_device_id, lang)
     post = await db.get(Post, post_id)
     if post is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
+        raise HTTPException(status_code=404, detail=t(lang, "err_post_not_found"))
     existing = await db.scalar(
         select(PostVote).where(PostVote.post_id == post_id, PostVote.device_id == device_id, PostVote.kind == "report")
     )
@@ -259,13 +270,14 @@ async def delete_post(
     x_device_id: Optional[str] = Header(None),
     x_admin_token: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
+    lang: Lang = Depends(get_lang),
 ):
     post = await db.get(Post, post_id)
     if post is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
+        raise HTTPException(status_code=404, detail=t(lang, "err_post_not_found"))
     is_admin = bool(settings.admin_token) and x_admin_token == settings.admin_token
     if not is_admin and post.device_id != x_device_id:
-        raise HTTPException(status_code=403, detail="Bạn chỉ có thể xóa bài viết của mình")
+        raise HTTPException(status_code=403, detail=t(lang, "err_not_your_post"))
     await remove_image(db, post.image_path)
     await db.execute(delete(PostVote).where(PostVote.post_id == post_id))
     await db.delete(post)
@@ -274,9 +286,13 @@ async def delete_post(
 
 
 @router.delete("/me")
-async def delete_my_data(x_device_id: Optional[str] = Header(None), db: AsyncSession = Depends(get_db)):
+async def delete_my_data(
+    x_device_id: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db),
+    lang: Lang = Depends(get_lang),
+):
     """Deletes every post, photo and vote created from this device (Google Play data deletion)."""
-    device_id = require_device(x_device_id)
+    device_id = require_device(x_device_id, lang)
     posts = (await db.execute(select(Post).where(Post.device_id == device_id))).scalars().all()
     for post in posts:
         await remove_image(db, post.image_path)

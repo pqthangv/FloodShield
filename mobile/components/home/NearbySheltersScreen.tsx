@@ -19,6 +19,7 @@ import {Shelter} from '../../services/model';
 import {useApp} from '../../context/AppContext';
 import {errorMessage} from '../../services/axiosClient';
 import {formatDistance} from '../../services/format';
+import {useI18n} from '../../i18n';
 
 const openDirections = (s: Shelter) =>
   Linking.openURL(
@@ -28,6 +29,7 @@ const openDirections = (s: Shelter) =>
 const NearbySheltersScreen = () => {
   const navigation = useNavigation();
   const {location} = useApp();
+  const {t, lang} = useI18n();
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,9 +51,10 @@ const NearbySheltersScreen = () => {
     }
   }, [location]);
 
+  // Reload when the language changes: kind labels come from the API in the current language.
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, lang]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -64,29 +67,29 @@ const NearbySheltersScreen = () => {
       <View style={styles.itemContent}>
         <View style={styles.badges}>
           <Text style={styles.itemType}>{item.kind_label}</Text>
-          {item.official && <Text style={styles.officialBadge}>Chính thức</Text>}
+          {item.official && <Text style={styles.officialBadge}>{t('official')}</Text>}
         </View>
         <Text style={styles.itemName}>{item.name}</Text>
         {item.address ? <Text style={styles.itemAddress}>{item.address}</Text> : null}
         {item.note ? <Text style={styles.itemAddress}>{item.note}</Text> : null}
         <Text style={[styles.itemDistance, index < 5 && styles.nearestDistance]}>
-          Cách bạn {formatDistance(item.distance_km)}
-          {item.capacity ? ` · Sức chứa ${item.capacity} người` : ''}
+          {t('distanceFromYou', {distance: formatDistance(item.distance_km)})}
+          {item.capacity ? t('capacity', {count: item.capacity}) : ''}
         </Text>
       </View>
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.directionsButton}
           onPress={() => openDirections(item)}
-          accessibilityLabel={`Chỉ đường đến ${item.name}`}>
+          accessibilityLabel={t('directionsTo', {name: item.name})}>
           {directionsIcon(vw(5), vw(5), '#FFFFFF')}
-          <Text style={styles.directionsText}>Chỉ đường</Text>
+          <Text style={styles.directionsText}>{t('directions')}</Text>
         </TouchableOpacity>
         {item.phone ? (
           <TouchableOpacity
             style={styles.callButton}
             onPress={() => Linking.openURL(`tel:${item.phone}`)}
-            accessibilityLabel={`Gọi ${item.name}`}>
+            accessibilityLabel={t('callPlace', {name: item.name})}>
             {phoneIcon(vw(4.5), vw(4.5), '#1F2D54')}
           </TouchableOpacity>
         ) : null}
@@ -99,18 +102,18 @@ const NearbySheltersScreen = () => {
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
         {backIcon(vw(6), vw(6))}
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>Nơi sơ tán gần bạn</Text>
+      <Text style={styles.headerTitle}>{t('nearbyShelters')}</Text>
     </View>
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-      <CustomStatusBar barStyle="dark-content" />
+        <CustomStatusBar barStyle="dark-content" />
         {header}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2C3E50" />
-          <Text style={styles.loadingText}>Đang tìm nơi sơ tán gần bạn...</Text>
+          <Text style={styles.loadingText}>{t('findingShelters')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -126,28 +129,25 @@ const NearbySheltersScreen = () => {
         keyExtractor={item => item.id}
         style={styles.list}
         ListHeaderComponent={
-          <Text style={styles.hint}>
-            Trường học, nhà văn hóa, trụ sở UBND và bệnh viện thường được dùng làm
-            nơi sơ tán. Luôn làm theo hướng dẫn của chính quyền địa phương.
-          </Text>
+          <Text style={styles.hint}>{t('sheltersHint')}</Text>
         }
         ListEmptyComponent={
           <View style={styles.loadingContainer}>
             <Text style={styles.loadingText}>
               {!location
-                ? 'Chưa có vị trí. Hãy chọn vị trí trong Cài đặt.'
-                : error || 'Không tìm thấy nơi sơ tán trong bán kính 15 km.'}
+                ? t('noLocationSettings')
+                : error || t('noShelters')}
             </Text>
             {error && (
               <Text style={styles.retry} onPress={load}>
-                Thử lại
+                {t('retry')}
               </Text>
             )}
           </View>
         }
         ListFooterComponent={
           shelters.length > 0 ? (
-            <Text style={styles.attribution}>Dữ liệu bản đồ © OpenStreetMap contributors</Text>
+            <Text style={styles.attribution}>{t('mapAttribution')}</Text>
           ) : undefined
         }
         refreshControl={

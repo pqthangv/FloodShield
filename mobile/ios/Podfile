@@ -14,7 +14,7 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
-target 'PQT_Mobile' do
+target 'FloodShield' do
   config = use_native_modules!
 
   use_react_native!(

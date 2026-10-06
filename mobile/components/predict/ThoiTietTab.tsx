@@ -15,11 +15,13 @@ import {
   shortDate,
   timeOf,
   weatherImage,
-  weekdayVi,
+  weekdayName,
 } from '../../services/format';
+import {useI18n} from '../../i18n';
 
 const ThoiTietTab = () => {
   const {weather, weatherError, loading, refresh} = useApp();
+  const {t} = useI18n();
 
   if (!weather && loading) {
     return (
@@ -27,7 +29,7 @@ const ThoiTietTab = () => {
         <ActivityIndicator size="large" color="white" />
         <Text
           style={[styles.sectionTitle, {textAlign: 'center', marginTop: vh(2)}]}>
-          Đang tải dữ liệu thời tiết...
+          {t('loadingWeather')}
         </Text>
       </View>
     );
@@ -37,7 +39,7 @@ const ThoiTietTab = () => {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={[styles.sectionTitle, {textAlign: 'center', color: '#ff6b6b'}]}>
-          {weatherError || 'Không thể tải dữ liệu thời tiết.'}
+          {weatherError || t('weatherFailed')}
         </Text>
         <Text
           style={[
@@ -45,7 +47,7 @@ const ThoiTietTab = () => {
             {textAlign: 'center', marginTop: vh(2), fontSize: vw(3.5)},
           ]}
           onPress={refresh}>
-          Nhấn để thử lại
+          {t('tapToRetry')}
         </Text>
       </View>
     );
@@ -55,7 +57,7 @@ const ThoiTietTab = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>24 giờ tới</Text>
+      <Text style={styles.sectionTitle}>{t('next24h')}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -67,7 +69,7 @@ const ThoiTietTab = () => {
               key={item.time}
               style={[styles.hourlyItem, isCurrent && styles.currentHourItem]}>
               <Text style={[styles.hourlyTime, isCurrent && styles.currentHourText]}>
-                {isCurrent ? 'Bây giờ' : timeOf(item.time)}
+                {isCurrent ? t('now') : timeOf(item.time)}
               </Text>
               <Image source={weatherImage(item.icon)} style={styles.weatherIconSmall} />
               <Text style={[styles.hourlyRain, isCurrent && styles.currentHourText]}>
@@ -83,7 +85,7 @@ const ThoiTietTab = () => {
 
       <View style={styles.next7daysContainer}>
         <Text style={[styles.sectionTitle, {color: '#1F2D54'}]}>
-          {weather.daily.length} ngày tới
+          {t('nextDays', {count: weather.daily.length})}
         </Text>
         <View>
           {weather.daily.map((item, index) => {
@@ -105,7 +107,7 @@ const ThoiTietTab = () => {
                   </View>
                   <View style={styles.dailyInfoContainer}>
                     <Text style={styles.dailyDay}>
-                      {index === 0 ? 'Hôm nay' : weekdayVi(date)}, {shortDate(item.date)}
+                      {index === 0 ? t('today') : weekdayName(date)}, {shortDate(item.date)}
                     </Text>
                     <Text style={styles.dailyCondition} numberOfLines={1}>
                       {item.condition}

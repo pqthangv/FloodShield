@@ -1,4 +1,4 @@
-package com.pqt_mobile.alerts
+package com.floodshield.app.alerts
 
 import com.facebook.react.BaseReactPackage
 import com.facebook.react.bridge.NativeModule

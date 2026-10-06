@@ -1,5 +1,6 @@
 import Geolocation from '@react-native-community/geolocation';
 import {PermissionsAndroid, Platform} from 'react-native';
+import {translate} from '../i18n';
 
 export interface LocationCoords {
   latitude: number;
@@ -8,14 +9,14 @@ export interface LocationCoords {
 
 // Quick choices when GPS is unavailable (and for testing on the emulator).
 export const DEFAULT_LOCATIONS = [
-  {name: 'TP. Hồ Chí Minh', latitude: 10.7769, longitude: 106.7009},
-  {name: 'Hà Nội', latitude: 21.0285, longitude: 105.8542},
-  {name: 'Đà Nẵng', latitude: 16.0471, longitude: 108.2068},
-  {name: 'Huế', latitude: 16.4637, longitude: 107.5909},
-  {name: 'Cần Thơ', latitude: 10.0452, longitude: 105.7469},
-  {name: 'Đồng Tháp (Cao Lãnh)', latitude: 10.4591, longitude: 105.6384},
-  {name: 'Quảng Ngãi', latitude: 15.1214, longitude: 108.8044},
-  {name: 'Lào Cai', latitude: 22.4856, longitude: 103.9707},
+  {name: 'TP. Hồ Chí Minh', nameEn: 'Ho Chi Minh City', latitude: 10.7769, longitude: 106.7009},
+  {name: 'Hà Nội', nameEn: 'Hanoi', latitude: 21.0285, longitude: 105.8542},
+  {name: 'Đà Nẵng', nameEn: 'Da Nang', latitude: 16.0471, longitude: 108.2068},
+  {name: 'Huế', nameEn: 'Hue', latitude: 16.4637, longitude: 107.5909},
+  {name: 'Cần Thơ', nameEn: 'Can Tho', latitude: 10.0452, longitude: 105.7469},
+  {name: 'Đồng Tháp (Cao Lãnh)', nameEn: 'Dong Thap (Cao Lanh)', latitude: 10.4591, longitude: 105.6384},
+  {name: 'Quảng Ngãi', nameEn: 'Quang Ngai', latitude: 15.1214, longitude: 108.8044},
+  {name: 'Lào Cai', nameEn: 'Lao Cai', latitude: 22.4856, longitude: 103.9707},
 ];
 
 class LocationService {
@@ -44,11 +45,11 @@ class LocationService {
     }
   }
 
-  /** Current GPS position. Rejects with a Vietnamese message when it cannot be obtained. */
+  /** Current GPS position. Rejects with a translated message when it cannot be obtained. */
   async getCurrentPosition(): Promise<LocationCoords> {
     const allowed = await this.requestLocationPermission();
     if (!allowed) {
-      throw new Error('Bạn chưa cấp quyền truy cập vị trí.');
+      throw new Error(translate('errLocationPermission'));
     }
     const attempt = (highAccuracy: boolean) =>
       new Promise<LocationCoords>((resolve, reject) => {
@@ -74,11 +75,9 @@ class LocationService {
         return await attempt(true);
       } catch (error: any) {
         if (error?.code === 1) {
-          throw new Error('Bạn chưa cấp quyền truy cập vị trí.');
+          throw new Error(translate('errLocationPermission'));
         }
-        throw new Error(
-          'Không lấy được vị trí. Hãy bật GPS hoặc chọn vị trí thủ công.',
-        );
+        throw new Error(translate('errLocationUnavailable'));
       }
     }
   }

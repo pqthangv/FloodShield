@@ -13,7 +13,7 @@ OTHER = {"X-Device-Id": "device-bbbb-2222"}
 THIRD = {"X-Device-Id": "device-cccc-3333"}
 
 
-async def fake_place(lat, lon):
+async def fake_place(lat, lon, lang="vi"):
     return {"name": "Phường Test", "region": "TP Test", "display": "Phường Test, TP Test"}
 
 
@@ -40,7 +40,7 @@ async def fake_forecast(lat, lon):
     }
 
 
-async def fake_flood(db, lat, lon):
+async def fake_flood(db, lat, lon, lang="vi"):
     return {"risk": "none", "river": None, "thresholds": None, "forecast": [], "peak": None,
             "risk_label": "Bình thường", "summary": ""}
 
@@ -157,3 +157,52 @@ async def test_post_validation_and_rate_limit(client):
     codes = [(await client.post("/api/v1/posts", data=base, headers=OTHER)).status_code for _ in range(6)]
     assert codes == [201] * 5 + [429]
     await client.delete("/api/v1/me", headers=OTHER)
+
+
+# --- English -------------------------------------------------------------------------------
+
+EN = {"Accept-Language": "en-US,en;q=0.9"}
+
+
+@pytest.mark.asyncio
+async def test_weather_in_english(client):
+    data = (await client.get("/api/v1/weather", params={"lat": 10.77, "lon": 106.7}, headers=EN)).json()
+    assert data["current"]["condition"] == "Moderate rain"
+    assert data["daily"][1]["condition"] == "Heavy rain"
+
+
+@pytest.mark.asyncio
+async def test_alert_in_english_keeps_the_same_id(client):
+    params = {"lat": 10.77, "lon": 106.7}
+    vi = (await client.get("/api/v1/alerts", params=params)).json()["alerts"][0]
+    en = (await client.get("/api/v1/alerts", params=params, headers=EN)).json()["alerts"][0]
+    # Same id in both languages, so switching language never re-sends a notification.
+    assert vi["id"] == en["id"] == "rain-2026-10-05-high"
+    assert vi["title"] == "Mưa rất to - 130 mm/ngày"
+    assert en["title"] == "Very heavy rain - 130 mm/day"
+    assert en["details"][1] == {"label": "Mon 5 Oct", "value": "130 mm"}
+
+
+@pytest.mark.asyncio
+async def test_disaster_checklists_in_english(client):
+    types = (await client.get("/api/v1/thientai/", headers=EN)).json()
+    assert [t["name"] for t in types] == [
+        "Storm", "Flood", "Wildfire", "Landslide", "Drought", "Heat wave", "Earthquake",
+    ]
+    flood = (await client.get("/api/v1/thientai/2", headers=EN)).json()
+    assert flood["actions"][1]["title"] == "Evacuate in an emergency"
+    vi = (await client.get("/api/v1/thientai/2")).json()
+    assert vi["name"] == "Lũ" and vi["actions"][1]["title"] == "Sơ tán khẩn cấp"
+
+
+@pytest.mark.asyncio
+async def test_errors_in_english(client):
+    form = {"author_name": "An", "description": "Street flooded", "latitude": "10", "longitude": "105"}
+    r = await client.post("/api/v1/posts", data=form, headers=EN)
+    assert r.status_code == 400 and r.json()["detail"] == "Missing device id (X-Device-Id)"
+
+
+@pytest.mark.asyncio
+async def test_changing_disaster_types_needs_admin(client):
+    assert (await client.post("/api/v1/thientai/", json={"name": "Spam"})).status_code == 401
+    assert (await client.delete("/api/v1/thientai/1")).status_code == 401

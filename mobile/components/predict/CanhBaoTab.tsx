@@ -18,13 +18,14 @@ import {Alert} from '../../services/model';
 import {useApp} from '../../context/AppContext';
 import {
   SEVERITY_COLOR,
-  SEVERITY_LABEL,
   SEVERITY_LEVEL,
   parseLocal,
+  severityLabel,
   shortDate,
   timeOf,
-  weekdayVi,
+  weekdayName,
 } from '../../services/format';
+import {translate, useI18n} from '../../i18n';
 import {
   stormIconXml,
   locationIconXml,
@@ -35,20 +36,21 @@ import {
 
 function formatWhen(alert: Alert) {
   if (!alert.starts_at) {
-    return 'Đang diễn ra';
+    return translate('ongoing');
   }
   const start = alert.starts_at.replace(' ', 'T');
   const hasTime = start.length > 10;
   const date = parseLocal(start.slice(0, 16));
-  let text = `${weekdayVi(date)}, ${shortDate(start)}${hasTime ? ` - ${timeOf(start)}` : ''}`;
+  let text = `${weekdayName(date)}, ${shortDate(start)}${hasTime ? ` - ${timeOf(start)}` : ''}`;
   if (alert.ends_at) {
     text += ` → ${shortDate(alert.ends_at.replace(' ', 'T'))}`;
   }
-  return `Thời gian: ${text}`;
+  return translate('timeLabel', {text});
 }
 
 const CanhBaoTab = () => {
   const {alerts, alertsError, loading, refresh, location} = useApp();
+  const {t} = useI18n();
   const [selectedCaution, setSelectedCaution] = useState<Alert | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation<NavigationProp<any>>();
@@ -73,12 +75,12 @@ const CanhBaoTab = () => {
         <Text style={styles.emptyText}>
           {alertsError ||
             (location
-              ? 'Không có cảnh báo thiên tai nào cho khu vực của bạn trong 3 ngày tới.'
-              : 'Chọn vị trí để nhận cảnh báo.')}
+              ? t('noAlertsNext3Days')
+              : t('chooseLocationShort'))}
         </Text>
         {alertsError && (
           <Text style={styles.retry} onPress={refresh}>
-            Nhấn để thử lại
+            {t('tapToRetry')}
           </Text>
         )}
       </View>
@@ -97,7 +99,7 @@ const CanhBaoTab = () => {
               </View>
               <View style={styles.cautionRow}>
                 {locationIconXml(vw(5), vw(5), '#FFFFFF')}
-                <Text style={styles.cautionText}>Khu vực: {caution.area}</Text>
+                <Text style={styles.cautionText}>{t('areaLabel', {area: caution.area})}</Text>
               </View>
               <View style={styles.cautionRow}>
                 {clockIconXml(vw(5), vw(5), '#FFFFFF')}
@@ -106,7 +108,7 @@ const CanhBaoTab = () => {
               <View style={styles.cautionFooter}>
                 <View style={styles.dangerLevelContainer}>
                   <Text style={styles.dangerLevelText}>
-                    {SEVERITY_LABEL[caution.severity]}:
+                    {severityLabel(caution.severity)}:
                   </Text>
                   <View
                     style={[
@@ -121,7 +123,7 @@ const CanhBaoTab = () => {
                 <TouchableOpacity
                   style={styles.detailsButton}
                   onPress={() => handleViewDetails(caution)}>
-                  <Text style={styles.detailsButtonText}>Xem chi tiết</Text>
+                  <Text style={styles.detailsButtonText}>{t('viewDetails')}</Text>
                 </TouchableOpacity>
               </View>
               <Image
@@ -132,10 +134,7 @@ const CanhBaoTab = () => {
             {index < alerts.length - 1 && <View style={styles.separator} />}
           </React.Fragment>
         ))}
-        <Text style={styles.sourceNote}>
-          Nguồn: Open-Meteo, GloFAS, GDACS và cơ quan địa phương. Luôn làm theo
-          hướng dẫn của chính quyền.
-        </Text>
+        <Text style={styles.sourceNote}>{t('alertSources')}</Text>
       </View>
 
       <Modal
@@ -172,13 +171,15 @@ const CanhBaoTab = () => {
                     ))}
                     <View style={styles.detailItem}>
                       {directionIconXml(vw(5), vw(5), '#FFFFFF')}
-                      <Text style={styles.modalText}>Nguồn: {selectedCaution.source}</Text>
+                      <Text style={styles.modalText}>
+                        {t('sourceLabel', {source: selectedCaution.source})}
+                      </Text>
                     </View>
                     {selectedCaution.url && (
                       <Text
                         style={styles.link}
                         onPress={() => Linking.openURL(selectedCaution.url!)}>
-                        Xem báo cáo chi tiết ↗
+                        {t('fullReport')}
                       </Text>
                     )}
                   </ScrollView>
@@ -191,7 +192,8 @@ const CanhBaoTab = () => {
                       alignItems: 'center',
                     }}>
                     <Text style={{fontSize: 14, fontWeight: 700, color: '#1F2D54'}}>
-                      Mức độ: {selectedCaution && SEVERITY_LABEL[selectedCaution.severity]}{' '}
+                      {selectedCaution &&
+                        t('severityWithLabel', {label: severityLabel(selectedCaution.severity)})}{' '}
                     </Text>
                     <View style={[styles.dangerLevelCircle, {backgroundColor: '#1F2D54'}]}>
                       <Text style={[styles.dangerLevelNumber, {color: '#FFA500'}]}>
@@ -209,7 +211,7 @@ const CanhBaoTab = () => {
                         setModalVisible(false);
                       }}
                       style={styles.skillButton}>
-                      <Text style={styles.skillButtonText}>Xem kỹ năng ứng phó</Text>
+                      <Text style={styles.skillButtonText}>{t('viewResponseSkills')}</Text>
                       <Text style={styles.skillButtonArrow}>&gt;</Text>
                     </TouchableOpacity>
                   ) : null}

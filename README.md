@@ -6,7 +6,7 @@
 ![Android 16](https://img.shields.io/badge/Android-16_(API_36)-3ddc84?logo=android&logoColor=white)
 
 **Real-time flood and disaster alerts for Vietnam.** An Android app and a Python API that
-turn free global forecast data into local warnings in plain Vietnamese. It tells people when
+turn free global forecast data into local warnings in plain Vietnamese or English. It tells people when
 heavy rain or a rising river threatens their area, shows the nearest evacuation points, and lets
 neighbours share what is happening on the ground.
 
@@ -18,12 +18,12 @@ neighbours share what is happening on the ground.
   </tr>
   <tr>
     <td align="center"><img src="docs/screenshots/shelters.png" width="220" alt="Nearest evacuation places"><br><sub>Nearest evacuation places with directions</sub></td>
-    <td align="center"><img src="docs/screenshots/checklist.png" width="220" alt="Flood checklist"><br><sub>What-to-do checklist linked to the alert</sub></td>
-    <td align="center"><img src="docs/screenshots/notification.png" width="220" alt="Background notification"><br><sub>Background notification (test alert sent from the admin API)</sub></td>
+    <td align="center"><img src="docs/screenshots/skills.png" width="220" alt="Disaster response checklists"><br><sub>What-to-do checklists for 7 disaster types</sub></td>
+    <td align="center"><img src="docs/screenshots/notification.png" width="220" alt="Background notification"><br><sub>Background notification, Vietnamese UI (test alert from the admin API)</sub></td>
   </tr>
 </table>
 
-<sub>Screenshots from the Android 16 emulator with live data on 4 Oct 2026. The app's interface is in Vietnamese.</sub>
+<sub>Screenshots from the Android 16 emulator with live data on 4 Oct 2026. The app is available in Vietnamese and English.</sub>
 
 ## Features
 
@@ -42,6 +42,8 @@ neighbours share what is happening on the ground.
 - **Emergency numbers:** 111–115 built in, so they work offline, with slide-to-call.
 - **Community reports:** photo, water level and location; "I see it too" confirmations;
   report, block, automatic hiding after 3 reports, and in-app data deletion.
+- **Vietnamese and English:** follows the phone's language and can be switched in Settings.
+  The API returns its alerts, weather descriptions and checklists in the same language.
 
 ## How it works
 
@@ -85,13 +87,18 @@ flowchart LR
   (React Native new architecture) polls the API. Alert IDs are stable per date and severity, so
   users get one notification per alert and a new one only when it escalates. Alerts already
   seen in the app are skipped.
-  ([`mobile/android/.../alerts/`](mobile/android/app/src/main/java/com/pqt_mobile/alerts))
+  ([`mobile/android/.../alerts/`](mobile/android/app/src/main/java/com/floodshield/app/alerts))
 - **Privacy and Google Play policy compliance by design.**
   - Photos are re-encoded server-side, which strips EXIF data including GPS.
   - Users get a random device ID instead of an account.
   - Community posts have report, block and auto-hide, and expire after 90 days.
   - Users can delete their data in the app, and the API serves the privacy policy.
   - The app needs no background-location or photo/storage permission: it uses the system Photo Picker and camera app.
+- **Two languages end to end.** The app sends `Accept-Language` with every request, and the
+  background worker sends it too. The API translates everything it generates from one catalog
+  ([`backend/i18n.py`](backend/i18n.py)). Alert IDs don't depend on the language, so switching
+  language never re-sends a notification. A test checks that every English string keeps the
+  same placeholders as the Vietnamese one.
 - **Targets Android 16 (API 36)** as Google Play requires: the project was upgraded from React
   Native 0.79 to 0.87, with an edge-to-edge layout.
 
@@ -102,7 +109,7 @@ flowchart LR
 | Mobile | React Native 0.87 (new architecture, Hermes), TypeScript, React Navigation 7, react-native-svg (custom charts), Kotlin + AndroidX WorkManager |
 | Backend | Python 3.12+, FastAPI, SQLAlchemy 2 (async), Pydantic 2, httpx, Pillow |
 | Data | Open-Meteo, GloFAS v4 (Copernicus), GDACS, OpenStreetMap (Overpass, Nominatim) |
-| Quality | pytest (16 tests), Jest (4 tests), ESLint, TypeScript type checking, GitHub Actions CI |
+| Quality | pytest (23 tests), Jest (7 tests), ESLint, TypeScript type checking, GitHub Actions CI |
 | Deployment | Docker, PostgreSQL; free Render + Neon setup documented |
 
 ## Repository layout
@@ -111,7 +118,7 @@ flowchart LR
 backend/    FastAPI service: weather, flood, alerts, shelters, community posts, admin API
 mobile/     React Native Android app (iOS project included, not yet tested)
 scripts/    Windows helpers: install the toolchain, start everything, create the Play upload key
-docs/       Setup, deployment and Google Play publishing guides, screenshots
+docs/       Guide, setup, deployment and Google Play publishing docs, screenshots
 ```
 
 ## Run it locally
@@ -130,6 +137,7 @@ npm run android             # terminal 2
 ```
 
 Full instructions, including a one-command Windows setup: **[docs/SETUP.md](docs/SETUP.md)**.
+How everything works and how to rebuild it from scratch: **[docs/GUIDE.md](docs/GUIDE.md)**.
 Publishing checklist: **[docs/PUBLISHING.md](docs/PUBLISHING.md)**.
 
 ## Status

@@ -12,6 +12,8 @@ export interface Spec extends TurboModule {
     latitude: number,
     longitude: number,
     enabled: boolean,
+    /** 'vi' or 'en': language of the notification texts (sent as Accept-Language). */
+    language: string,
   ): void;
   /** Alerts already shown inside the app, so the worker does not notify them again. */
   markSeen(ids: string[]): void;

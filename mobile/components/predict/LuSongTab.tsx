@@ -11,7 +11,8 @@ import Svg, {Circle, G, Line, Path, Rect, Text as SvgText} from 'react-native-sv
 import disasterAPI from '../../apis/disasterAPI';
 import {useApp} from '../../context/AppContext';
 import {errorMessage} from '../../services/axiosClient';
-import {parseLocal, shortDate, weekdayVi} from '../../services/format';
+import {parseLocal, shortDate, weekdayName} from '../../services/format';
+import {getLanguage, useI18n} from '../../i18n';
 import {FloodOutlook, FloodRisk} from '../../services/model';
 import {vh, vw} from '../../services/styleProps';
 
@@ -39,7 +40,9 @@ const RISK_STYLE: Record<FloodRisk, {color: string; icon: string}> = {
   unknown: {color: C.muted, icon: '?'},
 };
 
-const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
+// 3.771 in Vietnamese, 3,771 in English.
+const fmt = (n: number) =>
+  Math.round(n).toLocaleString(getLanguage() === 'en' ? 'en-US' : 'vi-VN');
 
 function niceStep(max: number) {
   const raw = max / 4;
@@ -49,6 +52,7 @@ function niceStep(max: number) {
 }
 
 const DischargeChart = ({data}: {data: FloodOutlook}) => {
+  const {t} = useI18n();
   const [selected, setSelected] = useState<number | null>(null);
   const points = data.forecast.filter(p => p.discharge !== null);
   if (points.length < 2) {
@@ -66,12 +70,12 @@ const DischargeChart = ({data}: {data: FloodOutlook}) => {
   // Always show the first flood level; higher levels only when the river gets close to them.
   const lines: {value: number; color: string; label: string}[] = [];
   if (thr) {
-    lines.push({value: thr.rp2, color: C.warning, label: 'Lũ 2 năm'});
+    lines.push({value: thr.rp2, color: C.warning, label: t('flood2y')});
     if (dataMax >= thr.rp2 * 0.9) {
-      lines.push({value: thr.rp5, color: C.serious, label: 'Lũ 5 năm'});
+      lines.push({value: thr.rp5, color: C.serious, label: t('flood5y')});
     }
     if (dataMax >= thr.rp5 * 0.9) {
-      lines.push({value: thr.rp20, color: C.critical, label: 'Lũ 20 năm'});
+      lines.push({value: thr.rp20, color: C.critical, label: t('flood20y')});
     }
   }
   const top = Math.max(dataMax, 1, ...lines.map(l => l.value)) * 1.08;
@@ -110,14 +114,14 @@ const DischargeChart = ({data}: {data: FloodOutlook}) => {
       <View style={styles.tooltip}>
         {sel ? (
           <Text style={styles.tooltipText}>
-            {weekdayVi(parseLocal(sel.date))}, {shortDate(sel.date)}:{' '}
+            {weekdayName(parseLocal(sel.date))}, {shortDate(sel.date)}:{' '}
             <Text style={styles.tooltipValue}>{fmt(sel.discharge!)} m³/s</Text>
             {sel.discharge_low !== null && sel.discharge_high !== null
-              ? `  (khoảng ${fmt(sel.discharge_low)}–${fmt(sel.discharge_high)})`
+              ? t('flowRange', {low: fmt(sel.discharge_low), high: fmt(sel.discharge_high)})
               : ''}
           </Text>
         ) : (
-          <Text style={styles.tooltipHint}>Chạm vào biểu đồ để xem số liệu từng ngày</Text>
+          <Text style={styles.tooltipHint}>{t('chartHint')}</Text>
         )}
       </View>
       <View
@@ -126,26 +130,26 @@ const DischargeChart = ({data}: {data: FloodOutlook}) => {
         onResponderGrant={select}
         onResponderMove={select}
         accessible
-        accessibilityLabel="Biểu đồ lưu lượng sông dự báo">
+        accessibilityLabel={t('chartA11y')}>
         <Svg width={width} height={height}>
           <Rect x={0} y={0} width={width} height={height} fill={C.surface} />
-          {ticks.map(t => (
-            <G key={t}>
+          {ticks.map(tick => (
+            <G key={tick}>
               <Line
                 x1={pad.left}
                 x2={width - pad.right}
-                y1={y(t)}
-                y2={y(t)}
-                stroke={t === 0 ? C.baseline : C.grid}
+                y1={y(tick)}
+                y2={y(tick)}
+                stroke={tick === 0 ? C.baseline : C.grid}
                 strokeWidth={1}
               />
               <SvgText
                 x={pad.left - 6}
-                y={y(t) + 4}
+                y={y(tick) + 4}
                 fontSize={vw(2.8)}
                 fill={C.muted}
                 textAnchor="end">
-                {fmt(t)}
+                {fmt(tick)}
               </SvgText>
             </G>
           ))}
@@ -164,7 +168,7 @@ const DischargeChart = ({data}: {data: FloodOutlook}) => {
                 y={pad.top + 10}
                 fontSize={vw(2.8)}
                 fill={C.inkSecondary}>
-                Hôm nay
+                {t('today')}
               </SvgText>
             </G>
           )}
@@ -227,11 +231,11 @@ const DischargeChart = ({data}: {data: FloodOutlook}) => {
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendLine, {backgroundColor: C.series}]} />
-          <Text style={styles.legendText}>Lưu lượng (m³/s)</Text>
+          <Text style={styles.legendText}>{t('legendFlow')}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendBand]} />
-          <Text style={styles.legendText}>Khoảng dự báo</Text>
+          <Text style={styles.legendText}>{t('legendRange')}</Text>
         </View>
         {lines.map(l => (
           <View key={l.label} style={styles.legendItem}>
@@ -248,6 +252,7 @@ const DischargeChart = ({data}: {data: FloodOutlook}) => {
 
 const LuSongTab = () => {
   const {location} = useApp();
+  const {t, lang} = useI18n();
   const [data, setData] = useState<FloodOutlook | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -268,18 +273,19 @@ const LuSongTab = () => {
     }
   }, [location]);
 
+  // Reload when the language changes: the summary comes from the API in the current language.
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, lang]);
 
   if (!location) {
-    return <Text style={styles.centerText}>Chọn vị trí để xem dự báo lũ.</Text>;
+    return <Text style={styles.centerText}>{t('chooseLocationForFlood')}</Text>;
   }
   if (loading && !data) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="white" />
-        <Text style={styles.centerText}>Đang phân tích dữ liệu sông...</Text>
+        <Text style={styles.centerText}>{t('analysingRiver')}</Text>
       </View>
     );
   }
@@ -288,7 +294,7 @@ const LuSongTab = () => {
       <View style={styles.center}>
         <Text style={styles.errorText}>{error}</Text>
         <Text style={styles.retry} onPress={load}>
-          Nhấn để thử lại
+          {t('tapToRetry')}
         </Text>
       </View>
     );
@@ -306,10 +312,10 @@ const LuSongTab = () => {
             <Text style={styles.riskIcon}>{risk.icon}</Text>
           </View>
           <View style={styles.flex}>
-            <Text style={styles.riskLabel}>Nguy cơ lũ: {data.risk_label}</Text>
+            <Text style={styles.riskLabel}>{t('floodRisk', {label: data.risk_label})}</Text>
             {data.river && (
               <Text style={styles.meta}>
-                Sông lớn gần nhất cách khoảng {data.river.distance_km} km
+                {t('nearestRiver', {km: data.river.distance_km})}
               </Text>
             )}
           </View>
@@ -319,21 +325,20 @@ const LuSongTab = () => {
         {data.forecast.length > 1 && (
           <>
             <Text style={styles.chartTitle}>
-              Lưu lượng sông dự báo {data.forecast.filter(f => f.is_forecast).length}{' '}
-              ngày tới
+              {t('riverForecastTitle', {count: data.forecast.filter(f => f.is_forecast).length})}
             </Text>
             <DischargeChart data={data} />
             <TouchableOpacity onPress={() => setShowTable(!showTable)}>
               <Text style={styles.tableToggle}>
-                {showTable ? 'Ẩn bảng số liệu' : 'Xem bảng số liệu'}
+                {showTable ? t('hideTable') : t('showTable')}
               </Text>
             </TouchableOpacity>
             {showTable &&
               data.forecast.map(f => (
                 <View key={f.date} style={styles.tableRow}>
                   <Text style={styles.tableCell}>
-                    {weekdayVi(parseLocal(f.date))} {shortDate(f.date)}
-                    {f.is_forecast ? '' : ' (đã qua)'}
+                    {weekdayName(parseLocal(f.date))} {shortDate(f.date)}
+                    {f.is_forecast ? '' : t('pastDay')}
                   </Text>
                   <Text style={[styles.tableCell, styles.tableValue]}>
                     {f.discharge !== null ? `${fmt(f.discharge)} m³/s` : '--'}
@@ -342,11 +347,7 @@ const LuSongTab = () => {
               ))}
           </>
         )}
-        <Text style={styles.attribution}>
-          Dữ liệu: GloFAS (Copernicus Emergency Management Service) qua Open-Meteo.
-          Mức lũ được ước tính từ 20 năm dữ liệu. Thông tin tham khảo, hãy theo dõi
-          bản tin chính thức của cơ quan khí tượng thủy văn.
-        </Text>
+        <Text style={styles.attribution}>{t('floodAttribution')}</Text>
       </View>
     </View>
   );

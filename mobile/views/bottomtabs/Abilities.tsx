@@ -17,10 +17,14 @@ import disasterAPI from '../../apis/disasterAPI';
 import {Dissater} from '../../services/model';
 import {useApp} from '../../context/AppContext';
 import {errorMessage} from '../../services/axiosClient';
+import {useI18n} from '../../i18n';
 
 const Abilities = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {alerts} = useApp();
+  const {t, lang} = useI18n();
+  // "10 việc cần làm khi có lũ" needs the name in lower case; "Flood: 10 things to do" doesn't.
+  const typeName = (type: Dissater) => (lang === 'vi' ? type.name.toLowerCase() : type.name);
   const [types, setTypes] = useState<Dissater[]>([]);
   const [selectedTabId, setSelectedTabId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,9 +44,10 @@ const Abilities = () => {
     }
   }, []);
 
+  // Reload when the language changes: the checklists come from the API in the current language.
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, lang]);
 
   // "For you": disaster types mentioned in the current alerts first, then floods and storms.
   const alertTypeIds = alerts
@@ -50,9 +55,9 @@ const Abilities = () => {
     .filter((id): id is number => !!id);
   const forYouIds = [...new Set([...alertTypeIds, 2, 1, 4])].slice(0, 3);
   const forYou = forYouIds
-    .map(id => types.find(t => t.id === id))
-    .filter((t): t is Dissater => !!t);
-  const selected = types.find(t => t.id === selectedTabId);
+    .map(id => types.find(type => type.id === id))
+    .filter((type): type is Dissater => !!type);
+  const selected = types.find(type => type.id === selectedTabId);
 
   const openChecklist = (type: Dissater) =>
     navigation.navigate('MustDo', {disasterTypeId: type.id});
@@ -70,12 +75,12 @@ const Abilities = () => {
           activeOpacity={0.85}>
           <View style={styles.cardTextContainer}>
             <Text style={styles.cardTitle}>
-              {type.actions.length} việc cần làm khi có {type.name.toLowerCase()}
+              {t('thingsToDo', {count: type.actions.length, name: typeName(type)})}
             </Text>
             <Text style={styles.cardViews}>
               {alertTypeIds.includes(type.id)
-                ? '⚠️ Liên quan cảnh báo hiện tại'
-                : 'Danh sách kiểm tra'}
+                ? t('relatedToAlert')
+                : t('checklist')}
             </Text>
           </View>
           <Image
@@ -92,7 +97,7 @@ const Abilities = () => {
       return (
         <View style={styles.centeredMessage}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text>Đang tải...</Text>
+          <Text>{t('loading')}</Text>
         </View>
       );
     }
@@ -102,7 +107,7 @@ const Abilities = () => {
         <View style={styles.centeredMessage}>
           <Text style={styles.errorText}>{error}</Text>
           <Text style={styles.retry} onPress={load}>
-            Thử lại
+            {t('retry')}
           </Text>
         </View>
       );
@@ -111,7 +116,7 @@ const Abilities = () => {
     if (!selected || selected.actions.length === 0) {
       return (
         <View style={styles.centeredMessage}>
-          <Text>Chưa có thông tin cho mục này.</Text>
+          <Text>{t('noInfo')}</Text>
         </View>
       );
     }
@@ -130,7 +135,7 @@ const Abilities = () => {
           style={styles.checklistButton}
           onPress={() => openChecklist(selected)}>
           <Text style={styles.checklistButtonText}>
-            Mở danh sách kiểm tra "{selected.name}"
+            {t('openChecklist', {name: selected.name})}
           </Text>
         </TouchableOpacity>
       </View>
@@ -142,12 +147,12 @@ const Abilities = () => {
       <CustomStatusBar backgroundColor="#C9E5FF" barStyle={'dark-content'} />
       <ScrollView>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>KỸ NĂNG ỨNG PHÓ THIÊN TAI</Text>
+          <Text style={styles.headerTitle}>{t('skillsTitle')}</Text>
         </View>
         {forYou.length > 0 && (
           <>
             <View style={styles.subHeader}>
-              <Text style={styles.subHeaderTitle}>Dành cho bạn</Text>
+              <Text style={styles.subHeaderTitle}>{t('forYou')}</Text>
             </View>
             {renderCards()}
           </>

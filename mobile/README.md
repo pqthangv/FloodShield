@@ -18,4 +18,5 @@ Code map:
 | `context/AppContext.tsx` | location, weather and alerts shared by all screens |
 | `apis/disasterAPI.ts` | all API calls |
 | `views/`, `components/` | screens |
-| `specs/NativeAlertScheduler.ts` + `android/app/src/main/java/com/pqt_mobile/alerts/` | background alert checks & notifications |
+| `specs/NativeAlertScheduler.ts` + `android/app/src/main/java/com/floodshield/app/alerts/` | background alert checks & notifications |
+| `i18n/` (`vi.ts`, `en.ts`, `useI18n()`) | Vietnamese and English texts; screens call `t('key')` |

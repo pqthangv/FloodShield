@@ -1,4 +1,4 @@
-package com.pqt_mobile.alerts
+package com.floodshield.app.alerts
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -13,7 +13,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.pqt_mobile.R
+import com.floodshield.app.R
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -32,7 +32,7 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
 
     val alerts =
         try {
-          fetchAlerts("$baseUrl/alerts?lat=$lat&lon=$lon")
+          fetchAlerts("$baseUrl/alerts?lat=$lat&lon=$lon", prefs.language)
         } catch (e: IOException) {
           return Result.retry()
         } catch (e: Exception) {
@@ -52,12 +52,14 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     return Result.success()
   }
 
-  private fun fetchAlerts(url: String): JSONArray {
+  private fun fetchAlerts(url: String, language: String): JSONArray {
     val connection = URL(url).openConnection() as HttpURLConnection
     // Free hosting plans can take ~1 minute to wake up.
     connection.connectTimeout = 60_000
     connection.readTimeout = 60_000
     connection.setRequestProperty("Accept", "application/json")
+    // Alert titles and descriptions come back in the language chosen in the app.
+    connection.setRequestProperty("Accept-Language", language)
     try {
       if (connection.responseCode !in 200..299) {
         throw IOException("HTTP ${connection.responseCode}")
@@ -121,12 +123,15 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     fun createChannel(context: Context) {
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
       val manager = context.getSystemService(NotificationManager::class.java)
-      if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+      // Calling this again is safe: it only updates the name and description, which follow
+      // the phone's language (res/values and res/values-vi).
       val channel =
-          NotificationChannel(CHANNEL_ID, "Cảnh báo thiên tai", NotificationManager.IMPORTANCE_HIGH)
-              .apply {
-                description = "Cảnh báo lũ lụt, mưa lớn, bão và thiên tai tại vị trí của bạn"
-              }
+          NotificationChannel(
+                  CHANNEL_ID,
+                  context.getString(R.string.alert_channel_name),
+                  NotificationManager.IMPORTANCE_HIGH,
+              )
+              .apply { description = context.getString(R.string.alert_channel_description) }
       manager.createNotificationChannel(channel)
     }
   }
@@ -151,6 +156,10 @@ class AlertPrefs(context: Context) {
   var longitude: Double?
     get() = prefs.getString("longitude", null)?.toDoubleOrNull()
     set(value) = prefs.edit().putString("longitude", value?.toString()).apply()
+
+  var language: String
+    get() = prefs.getString("language", null) ?: "vi"
+    set(value) = prefs.edit().putString("language", value).apply()
 
   /** Insertion-ordered so the oldest ids can be dropped. */
   fun seenIds(): LinkedHashSet<String> {

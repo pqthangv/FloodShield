@@ -4,12 +4,14 @@ import {vh, vw} from '../../services/styleProps';
 import {contactIcon, homeLocationIcon} from '../../assets/svgIcon';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {useApp} from '../../context/AppContext';
-import {SEVERITY_COLOR, SEVERITY_LABEL} from '../../services/format';
+import {SEVERITY_COLOR, severityLabel} from '../../services/format';
+import {useI18n} from '../../i18n';
 import SunPath from './SunPath';
 
 const AdditionalInfo = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {alerts, alertsError, weather, location} = useApp();
+  const {t} = useI18n();
   const topAlert = alerts.find(a => a.severity !== 'info') || alerts[0];
   const today = weather?.daily?.[0];
 
@@ -48,8 +50,8 @@ const AdditionalInfo = () => {
             <Text style={styles.warningIcon}>⚠️</Text>
             <Text style={styles.warningTitle}>
               {alerts.length > 1
-                ? `Cảnh báo (${alerts.length})`
-                : 'Cảnh báo khẩn cấp!'}
+                ? t('alertsCount', {count: alerts.length})
+                : t('emergencyAlert')}
             </Text>
           </View>
           <View style={styles.warningBody}>
@@ -59,14 +61,14 @@ const AdditionalInfo = () => {
                 {topAlert.area}
               </Text>
               <View style={styles.severityContainer}>
-                <Text style={styles.warningText}>Mức độ:</Text>
+                <Text style={styles.warningText}>{t('severityLabel')}</Text>
                 <View
                   style={[
                     styles.severityBadge,
                     {backgroundColor: SEVERITY_COLOR[topAlert.severity]},
                   ]}>
                   <Text style={styles.severityText}>
-                    {SEVERITY_LABEL[topAlert.severity].toUpperCase()}
+                    {severityLabel(topAlert.severity).toUpperCase()}
                   </Text>
                 </View>
               </View>
@@ -82,36 +84,36 @@ const AdditionalInfo = () => {
           <View style={styles.warningHeader}>
             <Text style={styles.warningIcon}>✅</Text>
             <Text style={styles.warningTitle}>
-              {alertsError ? 'Chưa tải được cảnh báo' : 'Không có cảnh báo'}
+              {alertsError ? t('alertsLoadFailed') : t('noAlerts')}
             </Text>
           </View>
           <Text style={styles.warningText}>
             {alertsError ||
               (location
-                ? 'Hiện chưa có cảnh báo thiên tai nào cho khu vực của bạn.'
-                : 'Chọn vị trí để nhận cảnh báo cho khu vực của bạn.')}
+                ? t('noAlertsForArea')
+                : t('chooseLocationForAlerts'))}
           </Text>
         </View>
       )}
 
       <View style={styles.buttonsSection}>
         <TouchableOpacity style={styles.buttonDark} onPress={openAlerts}>
-          <Text style={styles.buttonDarkText}>Chi tiết cảnh báo</Text>
+          <Text style={styles.buttonDarkText}>{t('alertDetails')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.buttonLight} onPress={openSkills}>
-          <Text style={styles.buttonLightText}>Kỹ năng ứng phó</Text>
+          <Text style={styles.buttonLightText}>{t('responseSkills')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.supportSection}>
-        <Text style={styles.supportTitle}>Hỗ trợ</Text>
+        <Text style={styles.supportTitle}>{t('support')}</Text>
         <View style={styles.supportButtonsContainer}>
           <TouchableOpacity
             style={styles.supportButton}
             onPress={() => navigation.navigate('NearbyShelters')}>
             <View style={styles.supportButtonContent}>
               {homeLocationIcon(vw(5), vw(5))}
-              <Text style={styles.supportButtonText}>Nơi sơ tán gần bạn</Text>
+              <Text style={styles.supportButtonText}>{t('nearbyShelters')}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity
@@ -119,7 +121,7 @@ const AdditionalInfo = () => {
             onPress={() => navigation.navigate('EmergencyContacts')}>
             <View style={styles.supportButtonContent}>
               {contactIcon(vw(5), vw(5))}
-              <Text style={styles.supportButtonText}>Liên lạc khẩn cấp</Text>
+              <Text style={styles.supportButtonText}>{t('emergencyContacts')}</Text>
             </View>
           </TouchableOpacity>
         </View>

@@ -13,11 +13,13 @@ import AdditionalInfo from '../../components/home/AdditionalInfo';
 import {vh, vw} from '../../services/styleProps';
 import CustomStatusBar from '../../components/CustomStatusBar';
 import {useApp} from '../../context/AppContext';
+import {useI18n} from '../../i18n';
 import {settingsIcon} from '../../assets/svgIcon';
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {refresh} = useApp();
+  const {t} = useI18n();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = React.useCallback(async () => {
@@ -38,7 +40,7 @@ const Home = () => {
             onRefresh={onRefresh}
             colors={['#1F2D54']} // Android
             tintColor="#1F2D54" // iOS
-            title="Đang tải lại..." // iOS
+            title={t('reloading')} // iOS
             titleColor="#1F2D54" // iOS
           />
         }>
@@ -48,7 +50,7 @@ const Home = () => {
             onPress={() => navigation.navigate('Settings')}
             style={styles.settingsButton}
             accessibilityRole="button"
-            accessibilityLabel="Cài đặt">
+            accessibilityLabel={t('settings')}>
             {settingsIcon(vw(6.5), vw(6.5), '#1F2D54')}
           </TouchableOpacity>
         </View>

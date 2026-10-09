@@ -13,7 +13,10 @@ logger = logging.getLogger(__name__)
 
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
-    # Slower, but a separate server (VK) for when the main one refuses or is busy.
+    # The two servers behind the main address, for when it sends us to the busy one.
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://z.overpass-api.de/api/interpreter",
+    # A separate server (VK), often slow.
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
@@ -66,9 +69,48 @@ def _address(tags: dict) -> Optional[str]:
     return text or None
 
 
-async def find_shelters(lat: float, lon: float, radius_km: float, lang: Lang = "vi") -> list[dict]:
+def parse_places(elements: list[dict]) -> list[dict]:
+    """Overpass elements -> evacuation places (unsorted, for any distance)."""
+    places = []
+    for el in elements:
+        tags = el.get("tags") or {}
+        name = tags.get("name:vi") or tags.get("name")
+        center = el.get("center") or {}
+        p_lat = el.get("lat") if el.get("lat") is not None else center.get("lat")
+        p_lon = el.get("lon") if el.get("lon") is not None else center.get("lon")
+        if not name or p_lat is None or p_lon is None:
+            continue
+        places.append(
+            {
+                "id": f"osm-{el['type']}-{el['id']}",
+                "name": name,
+                "name_en": tags.get("name:en"),
+                "address": _address(tags),
+                "kind": _kind(tags),
+                "latitude": float(p_lat),
+                "longitude": float(p_lon),
+                "phone": tags.get("phone") or tags.get("contact:phone"),
+                "capacity": None,
+                "note": None,
+                "official": False,
+                "source": "OpenStreetMap",
+            }
+        )
+    return places
+
+
+async def find_shelters(
+    lat: float, lon: float, radius_km: float, lang: Lang = "vi", elements: Optional[list[dict]] = None
+) -> list[dict]:
     """Evacuation places from OpenStreetMap: schools, community centres, ward offices...
-    (the kinds local authorities in Vietnam commonly use)."""
+    (the kinds local authorities in Vietnam commonly use).
+
+    `elements`: Overpass results the app downloaded itself (only used for this answer, never
+    cached); otherwise this server queries Overpass.
+    """
+    if elements is not None:
+        return nearby_places(parse_places(elements), lat, lon, radius_km, lang)
+
     lat_s, lon_s = snap(lat, 0.02), snap(lon, 0.02)
     radius_m = int(radius_km * 1000)
 
@@ -78,44 +120,19 @@ async def find_shelters(lat: float, lon: float, radius_km: float, lang: Lang = "
         last_error = None
         for url in OVERPASS_URLS:
             try:
-                resp = await get_client().post(url, data={"data": query}, timeout=40)
+                resp = await get_client().post(url, data={"data": query}, timeout=25)
                 resp.raise_for_status()
-                elements = resp.json().get("elements", [])
-                break
+                return parse_places(resp.json().get("elements", []))
             except Exception as e:
                 logger.warning(f"Overpass {url.split('/')[2]} failed: {e}")
                 last_error = e
-        else:
-            raise RuntimeError(f"Overpass unavailable: {last_error}")
-
-        places = []
-        for el in elements:
-            tags = el.get("tags", {})
-            name = tags.get("name:vi") or tags.get("name")
-            p_lat = el.get("lat") or el.get("center", {}).get("lat")
-            p_lon = el.get("lon") or el.get("center", {}).get("lon")
-            if not name or p_lat is None or p_lon is None:
-                continue
-            kind = _kind(tags)
-            places.append(
-                {
-                    "id": f"osm-{el['type']}-{el['id']}",
-                    "name": name,
-                    "name_en": tags.get("name:en"),
-                    "address": _address(tags),
-                    "kind": kind,
-                    "latitude": p_lat,
-                    "longitude": p_lon,
-                    "phone": tags.get("phone") or tags.get("contact:phone"),
-                    "capacity": None,
-                    "note": None,
-                    "official": False,
-                    "source": "OpenStreetMap",
-                }
-            )
-        return places
+        raise RuntimeError(f"Overpass unavailable: {last_error}")
 
     places = await cache.get_or_set(f"shelters:{lat_s}:{lon_s}:{radius_m}", 7 * 24 * 3600, load)
+    return nearby_places(places, lat, lon, radius_km, lang)
+
+
+def nearby_places(places: list[dict], lat: float, lon: float, radius_km: float, lang: Lang) -> list[dict]:
     result = []
     for p in places:
         distance = haversine_km(lat, lon, p["latitude"], p["longitude"])

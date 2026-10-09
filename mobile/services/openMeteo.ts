@@ -9,6 +9,8 @@
  * Keep these lists equal to CURRENT_VARS / HOURLY_VARS / DAILY_VARS in backend/services/weather.py
  * and to AlertWorker.kt (a backend test checks all three).
  */
+import {APP_USER_AGENT} from '../config';
+
 export const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 export const CURRENT_VARS =
   'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,' +
@@ -43,7 +45,10 @@ export async function fetchForecast(lat: number, lon: number): Promise<object | 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20000);
   try {
-    const resp = await fetch(forecastUrl(lat, lon), {signal: controller.signal});
+    const resp = await fetch(forecastUrl(lat, lon), {
+      headers: {'User-Agent': APP_USER_AGENT},
+      signal: controller.signal,
+    });
     return resp.ok ? await resp.json() : null;
   } catch {
     return null;

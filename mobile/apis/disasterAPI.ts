@@ -1,4 +1,5 @@
 import axiosClient from '../services/axiosClient';
+import {fetchPlaces} from '../services/overpass';
 import {
   Alert,
   Dissater,
@@ -13,15 +14,16 @@ import {
 } from '../services/model';
 
 /**
- * Sends the phone's own forecast when it has one. Falls back to letting the server fetch it when
- * the phone couldn't, or when the server rejects it or is an older version without the POST route.
+ * Sends data the phone downloaded itself (a forecast, map places) when it has some. Falls back to
+ * letting the server fetch it when the phone couldn't, or when the server rejects the data or is
+ * an older version without the POST route.
  */
-async function withForecast<T>(
-  forecast: object | null | undefined,
+async function withPhoneData<T>(
+  data: object | null | undefined,
   send: () => Promise<T>,
   serverFetches: () => Promise<T>,
 ): Promise<T> {
-  if (!forecast) {
+  if (!data) {
     return serverFetches();
   }
   try {
@@ -47,7 +49,7 @@ const disasterAPI = {
 
   /** `forecast`: the raw Open-Meteo forecast the phone downloaded (see services/openMeteo.ts). */
   getWeather: async (lat: number, lon: number, forecast?: object | null): Promise<WeatherData> =>
-    withForecast(
+    withPhoneData(
       forecast,
       () => axiosClient.post('/weather', {latitude: lat, longitude: lon, forecast}),
       () => axiosClient.get('/weather', {params: {lat, lon}}),
@@ -57,14 +59,28 @@ const disasterAPI = {
     axiosClient.get('/flood', {params: {lat, lon}}),
 
   getAlerts: async (lat: number, lon: number, forecast?: object | null): Promise<{alerts: Alert[]}> =>
-    withForecast(
+    withPhoneData(
       forecast,
       () => axiosClient.post('/alerts', {latitude: lat, longitude: lon, forecast}),
       () => axiosClient.get('/alerts', {params: {lat, lon}}),
     ),
 
-  getShelters: async (lat: number, lon: number): Promise<{shelters: Shelter[]}> =>
-    axiosClient.get('/shelters', {params: {lat, lon}}),
+  /** The phone downloads the map places itself (see services/overpass.ts); the server sorts them. */
+  getShelters: async (lat: number, lon: number): Promise<{shelters: Shelter[]}> => {
+    const search = async (radius_km: number) => {
+      const elements = await fetchPlaces(lat, lon, radius_km);
+      const result: {shelters: Shelter[]} = await withPhoneData(
+        elements,
+        () => axiosClient.post('/shelters', {latitude: lat, longitude: lon, radius_km, elements}),
+        () => axiosClient.get('/shelters', {params: {lat, lon}}),
+      );
+      return {phoneSearched: elements !== null, result};
+    };
+    const first = await search(5);
+    // Too few places (countryside): widen the search once. (When the server searched, it did.)
+    const found = first.result.shelters.filter(s => !s.official).length;
+    return first.phoneSearched && found < 5 ? (await search(15)).result : first.result;
+  },
 
   searchPlaces: async (q: string): Promise<{results: Place[]}> =>
     axiosClient.get('/geocode/search', {params: {q}}),

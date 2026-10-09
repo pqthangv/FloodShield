@@ -36,6 +36,8 @@ def test_app_asks_open_meteo_for_what_the_server_reads(path):
     source = path.read_text(encoding="utf-8")
     for name, value in EXPECTED.items():
         assert constant(source, name) == value, f"{name} in {path.name} differs from weather.py"
+    # The app and the background worker round the location the same way (the privacy policy says ~1 km).
+    assert re.search(r"SNAP_STEP\s*=\s*0\.01\b", source), f"SNAP_STEP in {path.name} is not 0.01"
 
 
 OVERPASS_TS = MOBILE / "services" / "overpass.ts"

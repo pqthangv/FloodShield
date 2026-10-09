@@ -83,6 +83,15 @@ flowchart LR
   for the same key share one upstream call, and new river analyses have a daily budget.
   OpenStreetMap queries use a bounding box instead of a radius search (about 7 s instead of
   timing out). ([`backend/services/cache.py`](backend/services/cache.py))
+- **Each phone brings its own API quota.** Free weather and map services limit each internet
+  address, and a cloud server shares its address with many other apps: Open-Meteo answered ours
+  with "daily limit exceeded" by midday. So the app downloads the raw forecast and map data with
+  the phone's own connection (location rounded first) and sends it to the API, which still does
+  all the processing. The server never caches or shares that data, a test keeps the TypeScript,
+  Kotlin and Python request definitions identical, and `/health?upstream=1` shows what each
+  service answers the server.
+  ([`mobile/services/openMeteo.ts`](mobile/services/openMeteo.ts),
+  [`backend/routers/WeatherRoute.py`](backend/routers/WeatherRoute.py))
 - **Background alerts without a push server.** A Kotlin `Worker` behind a codegen TurboModule
   (React Native new architecture) polls the API. Alert IDs are stable per date and severity, so
   users get one notification per alert and a new one only when it escalates. Alerts already
@@ -109,8 +118,8 @@ flowchart LR
 | Mobile | React Native 0.87 (new architecture, Hermes), TypeScript, React Navigation 7, react-native-svg (custom charts), Kotlin + AndroidX WorkManager |
 | Backend | Python 3.12+, FastAPI, SQLAlchemy 2 (async), Pydantic 2, httpx, Pillow |
 | Data | Open-Meteo, GloFAS v4 (Copernicus), GDACS, OpenStreetMap (Overpass, Nominatim) |
-| Quality | pytest (23 tests), Jest (7 tests), ESLint, TypeScript type checking, GitHub Actions CI |
-| Deployment | Docker, PostgreSQL; free Render + Neon setup documented |
+| Quality | pytest (40 tests, on SQLite and PostgreSQL), Jest (7 tests), ESLint, TypeScript type checking, GitHub Actions CI |
+| Deployment | Docker, PostgreSQL; live on Render (free) + Neon from [`render.yaml`](render.yaml) |
 
 ## Repository layout
 
@@ -118,7 +127,8 @@ flowchart LR
 backend/    FastAPI service: weather, flood, alerts, shelters, community posts, admin API
 mobile/     React Native Android app (iOS project included, not yet tested)
 scripts/    Windows helpers: install the toolchain, start everything, create the Play upload key
-docs/       Guide, setup, deployment and Google Play publishing docs, screenshots
+deploy/     Running the API on your own server: Docker Compose + Caddy (automatic HTTPS)
+docs/       Screenshots
 ```
 
 ## Run it locally
@@ -136,15 +146,13 @@ npx react-native start      # terminal 1
 npm run android             # terminal 2
 ```
 
-Full instructions, including a one-command Windows setup: **[docs/SETUP.md](docs/SETUP.md)**.
-How everything works and how to rebuild it from scratch: **[docs/GUIDE.md](docs/GUIDE.md)**.
-Publishing checklist: **[docs/PUBLISHING.md](docs/PUBLISHING.md)**.
+On Windows, `scripts/setup-dev-windows.ps1` installs the toolchain and `scripts/start-dev.ps1`
+starts everything. To run the API on your own server instead of Render, see [`deploy/`](deploy/).
 
 ## Status
 
-- Works end to end on an Android 16 emulator against live data. The release bundle (`.aab`) builds.
-- **Not deployed yet:** the API runs locally. Deploying it and publishing to Google Play are the
-  next steps ([docs/PUBLISHING.md](docs/PUBLISHING.md)).
+- **The API is live** on Render (free plan) with a Neon PostgreSQL database. Test builds of the
+  Android app run against it; Google Play publishing (closed test) is the next step.
 - The iOS project was generated for React Native 0.87 but has not been built or tested.
 - Forecasts are guidance only. The app tells users to follow the national weather service
   (nchmf.gov.vn) and local authorities.

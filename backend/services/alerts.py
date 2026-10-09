@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from i18n import COUNTRY_VI, Lang, day_label, t
 from models.alert_model import ManualAlert
 from services import flood, gdacs, osm, weather
+from services.cache import cache
 from services.geo import haversine_km
 
 logger = logging.getLogger(__name__)
@@ -350,32 +351,56 @@ def gdacs_alerts(events: list[dict], lat: float, lon: float, lang: Lang = "vi") 
 # --- Manual alerts ----------------------------------------------------------------------
 
 
+MANUAL_ALERTS_KEY = "manual_alerts"
+
+
+def forget_manual_alerts():
+    """Call after an administrator adds or removes an alert, so it shows at once."""
+    cache.delete(MANUAL_ALERTS_KEY)
+
+
+async def _manual_alert_rows(db: AsyncSession) -> list[dict]:
+    # Every alert check from every phone reads these, and they rarely change. Keeping them for
+    # 3 minutes lets the database (Neon's free plan bills the hours it is awake) go to sleep.
+    async def load():
+        rows = (await db.execute(select(ManualAlert))).scalars().all()
+        return [
+            {
+                "id": a.id, "category": a.category, "severity": a.severity, "title": a.title,
+                "area": a.area, "description": a.description, "source": a.source,
+                "latitude": a.latitude, "longitude": a.longitude, "radius_km": a.radius_km,
+                "starts_at": _aware(a.starts_at), "ends_at": _aware(a.ends_at),
+            }
+            for a in rows
+        ]
+
+    return await cache.get_or_set(MANUAL_ALERTS_KEY, 180, load)
+
+
 async def manual_alerts(db: AsyncSession, lat: float, lon: float, lang: Lang = "vi") -> list[dict]:
     """Alerts written by an administrator are returned as written (not translated)."""
     now = datetime.now(timezone.utc)
-    rows = (await db.execute(select(ManualAlert))).scalars().all()
     alerts = []
-    for a in rows:
-        starts = _aware(a.starts_at)
-        ends = _aware(a.ends_at)
+    for a in await _manual_alert_rows(db):
+        starts, ends = a["starts_at"], a["ends_at"]
         if (starts and starts > now) or (ends and ends < now):
             continue
-        distance = haversine_km(lat, lon, a.latitude, a.longitude)
-        if distance > a.radius_km:
+        distance = haversine_km(lat, lon, a["latitude"], a["longitude"])
+        if distance > a["radius_km"]:
             continue
         alerts.append(
             _alert(
-                id=f"manual-{a.id}",
-                category=a.category,
-                severity=a.severity,
-                title=a.title,
-                area=a.area or t(lang, "your_area"),
-                description=a.description,
+                id=f"manual-{a['id']}",
+                category=a["category"],
+                severity=a["severity"],
+                title=a["title"],
+                area=a["area"] or t(lang, "your_area"),
+                description=a["description"],
                 starts_at=starts.isoformat() if starts else None,
                 ends_at=ends.isoformat() if ends else None,
                 distance_km=round(distance, 1),
-                disaster_type_id=_type_for_category(a.category),
-                source=a.source or "FloodShield",
+                disaster_type_id=_type_for_category(a["category"]),
+                source=a["source"] or "FloodShield",
             )
         )
     return alerts

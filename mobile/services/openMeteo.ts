@@ -23,8 +23,13 @@ export const DAILY_VARS =
   'precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,' +
   'sunrise,sunset';
 
-/** ~5 km grid, like the server: forecasts are no more precise, and it shares less of where you are. */
-export const snap = (value: number) => Math.round(Math.round(value / 0.05) * 0.05 * 10000) / 10000;
+/**
+ * Rounded to ~1 km (ward level) before it leaves the phone. Open-Meteo corrects the temperature for
+ * the terrain height at this exact point, which matters in the mountains, so this is finer than the
+ * server's shared 5 km cache grid.
+ */
+export const SNAP_STEP = 0.01;
+export const snap = (value: number) => Math.round(Math.round(value / SNAP_STEP) * SNAP_STEP * 10000) / 10000;
 
 export function forecastUrl(lat: number, lon: number) {
   const params = [

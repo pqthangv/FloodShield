@@ -270,7 +270,7 @@ const vi = {
     'Bản đồ, nơi sơ tán: © OpenStreetMap contributors',
   note: 'Lưu ý',
   disclaimer:
-    'Thông tin chỉ mang tính tham khảo. Luôn làm theo hướng dẫn của chính quyền và Trung tâm Dự báo KTTV Quốc gia (nchmf.gov.vn).',
+    'FloodShield là ứng dụng độc lập, không thuộc và không đại diện cho bất kỳ cơ quan nhà nước nào. Thông tin chỉ mang tính tham khảo. Luôn làm theo hướng dẫn của chính quyền và Trung tâm Dự báo KTTV Quốc gia (nchmf.gov.vn).',
   version: 'Phiên bản {version}',
   showAdvanced: 'Nhấn để hiện cài đặt nâng cao',
   apiServer: 'Máy chủ API',

@@ -11,6 +11,7 @@ from models.alert_model import ManualAlert, ManualAlertCreate
 from models.post_model import Post
 from models.shelter_model import Shelter, ShelterCreate
 from routers.PostRoute import to_response
+from services import alerts
 
 
 def require_admin(x_admin_token: Optional[str] = Header(None)):
@@ -38,6 +39,7 @@ async def create_manual_alert(body: ManualAlertCreate, db: AsyncSession = Depend
     db.add(alert)
     await db.commit()
     await db.refresh(alert)
+    alerts.forget_manual_alerts()
     return {"id": alert.id}
 
 
@@ -48,6 +50,7 @@ async def delete_manual_alert(alert_id: int, db: AsyncSession = Depends(get_db))
         raise HTTPException(status_code=404, detail="Alert not found")
     await db.delete(alert)
     await db.commit()
+    alerts.forget_manual_alerts()
     return {"ok": True}
 
 

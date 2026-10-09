@@ -100,7 +100,8 @@ PRIVACY_HTML = """<!doctype html>
 h1{font-size:1.5em}h2{font-size:1.15em;margin-top:1.6em}</style></head><body>
 <h1>Chính sách quyền riêng tư - FloodShield</h1>
 <p>FloodShield giúp bạn nhận cảnh báo lũ lụt, thiên tai, thời tiết và chia sẻ thông tin ngập lụt với cộng đồng.
-Chúng tôi chỉ thu thập dữ liệu cần thiết cho các chức năng này.</p>
+Chúng tôi chỉ thu thập dữ liệu cần thiết cho các chức năng này. FloodShield là ứng dụng độc lập, không thuộc và không
+đại diện cho bất kỳ cơ quan nhà nước nào.</p>
 <h2>1. Dữ liệu chúng tôi thu thập</h2>
 <ul>
 <li><b>Vị trí</b>: dùng để lấy dự báo thời tiết, cảnh báo, nơi sơ tán và bài đăng gần bạn. Vị trí được gửi đến máy chủ
@@ -113,8 +114,10 @@ Mã này không gắn với danh tính, số điện thoại hay tài khoản Go
 <p>Chúng tôi không yêu cầu đăng ký tài khoản, không hiển thị quảng cáo và không bán dữ liệu.</p>
 <h2>2. Bên thứ ba</h2>
 <p>Máy chủ FloodShield lấy dữ liệu từ Open-Meteo (thời tiết, GloFAS/Copernicus), GDACS (thiên tai) và OpenStreetMap
-(địa danh, nơi sơ tán), sử dụng tọa độ đã được làm tròn. Để lấy dự báo thời tiết, ứng dụng cũng gửi trực tiếp tọa độ
-đã làm tròn (khoảng 5 km) tới Open-Meteo (open-meteo.com). Ứng dụng có thể mở Google Maps khi bạn chọn chỉ đường.</p>
+(địa danh, nơi sơ tán), sử dụng tọa độ đã được làm tròn. Ứng dụng cũng gửi trực tiếp tọa độ đã làm tròn tới hai dịch vụ
+này: tới Open-Meteo (open-meteo.com, khoảng 1 km) để lấy dự báo thời tiết, và tới máy chủ Overpass của OpenStreetMap
+(overpass-api.de và máy chủ dự phòng maps.mail.ru, khoảng 2 km) để tìm nơi sơ tán gần bạn. Ứng dụng có thể mở
+Google Maps khi bạn chọn chỉ đường.</p>
 <h2>3. Lưu trữ và xóa dữ liệu</h2>
 <p>Bài đăng hiển thị trong 7 ngày và có thể được lưu trữ tối đa 90 ngày. Bạn có thể xóa từng bài đăng, hoặc xóa toàn bộ
 dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi</b>. Bài đăng vi phạm có thể bị ẩn hoặc xóa.</p>
@@ -122,11 +125,14 @@ dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi<
 <p>Email: {contact}</p>
 <hr>
 <h1>Privacy Policy (English summary)</h1>
+<p>FloodShield is an independent app. It is not affiliated with, and does not represent, any government agency.</p>
 <p>FloodShield collects your location (to provide forecasts, alerts, shelters and nearby reports; location history is
 not stored), the content of community reports you choose to publish (display name, text, water level, photo with
 EXIF/GPS metadata removed, location - all public), and a random device identifier used to manage your own posts and
 prevent spam. No account, no ads, no sale of data. Weather, flood and disaster data come from Open-Meteo, GloFAS,
-GDACS and OpenStreetMap. To get the weather forecast, the app also sends your location, rounded to about 5 km,
-directly to Open-Meteo (open-meteo.com). You can delete all your data in Settings &rarr; Delete my data.
+GDACS and OpenStreetMap. The app also sends your location, rounded, directly to two of these services: to
+Open-Meteo (open-meteo.com, about 1 km) for the weather forecast, and to OpenStreetMap's Overpass servers
+(overpass-api.de, with maps.mail.ru as backup, about 2 km) to find shelters near you. You can delete all your data in
+Settings &rarr; Delete my data.
 Contact: {contact}</p>
 </body></html>"""

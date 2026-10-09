@@ -46,6 +46,9 @@ class TTLCache:
         self._locks.pop(key, None)
         return value
 
+    def delete(self, key: str):
+        self._data.pop(key, None)
+
     def clear(self):
         self._data.clear()
 

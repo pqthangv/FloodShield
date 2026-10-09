@@ -161,6 +161,21 @@ async def test_no_false_all_clear_when_the_forecast_is_down(client, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_admin_alert_changes_show_at_once(client):
+    # Admin alerts are cached for 3 minutes, but adding or removing one must not wait for that.
+    admin = {"X-Admin-Token": "test-admin"}
+    loc = {"lat": 10.77, "lon": 106.7}
+    titles = lambda r: [a["title"] for a in r.json()["alerts"]]
+    assert "Dam release" not in titles(await client.get("/api/v1/alerts", params=loc))  # cache filled
+    body = {"title": "Dam release", "description": "Move to higher ground", "category": "flood",
+            "severity": "severe", "latitude": 10.77, "longitude": 106.7, "radius_km": 20}
+    created = await client.post("/api/v1/admin/alerts", json=body, headers=admin)
+    assert "Dam release" in titles(await client.get("/api/v1/alerts", params=loc))
+    await client.delete(f"/api/v1/admin/alerts/{created.json()['id']}", headers=admin)
+    assert "Dam release" not in titles(await client.get("/api/v1/alerts", params=loc))
+
+
+@pytest.mark.asyncio
 async def test_manual_alert_requires_admin_and_radius(client):
     body = {"title": "Xả lũ hồ Dầu Tiếng", "description": "Chuẩn bị sơ tán", "category": "flood",
             "severity": "severe", "latitude": 11.3, "longitude": 106.3, "radius_km": 60}

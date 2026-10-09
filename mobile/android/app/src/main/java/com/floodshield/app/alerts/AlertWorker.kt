@@ -172,8 +172,10 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
             "precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max," +
             "sunrise,sunset"
 
-    /** ~5 km grid, like the app and the server. */
-    private fun snap(value: Double) = Math.round(Math.round(value / 0.05) * 0.05 * 10000) / 10000.0
+    /** ~1 km (ward level), like the app (services/openMeteo.ts). */
+    private const val SNAP_STEP = 0.01
+
+    private fun snap(value: Double) = Math.round(Math.round(value / SNAP_STEP) * SNAP_STEP * 10000) / 10000.0
 
     fun createChannel(context: Context) {
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return

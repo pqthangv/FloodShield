@@ -113,7 +113,8 @@ Mã này không gắn với danh tính, số điện thoại hay tài khoản Go
 <p>Chúng tôi không yêu cầu đăng ký tài khoản, không hiển thị quảng cáo và không bán dữ liệu.</p>
 <h2>2. Bên thứ ba</h2>
 <p>Máy chủ FloodShield lấy dữ liệu từ Open-Meteo (thời tiết, GloFAS/Copernicus), GDACS (thiên tai) và OpenStreetMap
-(địa danh, nơi sơ tán), sử dụng tọa độ đã được làm tròn. Ứng dụng có thể mở Google Maps khi bạn chọn chỉ đường.</p>
+(địa danh, nơi sơ tán), sử dụng tọa độ đã được làm tròn. Để lấy dự báo thời tiết, ứng dụng cũng gửi trực tiếp tọa độ
+đã làm tròn (khoảng 5 km) tới Open-Meteo (open-meteo.com). Ứng dụng có thể mở Google Maps khi bạn chọn chỉ đường.</p>
 <h2>3. Lưu trữ và xóa dữ liệu</h2>
 <p>Bài đăng hiển thị trong 7 ngày và có thể được lưu trữ tối đa 90 ngày. Bạn có thể xóa từng bài đăng, hoặc xóa toàn bộ
 dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi</b>. Bài đăng vi phạm có thể bị ẩn hoặc xóa.</p>
@@ -125,5 +126,7 @@ dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi<
 not stored), the content of community reports you choose to publish (display name, text, water level, photo with
 EXIF/GPS metadata removed, location - all public), and a random device identifier used to manage your own posts and
 prevent spam. No account, no ads, no sale of data. Weather, flood and disaster data come from Open-Meteo, GloFAS,
-GDACS and OpenStreetMap. You can delete all your data in Settings &rarr; Delete my data. Contact: {contact}</p>
+GDACS and OpenStreetMap. To get the weather forecast, the app also sends your location, rounded to about 5 km,
+directly to Open-Meteo (open-meteo.com). You can delete all your data in Settings &rarr; Delete my data.
+Contact: {contact}</p>
 </body></html>"""

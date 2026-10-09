@@ -104,6 +104,42 @@ async def test_alerts_from_forecast(client):
     assert data["alerts"][0]["area"] == "Phường Test, TP Test"
 
 
+async def phone_forecast(lat, lon):
+    # What the app downloads from Open-Meteo itself: the same data, plus the grid point.
+    return {**(await fake_forecast(lat, lon)), "latitude": lat + 0.01, "longitude": lon - 0.01}
+
+
+@pytest.mark.asyncio
+async def test_forecast_sent_by_the_phone(client, monkeypatch):
+    loc = {"lat": 10.77, "lon": 106.7}
+    expected_weather = (await client.get("/api/v1/weather", params=loc)).json()
+    expected_alerts = (await client.get("/api/v1/alerts", params=loc)).json()["alerts"]
+
+    async def server_quota_used_up(lat, lon):
+        raise RuntimeError("429 Daily API request limit exceeded")
+
+    monkeypatch.setattr(weather, "fetch_raw_forecast", server_quota_used_up)
+    body = {"latitude": 10.77, "longitude": 106.7, "forecast": await phone_forecast(10.77, 106.7)}
+    r = await client.post("/api/v1/weather", json=body)
+    assert r.status_code == 200 and r.json() == expected_weather
+    r = await client.post("/api/v1/alerts", json=body)
+    assert r.status_code == 200 and r.json()["alerts"] == expected_alerts
+    assert [a["id"] for a in expected_alerts] == ["rain-2026-10-05-high"]
+
+
+@pytest.mark.asyncio
+async def test_bad_forecast_from_the_phone_is_rejected(client):
+    good = await phone_forecast(10.77, 106.7)
+    no_hourly = {k: v for k, v in good.items() if k != "hourly"}
+    elsewhere = {**good, "latitude": 21.0, "longitude": 105.8}  # a forecast for Hanoi
+    broken = {**good, "daily": {**good["daily"], "precipitation_sum": "lots"}}
+    huge = {**good, "hourly": {**good["hourly"], "time": ["2026-10-04T00:00"] * 1000}}
+    for forecast in (no_hourly, elsewhere, broken, huge):
+        for path in ("/api/v1/weather", "/api/v1/alerts"):
+            r = await client.post(path, json={"latitude": 10.77, "longitude": 106.7, "forecast": forecast}, headers=EN)
+            assert r.status_code == 422 and r.json()["detail"] == "Invalid forecast data", (path, r.text)
+
+
 @pytest.mark.asyncio
 async def test_no_false_all_clear_when_the_forecast_is_down(client, monkeypatch):
     async def forecast_down(lat, lon):

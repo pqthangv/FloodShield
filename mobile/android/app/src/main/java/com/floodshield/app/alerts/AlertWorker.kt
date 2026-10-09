@@ -32,7 +32,11 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
 
     val alerts =
         try {
-          fetchAlerts("$baseUrl/alerts?lat=$lat&lon=$lon", prefs.language)
+          // The phone downloads the forecast itself (see services/openMeteo.ts) and the server
+          // turns it into alerts. Without one, the server tries to fetch the forecast itself.
+          val forecast = fetchForecast(lat, lon)
+          (forecast?.let { postAlerts(baseUrl, lat, lon, it, prefs.language) })
+              ?: request("$baseUrl/alerts?lat=$lat&lon=$lon", prefs.language).alerts()
         } catch (e: IOException) {
           return Result.retry()
         } catch (e: Exception) {
@@ -52,23 +56,58 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     return Result.success()
   }
 
-  private fun fetchAlerts(url: String, language: String): JSONArray {
+  /** Raw Open-Meteo forecast for the location, or null if the phone can't get it. */
+  private fun fetchForecast(lat: Double, lon: Double): JSONObject? {
+    val url =
+        "$FORECAST_URL?latitude=${snap(lat)}&longitude=${snap(lon)}&current=$CURRENT_VARS" +
+            "&hourly=$HOURLY_VARS&daily=$DAILY_VARS&timezone=auto&forecast_days=7&wind_speed_unit=kmh"
+    return try {
+      val (code, body) = request(url, null, timeoutMs = 20_000)
+      if (code in 200..299) JSONObject(body) else null
+    } catch (e: Exception) {
+      null
+    }
+  }
+
+  /** Alerts from the phone's own forecast; null when the server can't take it (old or rejected). */
+  private fun postAlerts(baseUrl: String, lat: Double, lon: Double, forecast: JSONObject, language: String): JSONArray? {
+    val body = JSONObject().put("latitude", lat).put("longitude", lon).put("forecast", forecast)
+    val response = request("$baseUrl/alerts", language, body.toString())
+    return if (response.first in setOf(404, 405, 422)) null else response.alerts()
+  }
+
+  /** (HTTP status, body). Throws IOException when there is no connection. */
+  private fun request(
+      url: String,
+      language: String?,
+      jsonBody: String? = null,
+      // Free hosting plans can take ~1 minute to wake up.
+      timeoutMs: Int = 60_000,
+  ): Pair<Int, String> {
     val connection = URL(url).openConnection() as HttpURLConnection
-    // Free hosting plans can take ~1 minute to wake up.
-    connection.connectTimeout = 60_000
-    connection.readTimeout = 60_000
+    connection.connectTimeout = timeoutMs
+    connection.readTimeout = timeoutMs
     connection.setRequestProperty("Accept", "application/json")
     // Alert titles and descriptions come back in the language chosen in the app.
-    connection.setRequestProperty("Accept-Language", language)
+    language?.let { connection.setRequestProperty("Accept-Language", it) }
     try {
-      if (connection.responseCode !in 200..299) {
-        throw IOException("HTTP ${connection.responseCode}")
+      if (jsonBody != null) {
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.outputStream.use { it.write(jsonBody.toByteArray()) }
       }
-      val body = connection.inputStream.bufferedReader().use { it.readText() }
-      return JSONObject(body).optJSONArray("alerts") ?: JSONArray()
+      val code = connection.responseCode
+      val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+      return code to (stream?.bufferedReader()?.use { it.readText() } ?: "")
     } finally {
       connection.disconnect()
     }
+  }
+
+  private fun Pair<Int, String>.alerts(): JSONArray {
+    if (first !in 200..299) throw IOException("HTTP $first")
+    return JSONObject(second).optJSONArray("alerts") ?: JSONArray()
   }
 
   private fun notify(alert: JSONObject, severity: String) {
@@ -119,6 +158,22 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
   companion object {
     const val CHANNEL_ID = "disaster_alerts"
     private val NOTIFY_SEVERITIES = setOf("moderate", "high", "severe")
+
+    // Keep equal to services/openMeteo.ts and backend/services/weather.py (a backend test checks).
+    private const val FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+    private const val CURRENT_VARS =
+        "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation," +
+            "weather_code,wind_speed_10m,wind_gusts_10m"
+    private const val HOURLY_VARS =
+        "temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m," +
+            "wind_gusts_10m"
+    private const val DAILY_VARS =
+        "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max," +
+            "precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max," +
+            "sunrise,sunset"
+
+    /** ~5 km grid, like the app and the server. */
+    private fun snap(value: Double) = Math.round(Math.round(value / 0.05) * 0.05 * 10000) / 10000.0
 
     fun createChannel(context: Context) {
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return

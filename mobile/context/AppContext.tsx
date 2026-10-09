@@ -13,6 +13,7 @@ import {errorMessage, initApiBaseUrl} from '../services/axiosClient';
 import locationService, {DEFAULT_LOCATIONS} from '../services/locationService';
 import {getLanguage, translate, useI18n} from '../i18n';
 import {Alert, WeatherData} from '../services/model';
+import {fetchForecast} from '../services/openMeteo';
 import storage, {SavedLocation} from '../services/storage';
 import {
   markAlertsSeen,
@@ -69,9 +70,12 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
 
   const loadData = useCallback(async (loc: SavedLocation) => {
     setLoading(true);
+    // Download the forecast with the phone's own internet address (see services/openMeteo.ts),
+    // once for both requests.
+    const forecast = await fetchForecast(loc.latitude, loc.longitude);
     const [w, a] = await Promise.allSettled([
-      disasterAPI.getWeather(loc.latitude, loc.longitude),
-      disasterAPI.getAlerts(loc.latitude, loc.longitude),
+      disasterAPI.getWeather(loc.latitude, loc.longitude, forecast),
+      disasterAPI.getAlerts(loc.latitude, loc.longitude, forecast),
     ]);
     if (w.status === 'fulfilled') {
       setWeather(w.value);

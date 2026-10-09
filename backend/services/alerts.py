@@ -409,9 +409,16 @@ class AlertsUnavailable(Exception):
     pass
 
 
-async def build_alerts(db: AsyncSession, lat: float, lon: float, lang: Lang = "vi") -> list[dict]:
+async def _given(value):
+    return value
+
+
+async def build_alerts(
+    db: AsyncSession, lat: float, lon: float, lang: Lang = "vi", raw: Optional[dict] = None
+) -> list[dict]:
+    """`raw`: an Open-Meteo forecast the app downloaded itself; otherwise this server fetches it."""
     raw, outlook, events, place = await asyncio.gather(
-        weather.fetch_raw_forecast(lat, lon),
+        _given(raw) if raw is not None else weather.fetch_raw_forecast(lat, lon),
         flood.get_flood_outlook(db, lat, lon, lang),
         gdacs.fetch_events(),
         osm.reverse_geocode(lat, lon, lang),

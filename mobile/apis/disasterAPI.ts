@@ -12,6 +12,28 @@ import {
   WeatherData,
 } from '../services/model';
 
+/**
+ * Sends the phone's own forecast when it has one. Falls back to letting the server fetch it when
+ * the phone couldn't, or when the server rejects it or is an older version without the POST route.
+ */
+async function withForecast<T>(
+  forecast: object | null | undefined,
+  send: () => Promise<T>,
+  serverFetches: () => Promise<T>,
+): Promise<T> {
+  if (!forecast) {
+    return serverFetches();
+  }
+  try {
+    return await send();
+  } catch (e: any) {
+    if ([404, 405, 422].includes(e?.response?.status)) {
+      return serverFetches();
+    }
+    throw e;
+  }
+}
+
 const disasterAPI = {
   getAll: async (): Promise<DissaterData> => {
     const url = '/thientai/';
@@ -23,14 +45,23 @@ const disasterAPI = {
     return axiosClient.get(url);
   },
 
-  getWeather: async (lat: number, lon: number): Promise<WeatherData> =>
-    axiosClient.get('/weather', {params: {lat, lon}}),
+  /** `forecast`: the raw Open-Meteo forecast the phone downloaded (see services/openMeteo.ts). */
+  getWeather: async (lat: number, lon: number, forecast?: object | null): Promise<WeatherData> =>
+    withForecast(
+      forecast,
+      () => axiosClient.post('/weather', {latitude: lat, longitude: lon, forecast}),
+      () => axiosClient.get('/weather', {params: {lat, lon}}),
+    ),
 
   getFlood: async (lat: number, lon: number): Promise<FloodOutlook> =>
     axiosClient.get('/flood', {params: {lat, lon}}),
 
-  getAlerts: async (lat: number, lon: number): Promise<{alerts: Alert[]}> =>
-    axiosClient.get('/alerts', {params: {lat, lon}}),
+  getAlerts: async (lat: number, lon: number, forecast?: object | null): Promise<{alerts: Alert[]}> =>
+    withForecast(
+      forecast,
+      () => axiosClient.post('/alerts', {latitude: lat, longitude: lon, forecast}),
+      () => axiosClient.get('/alerts', {params: {lat, lon}}),
+    ),
 
   getShelters: async (lat: number, lon: number): Promise<{shelters: Shelter[]}> =>
     axiosClient.get('/shelters', {params: {lat, lon}}),

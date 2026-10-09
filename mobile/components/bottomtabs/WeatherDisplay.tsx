@@ -163,9 +163,6 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
           <Text style={dynamicStyles.detailValue}>{current.humidity}%</Text>
         </View>
       </View>
-      <Text style={[dynamicStyles.detailLabel, styles.attribution]}>
-        {t('weatherAttribution')}
-      </Text>
     </View>
   );
 };
@@ -211,11 +208,6 @@ const styles = StyleSheet.create({
   },
   detailItem: {
     alignItems: 'center',
-  },
-  attribution: {
-    marginTop: vh(2),
-    marginBottom: 0,
-    fontSize: vw(2.8),
   },
 });
 

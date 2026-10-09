@@ -48,7 +48,6 @@ const en: Record<keyof typeof vi, string> = {
   wind: 'WIND',
   feelsLike: 'FEELS LIKE',
   humidity: 'HUMIDITY',
-  weatherAttribution: 'Weather data: Open-Meteo.com',
   sunrise: 'Sunrise',
   sunset: 'Sunset',
 

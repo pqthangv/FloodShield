@@ -9,7 +9,7 @@
  * The server address can also be changed at runtime in Cài đặt > Máy chủ API.
  */
 const DEV_API_URL = 'http://localhost:8000/api/v1';
-const PROD_API_URL = 'https://floodshield-api.example.com/api/v1';
+const PROD_API_URL = 'https://floodshield-api-ese8.onrender.com/api/v1';
 
 export const DEFAULT_API_URL = __DEV__ ? DEV_API_URL : PROD_API_URL;
 

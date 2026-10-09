@@ -1,4 +1,5 @@
 import logging
+import os
 from uuid import uuid4
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -10,6 +11,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 database_url = normalized_database_url()
+
+# Render sets RENDER=true. Its disk is wiped on every deploy and restart, so a SQLite file there
+# would silently lose every post: refuse to start instead.
+if os.getenv("RENDER") and database_url.startswith("sqlite"):
+    raise RuntimeError("DATABASE_URL is not set. Add the Neon connection string under Render > Environment.")
 
 
 def connect_args_for(url: str) -> dict:

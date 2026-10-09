@@ -48,7 +48,6 @@ const vi = {
   wind: 'GIÓ',
   feelsLike: 'CẢM THẤY',
   humidity: 'ĐỘ ẨM',
-  weatherAttribution: 'Dữ liệu thời tiết: Open-Meteo.com',
   sunrise: 'Bình minh',
   sunset: 'Hoàng hôn',
 

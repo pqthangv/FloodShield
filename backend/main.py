@@ -11,6 +11,8 @@ from database import Base, SessionLocal, engine
 from models import action_model, alert_model, post_model, river_model, shelter_model, thientai_model  # noqa: F401
 from routers import AdminRoute, DisasterRoute, PostRoute, ShelterRoute, WeatherRoute
 from seed import seed_disaster_types
+from services import osm
+from services.cache import cache
 from services.http import close_client
 
 # Set up logging
@@ -73,8 +75,15 @@ app.include_router(AdminRoute.router, prefix="/api/v1", tags=["admin"])
 
 
 @app.get("/health", tags=["system"])
-async def health():
-    return {"status": "ok"}
+async def health(upstream: bool = False):
+    """`?upstream=1` also shows whether this server can reach the outside data services."""
+    if not upstream:
+        return {"status": "ok"}
+    return {
+        "status": "ok",
+        "database": engine.dialect.name,  # "postgresql" on Render, "sqlite" when DATABASE_URL is missing
+        "upstream": await cache.get_or_set("health:upstream", 300, osm.check_upstream),
+    }
 
 
 @app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)

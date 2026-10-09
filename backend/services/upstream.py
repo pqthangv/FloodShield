@@ -10,6 +10,7 @@ from services import flood, gdacs, osm, weather
 from services.http import get_client
 
 HANOI = {"lat": 21.03, "lon": 105.85}
+MET_NORWAY_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 
 
 def _reason(text: str) -> str:
@@ -36,6 +37,8 @@ async def check_upstream() -> dict:
         "open-meteo forecast": lambda: client.get(weather.FORECAST_URL, params={**point, "current": "temperature_2m"}, timeout=10),
         "open-meteo flood": lambda: client.get(flood.FLOOD_URL, params={**point, "daily": "river_discharge"}, timeout=10),
         "open-meteo geocoding": lambda: client.get(osm.GEOCODING_URL, params={"name": "Hue", "count": 1}, timeout=10),
+        # Candidate backup weather source; it limits per app (User-Agent), not per IP.
+        "met norway": lambda: client.get(MET_NORWAY_URL, params={"lat": HANOI["lat"], "lon": HANOI["lon"]}, timeout=10),
         "gdacs": lambda: client.get(gdacs.EVENTS_URL, params={"eventlist": "TC", "alertlevel": "Red"}, timeout=20),
         "nominatim": lambda: client.get(osm.NOMINATIM_URL, params={**HANOI, "format": "jsonv2"}, timeout=10),
         "photon": lambda: client.get(osm.PHOTON_URL, params=HANOI, timeout=10),

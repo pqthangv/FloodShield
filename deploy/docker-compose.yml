@@ -1,0 +1,38 @@
+# The FloodShield API on your own server (e.g. Oracle Cloud's free VM), with automatic HTTPS.
+# setup.sh starts it; afterwards, from the FloodShield folder:
+#   sudo docker compose -f deploy/docker-compose.yml up -d --build    # start / update
+#   sudo docker compose -f deploy/docker-compose.yml logs -f api      # live logs
+services:
+  api:
+    build: ../backend
+    restart: unless-stopped
+    environment:
+      # Fail loudly instead of falling back to a throwaway SQLite file inside the container.
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in deploy/.env}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in deploy/.env}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:?Set CONTACT_EMAIL in deploy/.env}
+      PUBLIC_BASE_URL: https://${DOMAIN:?Set DOMAIN in deploy/.env}
+    # Not published to the internet: only Caddy talks to it.
+    expose:
+      - "8000"
+
+  # Caddy answers on ports 80/443 and gets a free HTTPS certificate (Let's Encrypt) for DOMAIN.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  # Keeps the certificates, so restarts don't request new ones.
+  caddy_data:
+  caddy_config:

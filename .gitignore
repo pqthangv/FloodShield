@@ -6,3 +6,4 @@
 Thumbs.db
 .vscode/
 docs/screenshots/raw/
+deploy/.env

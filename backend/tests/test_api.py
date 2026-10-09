@@ -77,6 +77,17 @@ async def test_health_and_seed(client):
 
 
 @pytest.mark.asyncio
+async def test_health_with_upstream_check(client, monkeypatch):
+    async def fake_check():
+        return {"open-meteo forecast": "429 Daily API request limit exceeded"}
+
+    monkeypatch.setattr(main, "check_upstream", fake_check)
+    data = (await client.get("/health", params={"upstream": 1})).json()
+    assert data["database"] == main.engine.dialect.name
+    assert data["upstream"] == {"open-meteo forecast": "429 Daily API request limit exceeded"}
+
+
+@pytest.mark.asyncio
 async def test_weather_is_normalized(client):
     data = (await client.get("/api/v1/weather", params={"lat": 10.77, "lon": 106.7})).json()
     assert data["location"]["name"] == "Phường Test"

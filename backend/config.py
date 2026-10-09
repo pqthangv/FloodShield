@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -28,14 +29,33 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-def normalized_database_url() -> str:
-    """Accept the postgres:// URLs most hosts hand out and use the async driver."""
-    url = settings.database_url
+def normalized_database_url(url: str | None = None) -> str:
+    """Accept the postgres:// URLs most hosts hand out and use the async driver.
+
+    Hosts such as Neon add libpq options (?sslmode=require&channel_binding=require) that
+    asyncpg rejects: it calls the first one `ssl` and has no channel_binding option.
+    """
+    url = settings.database_url if url is None else url
     if url.startswith("postgres://"):
         url = "postgresql+asyncpg://" + url[len("postgres://") :]
     elif url.startswith("postgresql://"):
         url = "postgresql+asyncpg://" + url[len("postgresql://") :]
-    return url
+    if not url.startswith("postgresql+asyncpg://"):
+        return url
+
+    parts = urlsplit(url)
+    query = []
+    for key, value in parse_qsl(parts.query, keep_blank_values=True):
+        if key == "sslmode":
+            query.append(("ssl", value))
+        elif key != "channel_binding":
+            query.append((key, value))
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
+def public_base_url() -> str:
+    """Our public address; Render sets RENDER_EXTERNAL_URL automatically."""
+    return (settings.public_base_url or os.getenv("RENDER_EXTERNAL_URL", "")).rstrip("/")
 
 
 def user_agent() -> str:

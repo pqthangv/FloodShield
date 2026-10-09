@@ -206,3 +206,14 @@ async def test_errors_in_english(client):
 async def test_changing_disaster_types_needs_admin(client):
     assert (await client.post("/api/v1/thientai/", json={"name": "Spam"})).status_code == 401
     assert (await client.delete("/api/v1/thientai/1")).status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_admin_adds_a_disaster_type(client):
+    # The 7 seeded types have fixed ids; a new one must get the next id (on PostgreSQL too).
+    admin = {"X-Admin-Token": "test-admin"}
+    r = await client.post("/api/v1/thientai/", json={"name": "Lốc xoáy"}, headers=admin)
+    assert r.status_code == 200, r.text
+    assert r.json()["id"] == 8 and r.json()["actions"] == []
+    assert (await client.delete("/api/v1/thientai/8", headers=admin)).status_code == 200
+    assert len((await client.get("/api/v1/thientai/")).json()) == 7

@@ -6,6 +6,7 @@
     "android": "adb reverse tcp:8000 tcp:8000 & react-native run-android",
     "api-tunnel": "adb reverse tcp:8000 tcp:8000",
     "build:apk": "cd android && .\\gradlew.bat assembleRelease",
+    "build:apk:phone": "cd android && .\\gradlew.bat assembleRelease -PreactNativeArchitectures=arm64-v8a",
     "build:aab": "cd android && .\\gradlew.bat bundleRelease",
     "ios": "react-native run-ios",
     "lint": "eslint .",

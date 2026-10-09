@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from config import settings
+from config import public_base_url, settings
 from database import get_db
 from i18n import Lang, get_lang, t
 from models.post_model import (
@@ -44,7 +44,7 @@ def author_id(device_id: str) -> str:
 def image_url(request: Request, path: Optional[str]) -> Optional[str]:
     if not path:
         return None
-    base = settings.public_base_url.rstrip("/") or str(request.base_url).rstrip("/")
+    base = public_base_url() or str(request.base_url).rstrip("/")
     return f"{base}/api/v1/images/{path}"
 
 

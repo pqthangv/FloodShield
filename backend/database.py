@@ -1,4 +1,6 @@
 import logging
+from uuid import uuid4
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config import normalized_database_url
@@ -9,9 +11,23 @@ logger = logging.getLogger(__name__)
 
 database_url = normalized_database_url()
 
+
+def connect_args_for(url: str) -> dict:
+    if url.startswith("sqlite"):
+        return {"check_same_thread": False}
+    if "-pooler." in (make_url(url).host or ""):
+        # Neon's pooled address goes through PgBouncer, which doesn't keep asyncpg's cached
+        # prepared statements between transactions. Use one-off statements instead.
+        return {
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+            "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4()}__",
+        }
+    return {}
+
+
 # Create the database engine
-connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-engine = create_async_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
+engine = create_async_engine(database_url, connect_args=connect_args_for(database_url), pool_pre_ping=True)
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine, class_=AsyncSession, expire_on_commit=False
 )

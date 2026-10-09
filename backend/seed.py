@@ -3,7 +3,7 @@
 Runs at startup and only inserts what is missing, so it is safe on an existing database.
 """
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.action_model import Action
 from models.thientai_model import ThienTai
@@ -105,4 +105,10 @@ async def seed_disaster_types(db: AsyncSession):
         await db.flush()
         for title, description in actions:
             db.add(Action(thien_tai_id=type_id, title=title, description=description))
+    if db.bind.dialect.name == "postgresql":
+        # The ids above are set explicitly, which PostgreSQL's id counter doesn't see. Move it
+        # past them, or the next type an admin creates would get id 1 and fail.
+        await db.execute(text(
+            """SELECT setval(pg_get_serial_sequence('"ThienTai"', 'id'), (SELECT MAX(id) FROM "ThienTai"))"""
+        ))
     await db.commit()

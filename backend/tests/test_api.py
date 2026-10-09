@@ -94,6 +94,26 @@ async def test_alerts_from_forecast(client):
 
 
 @pytest.mark.asyncio
+async def test_no_false_all_clear_when_the_forecast_is_down(client, monkeypatch):
+    async def forecast_down(lat, lon):
+        raise RuntimeError("429 Too Many Requests")
+
+    monkeypatch.setattr(weather, "fetch_raw_forecast", forecast_down)
+    # Nothing else to report: an error, never "no alerts".
+    r = await client.get("/api/v1/alerts", params={"lat": 10.77, "lon": 106.7}, headers=EN)
+    assert r.status_code == 503 and r.json()["detail"] == "Could not check for alerts, please try again later"
+
+    # An evacuation order from an admin is still shown.
+    admin = {"X-Admin-Token": "test-admin"}
+    body = {"title": "Evacuate", "description": "Dam release", "category": "flood",
+            "severity": "severe", "latitude": 10.77, "longitude": 106.7, "radius_km": 20}
+    created = await client.post("/api/v1/admin/alerts", json=body, headers=admin)
+    r = await client.get("/api/v1/alerts", params={"lat": 10.77, "lon": 106.7})
+    assert r.status_code == 200 and [a["title"] for a in r.json()["alerts"]] == ["Evacuate"]
+    await client.delete(f"/api/v1/admin/alerts/{created.json()['id']}", headers=admin)
+
+
+@pytest.mark.asyncio
 async def test_manual_alert_requires_admin_and_radius(client):
     body = {"title": "Xả lũ hồ Dầu Tiếng", "description": "Chuẩn bị sơ tán", "category": "flood",
             "severity": "severe", "latitude": 11.3, "longitude": 106.3, "radius_km": 60}

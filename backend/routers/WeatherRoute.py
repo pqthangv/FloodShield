@@ -51,7 +51,10 @@ async def get_alerts(
     lat: float = Lat, lon: float = Lon, db: AsyncSession = Depends(get_db), lang: Lang = Depends(get_lang)
 ):
     """All active alerts relevant to a location, most severe first."""
-    items = await alerts.build_alerts(db, lat, lon, lang)
+    try:
+        items = await alerts.build_alerts(db, lat, lon, lang)
+    except alerts.AlertsUnavailable:
+        raise HTTPException(status_code=503, detail=t(lang, "err_alerts"))
     return {"alerts": items, "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
 

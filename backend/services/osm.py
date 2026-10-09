@@ -202,29 +202,6 @@ async def _photon_place(lat: float, lon: float, lang: Lang) -> dict:
     return _place(name, props.get("district"), region, lang)
 
 
-async def check_upstream() -> dict:
-    """HTTP status of each outside service, as seen from this server (for /health?upstream=1)."""
-    hanoi = {"lat": 21.0285, "lon": 105.8542}
-    tiny_query = "[out:json][timeout:10];node(1);out;"
-    checks = {
-        "nominatim": lambda: get_client().get(NOMINATIM_URL, params={**hanoi, "format": "jsonv2"}, timeout=10),
-        "photon": lambda: get_client().get(PHOTON_URL, params=hanoi, timeout=10),
-        **{
-            f"overpass {url.split('/')[2]}": (lambda url=url: get_client().post(url, data={"data": tiny_query}, timeout=30))
-            for url in OVERPASS_URLS
-        },
-    }
-
-    async def status(request):
-        try:
-            return (await request()).status_code
-        except Exception as e:
-            return type(e).__name__
-
-    results = await asyncio.gather(*(status(request) for request in checks.values()))
-    return dict(zip(checks, results))
-
-
 async def search_places(query: str, lang: Lang = "vi") -> list[dict]:
     async def load():
         resp = await get_client().get(

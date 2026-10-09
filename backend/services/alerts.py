@@ -405,6 +405,10 @@ def _type_for_category(category: str) -> Optional[int]:
 # --- Entry point ------------------------------------------------------------------------
 
 
+class AlertsUnavailable(Exception):
+    pass
+
+
 async def build_alerts(db: AsyncSession, lat: float, lon: float, lang: Lang = "vi") -> list[dict]:
     raw, outlook, events, place = await asyncio.gather(
         weather.fetch_raw_forecast(lat, lon),
@@ -438,6 +442,12 @@ async def build_alerts(db: AsyncSession, lat: float, lon: float, lang: Lang = "v
     if not isinstance(events, Exception):
         alerts += gdacs_alerts(events, lat, lon, lang)
     alerts += await manual_alerts(db, lat, lon, lang)
+
+    # Without the forecast we can't say there are no alerts: rain and wind warnings would be
+    # missing. Fail instead, so the app says "could not load alerts" and the phone retries.
+    # Alerts from other sources (an evacuation order...) are still returned.
+    if isinstance(raw, Exception) and not alerts:
+        raise AlertsUnavailable("weather forecast unavailable")
 
     alerts.sort(key=lambda a: (-SEVERITY_RANK.get(a["severity"], 0), a["distance_km"] or 0))
     return alerts

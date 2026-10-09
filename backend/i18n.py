@@ -56,6 +56,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     "nearby_region": {"vi": "Khu vực lân cận", "en": "Nearby region"},
     # --- Errors ----------------------------------------------------------------------------
     "err_weather": {"vi": "Không thể tải dữ liệu thời tiết", "en": "Could not load the weather data"},
+    "err_alerts": {"vi": "Chưa kiểm tra được cảnh báo, vui lòng thử lại sau", "en": "Could not check for alerts, please try again later"},
     "err_flood": {"vi": "Không thể tải dữ liệu lũ", "en": "Could not load the flood data"},
     "err_place": {"vi": "Không xác định được địa danh", "en": "Could not find the place name"},
     "err_search": {"vi": "Không thể tìm kiếm địa điểm", "en": "Could not search for places"},

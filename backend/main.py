@@ -11,7 +11,7 @@ from database import Base, SessionLocal, engine
 from models import action_model, alert_model, post_model, river_model, shelter_model, thientai_model  # noqa: F401
 from routers import AdminRoute, DisasterRoute, PostRoute, ShelterRoute, WeatherRoute
 from seed import seed_disaster_types
-from services import osm
+from services import upstream
 from services.cache import cache
 from services.http import close_client
 
@@ -82,7 +82,7 @@ async def health(upstream: bool = False):
     return {
         "status": "ok",
         "database": engine.dialect.name,  # "postgresql" on Render, "sqlite" when DATABASE_URL is missing
-        "upstream": await cache.get_or_set("health:upstream", 300, osm.check_upstream),
+        "upstream": await cache.get_or_set("health:upstream", 300, upstream.check_upstream),
     }
 
 

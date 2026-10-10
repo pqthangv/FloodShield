@@ -151,11 +151,13 @@ jobs:
           failed=0
           shoot en -e LANGUAGE=English -e SUNRISE=Sunrise -e NEARBY_SHELTERS="Nearby shelters" \
             -e DIRECTIONS=Directions -e TAB_FORECAST=Forecast -e TAB_ALERTS=ALERTS -e DETAILS=Details \
-            -e TAB_RIVER=RIVER -e TAB_SKILLS=Skills -e SKILLS_TITLE="DISASTER RESPONSE SKILLS" \
+            -e TAB_RIVER=RIVER -e RIVER_CHART="Chart of the river flow forecast" \
+            -e TAB_SKILLS=Skills -e SKILLS_TITLE="DISASTER RESPONSE SKILLS" \
             -e TAB_COMMUNITY=Community -e COMMUNITY_TITLE="Reports near you" || failed=1
           shoot vi -e LANGUAGE="Tiếng Việt" -e SUNRISE="Bình minh" -e NEARBY_SHELTERS="Nơi sơ tán gần bạn" \
             -e DIRECTIONS="Chỉ đường" -e TAB_FORECAST="Dự báo" -e TAB_ALERTS="CẢNH BÁO" -e DETAILS="Xem chi tiết" \
-            -e TAB_RIVER="LŨ SÔNG" -e TAB_SKILLS="Kỹ năng" -e SKILLS_TITLE="KỸ NĂNG ỨNG PHÓ THIÊN TAI" \
+            -e TAB_RIVER="LŨ SÔNG" -e RIVER_CHART="Biểu đồ lưu lượng sông dự báo" \
+            -e TAB_SKILLS="Kỹ năng" -e SKILLS_TITLE="KỸ NĂNG ỨNG PHÓ THIÊN TAI" \
             -e TAB_COMMUNITY="Cộng đồng" -e COMMUNITY_TITLE="Cảnh báo thực tế gần bạn" || failed=1
           exit $failed
       - name: Keep the screenshots

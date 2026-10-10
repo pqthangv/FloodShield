@@ -48,8 +48,9 @@ appId: com.floodshield.app
           duration: 500
 - tapOn: ${NEARBY_SHELTERS}
 # The phone asks OpenStreetMap itself, which can be slow when its servers are busy.
+# iOS reads each button as "Directions to <place>".
 - extendedWaitUntil:
-    visible: ${DIRECTIONS}
+    visible: "${DIRECTIONS}.*"
     timeout: 150000
     optional: true
 - takeScreenshot: 2-shelters
@@ -76,8 +77,9 @@ appId: com.floodshield.app
     timeout: 120000
 - tapOn: "${TAB_FORECAST}, tab, 2 of 4"
 - tapOn: ${TAB_RIVER}
+# The chart's spoken name: it appears once the river data has loaded.
 - extendedWaitUntil:
-    visible: ".*m³/s.*"
+    visible: ${RIVER_CHART}
     timeout: 60000
     optional: true
 - scroll

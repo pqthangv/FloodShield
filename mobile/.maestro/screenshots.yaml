@@ -1,8 +1,8 @@
 # Photographs the main screens of FloodShield in the iPhone simulator (App Store screenshots).
 # .github/workflows/ios.yml runs it once per language, passing that language's texts:
-#   maestro test --test-output-dir DIR .maestro/screenshots.yaml -e SUNRISE=Sunrise -e ALLOW=Allow ...
+#   maestro test --test-output-dir DIR .maestro/screenshots.yaml -e LANGUAGE="Tiếng Việt" -e SUNRISE="Bình minh" ...
 # Screenshots land in DIR/<run>/<flow>/takeScreenshot/ (Maestro allows no other place).
-# Maestro waits for a text that only appears once the data has loaded before each screenshot.
+# Before each screenshot it waits for a text that only appears once that screen has loaded.
 appId: com.floodshield.app
 ---
 - setLocation:
@@ -14,13 +14,22 @@ appId: com.floodshield.app
       all: allow
 # Notifications can't always be pre-allowed in the simulator: answer iOS's question if it shows.
 - tapOn:
-    text: ${ALLOW}
+    text: Allow
     optional: true
+
+# The app starts in the phone's language (English here): choose the language like a user would.
+- extendedWaitUntil:
+    visible: Settings
+    timeout: 120000
+- tapOn: Settings
+- tapOn: ${LANGUAGE}
+- launchApp        # restarts; the app remembers the language
+
 - extendedWaitUntil:
     visible: ${SUNRISE}
     timeout: 120000
 - tapOn:
-    text: ${ALLOW}
+    text: Allow
     optional: true
 - waitForAnimationToEnd:
     timeout: 10000
@@ -37,28 +46,48 @@ appId: com.floodshield.app
     optional: true
 - takeScreenshot: 2-shelters
 
-# Back to the home screen, with the data loaded again.
+# Forecast tab: the alerts, then one alert's details.
 - launchApp
 - extendedWaitUntil:
     visible: ${SUNRISE}
     timeout: 120000
 - tapOn: "${TAB_FORECAST}, tab, 2 of 4"
+- tapOn: "${TAB_ALERTS}.*"
 - waitForAnimationToEnd:
     timeout: 10000
 - takeScreenshot: 3-alerts
+- tapOn: ${DETAILS}
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: 4-alert-detail
+
+# Forecast tab again: the river chart, scrolled into view.
+- launchApp
+- extendedWaitUntil:
+    visible: ${SUNRISE}
+    timeout: 120000
+- tapOn: "${TAB_FORECAST}, tab, 2 of 4"
 - tapOn: ${TAB_RIVER}
 - extendedWaitUntil:
     visible: ".*m³/s.*"
     timeout: 60000
     optional: true
-- takeScreenshot: 4-river
+- scroll
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: 5-river
 
 - tapOn: "${TAB_SKILLS}, tab, 3 of 4"
-- waitForAnimationToEnd:
-    timeout: 10000
-- takeScreenshot: 5-skills
+- extendedWaitUntil:
+    visible: ${SKILLS_TITLE}
+    timeout: 30000
+- takeScreenshot: 6-skills
 
 - tapOn: "${TAB_COMMUNITY}, tab, 4 of 4"
+- extendedWaitUntil:
+    visible: ${COMMUNITY_TITLE}
+    timeout: 60000
+    optional: true
 - waitForAnimationToEnd:
     timeout: 10000
-- takeScreenshot: 6-community
+- takeScreenshot: 7-community

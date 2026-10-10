@@ -114,24 +114,17 @@ jobs:
                       if best is None or key > best[0]:
                           best = (key, d["udid"], d["name"] + " / iOS " + ".".join(map(str, version)))
           print(best[1]); print("Simulator:", best[2], file=sys.stderr)')
-          PREFS="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Preferences/.GlobalPreferences"
-          # Start it once, so its settings folder exists before the language is written into it.
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b > /dev/null
+          # The tidy status bar of App Store screenshots.
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged             --batteryLevel 100 --wifiBars 3 --cellularBars 4
+          xcrun simctl location "$UDID" set 16.4637,107.5909
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl privacy "$UDID" grant location com.floodshield.app
 
-          shoot() {  # language, region, then the texts Maestro waits for and taps (see the flow file)
-            lang=$1; region=$2; shift 2
-            xcrun simctl shutdown "$UDID" 2>/dev/null || true
-            defaults write "$PREFS" AppleLanguages -array "$lang"
-            defaults write "$PREFS" AppleLocale -string "$region"
-            xcrun simctl boot "$UDID"
-            xcrun simctl bootstatus "$UDID" -b > /dev/null
-            # The tidy status bar of App Store screenshots.
-            xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged \
-              --batteryLevel 100 --wifiBars 3 --cellularBars 4
-            xcrun simctl location "$UDID" set 16.4637,107.5909
-            xcrun simctl install "$UDID" "$APP"
-            xcrun simctl privacy "$UDID" grant location com.floodshield.app
+          shoot() {  # language code, then the texts Maestro taps and waits for (see the flow file)
+            lang=$1; shift
+            # The sample warning in this language (the app is switched to it inside the flow).
             python3 .maestro/demo_data.py "$lang"
             # Maestro only saves screenshots inside its own output folder: collect them afterwards,
             # also when a later screen failed, and keep its logs for debugging.
@@ -145,12 +138,8 @@ jobs:
             return $status
           }
           failed=0
-          shoot en en_US -e ALLOW=Allow -e SUNRISE=Sunrise -e NEARBY_SHELTERS="Nearby shelters" \
-            -e DIRECTIONS=Directions -e TAB_FORECAST=Forecast -e TAB_RIVER=RIVER \
-            -e TAB_SKILLS=Skills -e TAB_COMMUNITY=Community || failed=1
-          shoot vi vi_VN -e ALLOW="Cho phép" -e SUNRISE="Bình minh" -e NEARBY_SHELTERS="Nơi sơ tán gần bạn" \
-            -e DIRECTIONS="Chỉ đường" -e TAB_FORECAST="Dự báo" -e TAB_RIVER="LŨ SÔNG" \
-            -e TAB_SKILLS="Kỹ năng" -e TAB_COMMUNITY="Cộng đồng" || failed=1
+          shoot en -e LANGUAGE=English -e SUNRISE=Sunrise -e NEARBY_SHELTERS="Nearby shelters"             -e DIRECTIONS=Directions -e TAB_FORECAST=Forecast -e TAB_ALERTS=ALERTS -e DETAILS=Details             -e TAB_RIVER=RIVER -e TAB_SKILLS=Skills -e SKILLS_TITLE="DISASTER RESPONSE SKILLS"             -e TAB_COMMUNITY=Community -e COMMUNITY_TITLE="Reports near you" || failed=1
+          shoot vi -e LANGUAGE="Tiếng Việt" -e SUNRISE="Bình minh" -e NEARBY_SHELTERS="Nơi sơ tán gần bạn"             -e DIRECTIONS="Chỉ đường" -e TAB_FORECAST="Dự báo" -e TAB_ALERTS="CẢNH BÁO" -e DETAILS="Xem chi tiết"             -e TAB_RIVER="LŨ SÔNG" -e TAB_SKILLS="Kỹ năng" -e SKILLS_TITLE="KỸ NĂNG ỨNG PHÓ THIÊN TAI"             -e TAB_COMMUNITY="Cộng đồng" -e COMMUNITY_TITLE="Cảnh báo thực tế gần bạn" || failed=1
           exit $failed
       - name: Keep the screenshots
         if: always() && env.SCREENSHOTS == 'true'

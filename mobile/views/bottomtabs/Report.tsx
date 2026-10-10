@@ -32,8 +32,27 @@ export const categoryLabel = (category: string) =>
     : category;
 export const waterLevelLabel = (level: WaterLevel) => translate(`water_${level}`);
 
-const avatarSource = require('../../assets/report/avatar.png');
-const myAvatarSource = require('../../assets/report/user.png');
+// Avatar: the author's initial on a colour picked from their anonymous id, so each person keeps
+// one colour. Dark enough for white text, and no red (it would look like a warning).
+const AVATAR_COLORS = ['#2A78D6', '#0F7C80', '#B35A00', '#7D3C98', '#1E8449', '#4A5A70'];
+const MY_AVATAR_COLOR = '#1F2D54';
+
+function avatarColor(authorId: string) {
+  let hash = 0;
+  for (const ch of authorId) {
+    hash = (hash * 31 + ch.charCodeAt(0)) % 997;
+  }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+const Avatar = ({name, authorId, mine}: {name: string; authorId: string; mine: boolean}) => (
+  <View
+    style={[styles.avatar, {backgroundColor: mine ? MY_AVATAR_COLOR : avatarColor(authorId)}]}
+    importantForAccessibility="no-hide-descendants"
+    accessibilityElementsHidden>
+    <Text style={styles.avatarInitial}>{Array.from(name.trim())[0]?.toUpperCase() || '?'}</Text>
+  </View>
+);
 
 const REFRESH_MS = 60 * 1000;
 
@@ -163,7 +182,7 @@ const Report = () => {
   const renderPost = ({item: post}: {item: Post}) => (
     <View style={styles.postCard}>
       <View style={styles.postHeader}>
-        <Image source={post.is_mine ? myAvatarSource : avatarSource} style={styles.avatar} />
+        <Avatar name={post.author_name} authorId={post.author_id} mine={post.is_mine} />
         <View style={styles.postHeaderTextContainer}>
           <Text style={styles.postUserName}>{post.author_name}</Text>
           <Text style={styles.postMeta} numberOfLines={1}>
@@ -339,8 +358,13 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   postHeaderTextContainer: {
     flex: 1,

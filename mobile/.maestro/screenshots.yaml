@@ -22,7 +22,7 @@ appId: com.floodshield.app
     visible: Settings
     timeout: 120000
 - tapOn: Settings
-- tapOn: ${LANGUAGE}
+- tapOn: "${LANGUAGE}.*"   # the chosen one reads "English, ✓"
 - launchApp        # restarts; the app remembers the language
 
 - extendedWaitUntil:

@@ -21,7 +21,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: FloodShield.xcworkspace
         XCODE_SCHEME: FloodShield
-        APP_STORE_APPLE_ID: 0000000000 # REPLACE with the app's Apple ID number
+        APP_STORE_APPLE_ID: 6821424169 # REPLACE with the app's Apple ID number
       node: 24
       xcode: latest
     scripts:

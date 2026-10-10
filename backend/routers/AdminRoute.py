@@ -1,5 +1,6 @@
 """Endpoints for the app's administrator. Every request needs the X-Admin-Token
-header matching the ADMIN_TOKEN environment variable. Use them from http://<server>/docs."""
+header matching the ADMIN_TOKEN environment variable. Use them from http://<server>/docs (the
+browser asks for a login: any username, the ADMIN_TOKEN as password)."""
 
 from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Request

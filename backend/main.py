@@ -1,9 +1,13 @@
 import asyncio
 import logging
+import secrets
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from typing import Optional
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from config import settings
 from database import Base, SessionLocal, engine
 
@@ -58,6 +62,10 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+    # The API documentation is behind the admin login (see below), not public.
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 app.add_middleware(
@@ -84,6 +92,33 @@ async def health(upstream: bool = False):
         "database": engine.dialect.name,  # "postgresql" on Render, "sqlite" when DATABASE_URL is missing
         "upstream": await cache.get_or_set("health:upstream", 300, check_upstream),
     }
+
+
+_docs_login = HTTPBasic(realm="FloodShield admin", auto_error=False)
+
+
+def require_docs_login(credentials: Optional[HTTPBasicCredentials] = Depends(_docs_login)):
+    """The browser asks for a login: any username, and the ADMIN_TOKEN as password. Without an
+    ADMIN_TOKEN (development on a PC) the documentation stays open, as admin routes are off anyway."""
+    token = settings.admin_token
+    if not token:
+        return
+    if credentials is None or not secrets.compare_digest(credentials.password.encode(), token.encode()):
+        raise HTTPException(
+            status_code=401,
+            detail="Log in with the ADMIN_TOKEN as password",
+            headers={"WWW-Authenticate": 'Basic realm="FloodShield admin"'},
+        )
+
+
+@app.get("/docs", include_in_schema=False, dependencies=[Depends(require_docs_login)])
+async def api_docs():
+    return get_swagger_ui_html(openapi_url="/openapi.json", title="FloodShield API")
+
+
+@app.get("/openapi.json", include_in_schema=False, dependencies=[Depends(require_docs_login)])
+async def api_schema():
+    return app.openapi()
 
 
 @app.get("/api/v1/contact", tags=["system"])

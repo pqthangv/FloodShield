@@ -69,6 +69,23 @@ def jpeg_bytes():
 
 
 @pytest.mark.asyncio
+async def test_api_documentation_needs_the_admin_login(client, monkeypatch):
+    for path in ("/docs", "/openapi.json"):
+        closed = await client.get(path)
+        assert closed.status_code == 401 and closed.headers["www-authenticate"].startswith("Basic")
+        assert (await client.get(path, auth=("admin", "wrong"))).status_code == 401
+        assert (await client.get(path, auth=("anyone", "test-admin"))).status_code == 200
+    assert "/api/v1/alerts" in (await client.get("/openapi.json", auth=("a", "test-admin"))).json()["paths"]
+    assert (await client.get("/redoc")).status_code == 404
+    # What the app and its users open stays public.
+    for path in ("/privacy", "/health", "/api/v1/contact"):
+        assert (await client.get(path)).status_code == 200
+    # A PC without ADMIN_TOKEN (development): the documentation is open.
+    monkeypatch.setattr(main.settings, "admin_token", "")
+    assert (await client.get("/docs")).status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_privacy_policy_in_both_languages(client):
     page = (await client.get("/privacy")).text
     for heading in ("Dữ liệu chúng tôi thu thập", "Bên thứ ba", "Lưu trữ và xóa dữ liệu",

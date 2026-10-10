@@ -38,6 +38,10 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>FloodShield dùng vị trí của bạn để hiển thị thời tiết, cảnh báo thiên tai và nơi sơ tán gần bạn. / FloodShield uses your location to show the weather, disaster alerts and evacuation places near you.</string>
+	<!-- Never shown: the app only asks "While Using the App" (services/locationService.ts). Apple still
+	     requires it because the location library contains the "Always" request (ITMS-90683). -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>FloodShield chỉ dùng vị trí khi bạn đang mở ứng dụng, để hiển thị thời tiết, cảnh báo thiên tai và nơi sơ tán gần bạn. Ứng dụng không theo dõi vị trí khi chạy nền. / FloodShield only uses your location while you use the app, to show the weather, disaster alerts and evacuation places near you. It does not track your location in the background.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>FloodShield dùng camera khi bạn chụp ảnh tình hình ngập lụt để đăng lên bảng tin cộng đồng. / FloodShield uses the camera when you take a photo of flooding to post in the community feed.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

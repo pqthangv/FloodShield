@@ -95,7 +95,7 @@ async def privacy_policy():
 PRIVACY_HTML = """<!doctype html>
 <html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FloodShield - Chính sách quyền riêng tư</title>
+<title>FloodShield - Chính sách quyền riêng tư / Privacy Policy</title>
 <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:auto;padding:16px;line-height:1.55;color:#1F2D54}
 h1{font-size:1.5em}h2{font-size:1.15em;margin-top:1.6em}</style></head><body>
 <h1>Chính sách quyền riêng tư - FloodShield</h1>
@@ -109,7 +109,7 @@ FloodShield khi bạn mở ứng dụng và khi ứng dụng kiểm tra cảnh b
 <li><b>Bài đăng cộng đồng</b>: tên hiển thị, nội dung, mức nước, ảnh và vị trí bạn gửi kèm. Bài đăng được <b>công khai</b>
 cho người dùng khác. Ảnh được xử lý để xóa thông tin EXIF (bao gồm tọa độ GPS trong ảnh).</li>
 <li><b>Mã thiết bị ngẫu nhiên</b>: được tạo khi cài ứng dụng, dùng để bạn quản lý/xóa bài đăng của mình và chống spam.
-Mã này không gắn với danh tính, số điện thoại hay tài khoản Google của bạn.</li>
+Mã này không gắn với danh tính, số điện thoại hay tài khoản Google/Apple của bạn.</li>
 </ul>
 <p>Chúng tôi không yêu cầu đăng ký tài khoản, không hiển thị quảng cáo và không bán dữ liệu.</p>
 <h2>2. Bên thứ ba</h2>
@@ -124,15 +124,33 @@ dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi<
 <h2>4. Liên hệ</h2>
 <p>Email: {contact}</p>
 <hr>
-<h1>Privacy Policy (English summary)</h1>
-<p>FloodShield is an independent app. It is not affiliated with, and does not represent, any government agency.</p>
-<p>FloodShield collects your location (to provide forecasts, alerts, shelters and nearby reports; location history is
-not stored), the content of community reports you choose to publish (display name, text, water level, photo with
-EXIF/GPS metadata removed, location - all public), and a random device identifier used to manage your own posts and
-prevent spam. No account, no ads, no sale of data. Weather, flood and disaster data come from Open-Meteo, GloFAS,
-GDACS and OpenStreetMap. The app also sends your location, rounded, directly to two of these services: to
-Open-Meteo (open-meteo.com, about 1 km) for the weather forecast, and to OpenStreetMap's Overpass servers
-(overpass-api.de, with maps.mail.ru as backup, about 2 km) to find shelters near you. You can delete all your data in
-Settings &rarr; Delete my data.
-Contact: {contact}</p>
+<div lang="en">
+<h1>Privacy Policy - FloodShield</h1>
+<p>FloodShield gives you flood, disaster and weather alerts, and lets you share flooding information with your
+community. We only collect the data these features need. FloodShield is an independent app. It is not affiliated with,
+and does not represent, any government agency.</p>
+<h2>1. Data we collect</h2>
+<ul>
+<li><b>Location</b>: used to get the weather forecast, alerts, shelters and posts near you. Your location is sent to the
+FloodShield server when you open the app, and when the app checks for alerts in the background (if you turned on
+notifications). We do not keep a history of your locations.</li>
+<li><b>Community posts</b>: the display name, text, water level, photo and location you send with a post. Posts are
+<b>public</b>: other users can see them. Photos are processed to remove their EXIF information (including the GPS
+coordinates stored in a photo).</li>
+<li><b>Random device ID</b>: created when you install the app, so you can manage and delete your own posts, and to prevent
+spam. It is not linked to your identity, your phone number, or your Google or Apple account.</li>
+</ul>
+<p>We don't require an account, don't show ads and don't sell data.</p>
+<h2>2. Third parties</h2>
+<p>The FloodShield server gets data from Open-Meteo (weather, GloFAS/Copernicus), GDACS (disasters) and OpenStreetMap
+(place names, shelters), using rounded coordinates. The app also sends rounded coordinates directly to two of these
+services: to Open-Meteo (open-meteo.com, about 1 km) for the weather forecast, and to OpenStreetMap's Overpass servers
+(overpass-api.de, with maps.mail.ru as backup, about 2 km) to find shelters near you. The app can open Google Maps when
+you ask for directions.</p>
+<h2>3. Storing and deleting data</h2>
+<p>Posts are shown for 7 days and may be stored for up to 90 days. You can delete each of your posts, or delete all of
+your data in <b>Settings &rarr; Delete my data</b>. Posts that break the community rules may be hidden or removed.</p>
+<h2>4. Contact</h2>
+<p>Email: {contact}</p>
+</div>
 </body></html>"""

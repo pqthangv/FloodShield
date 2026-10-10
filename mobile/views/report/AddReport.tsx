@@ -115,7 +115,6 @@ const AddReport = () => {
 
     setSubmitting(true);
     try {
-      await storage.setNickname(name.trim());
       await communityAPI.createPost({
         author_name: name.trim(),
         description: description.trim(),
@@ -126,6 +125,8 @@ const AddReport = () => {
         address: coords.mode === 'manual' ? coords.name : null,
         image: image?.uri ? {uri: image.uri, type: image.type, fileName: image.fileName} : null,
       });
+      // Only once the server accepted it: a refused name (offensive words) isn't kept.
+      await storage.setNickname(name.trim());
       Alert.alert(t('sent'), t('sentMessage'));
       navigation.goBack();
     } catch (error) {

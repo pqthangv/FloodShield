@@ -35,9 +35,17 @@ appId: com.floodshield.app
     timeout: 10000
 - takeScreenshot: 1-home
 
-- scrollUntilVisible:
-    element: ${NEARBY_SHELTERS}
-    direction: DOWN
+# Plain swipes instead of scrollUntilVisible: on a slow simulator one of its scrolls can take
+# 15 seconds, so its 20-second limit ran out before the button came into view.
+- repeat:
+    while:
+      notVisible: ${NEARBY_SHELTERS}
+    times: 6
+    commands:
+      - swipe:
+          start: 50%, 70%
+          end: 50%, 30%
+          duration: 500
 - tapOn: ${NEARBY_SHELTERS}
 # The phone asks OpenStreetMap itself, which can be slow when its servers are busy.
 - extendedWaitUntil:

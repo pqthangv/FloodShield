@@ -131,21 +131,20 @@ jobs:
             lang=$1; shift
             # The sample warning in this language (the app is switched to it inside the flow).
             python3 .maestro/demo_data.py "$lang"
-            # Maestro only saves screenshots inside its own output folder: collect them afterwards,
-            # also when a later screen failed, and keep its logs for debugging.
+            # Maestro only saves screenshots inside its own output folder: collect them after each
+            # try, also when a later screen failed, and keep its logs for debugging. The slow
+            # simulator sometimes misses a step, so a stopped run is tried once more; the screens
+            # from both tries are kept.
+            mkdir -p "screenshots/$lang" "screenshots/maestro-logs"
             for attempt in 1 2; do
               out="$RUNNER_TEMP/maestro-$lang-$attempt"
               status=0
               maestro test --test-output-dir "$out" .maestro/screenshots.yaml "$@" || status=$?
-              # Not a single screenshot means it failed while starting: try once more.
-              if [ $status -eq 0 ] || [ -n "$(find "$out" -path "*takeScreenshot*" -name "*.png" -print -quit)" ]; then
-                break
-              fi
-              echo "$lang: failed before the first screenshot (attempt $attempt)"
+              find "$out" -path "*takeScreenshot*" -name "*.png" -exec cp {} "screenshots/$lang/" \;
+              cp -R "$out" "screenshots/maestro-logs/$lang-$attempt" 2>/dev/null || true
+              [ $status -eq 0 ] && break
+              echo "$lang: stopped early (attempt $attempt)"
             done
-            mkdir -p "screenshots/$lang" "screenshots/maestro-logs"
-            find "$out" -path "*takeScreenshot*" -name "*.png" -exec cp {} "screenshots/$lang/" \;
-            cp -R "$out" "screenshots/maestro-logs/$lang" 2>/dev/null || true
             echo "$lang: $(ls "screenshots/$lang" | wc -l | tr -d ' ') screenshots"
             return $status
           }

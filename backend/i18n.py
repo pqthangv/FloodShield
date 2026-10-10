@@ -69,6 +69,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "vi": "Bạn đã gửi quá nhiều báo cáo. Vui lòng thử lại sau.",
         "en": "You have sent too many reports. Please try again later.",
     },
+    "err_bad_words": {
+        "vi": "Tên hoặc nội dung có từ ngữ không phù hợp. Vui lòng sửa lại rồi gửi.",
+        "en": "Your name or report contains offensive words. Please change them and send again.",
+    },
     "err_image_too_large": {"vi": "Ảnh tối đa {mb} MB", "en": "Images can be at most {mb} MB"},
     "err_post_not_found": {"vi": "Không tìm thấy bài viết", "en": "Post not found"},
     "err_not_your_post": {

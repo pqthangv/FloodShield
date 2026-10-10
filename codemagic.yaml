@@ -6,6 +6,9 @@
 #      exactly "FloodShield App Store Connect".
 #   2. Replace APP_STORE_APPLE_ID below with the app's Apple ID number
 #      (App Store Connect > your app > App Information > Apple ID).
+#   3. Code signing identities: generate an Apple Distribution certificate, create an
+#      "App Store Connect" profile for com.floodshield.app at developer.apple.com, then
+#      Fetch profiles. ios_signing below only uses profiles already there; it creates none.
 workflows:
   ios-testflight:
     name: iOS to TestFlight

@@ -69,6 +69,15 @@ def jpeg_bytes():
 
 
 @pytest.mark.asyncio
+async def test_privacy_policy_in_both_languages(client):
+    page = (await client.get("/privacy")).text
+    for heading in ("Dữ liệu chúng tôi thu thập", "Bên thứ ba", "Lưu trữ và xóa dữ liệu",
+                    "Data we collect", "Third parties", "Storing and deleting data"):
+        assert heading in page
+    assert "{contact}" not in page
+
+
+@pytest.mark.asyncio
 async def test_health_and_seed(client):
     assert (await client.get("/health")).json() == {"status": "ok"}
     types = (await client.get("/api/v1/thientai/")).json()
@@ -239,6 +248,21 @@ async def test_post_validation_and_rate_limit(client):
     codes = [(await client.post("/api/v1/posts", data=base, headers=OTHER)).status_code for _ in range(6)]
     assert codes == [201] * 5 + [429]
     await client.delete("/api/v1/me", headers=OTHER)
+
+
+@pytest.mark.asyncio
+async def test_posts_with_swearing_are_refused(client):
+    third = {"X-Device-Id": "device-cccc-3333"}
+    base = {"author_name": "Bình", "description": "Mưa lớn, các nhà đi sơ tán", "latitude": "10.0", "longitude": "105.0"}
+    swearing = await client.post("/api/v1/posts", data={**base, "description": "Đm ngập hết rồi"}, headers=third)
+    assert swearing.status_code == 422
+    assert swearing.json()["detail"].startswith("Tên hoặc nội dung có từ ngữ không phù hợp")
+    bad_name = await client.post("/api/v1/posts", data={**base, "author_name": "fucker"}, headers={**third, **EN})
+    assert bad_name.status_code == 422
+    assert bad_name.json()["detail"].startswith("Your name or report contains offensive words")
+    # Nothing was saved, and a normal report still goes through.
+    assert (await client.post("/api/v1/posts", data=base, headers=third)).status_code == 201
+    assert (await client.delete("/api/v1/me", headers=third)).json() == {"deleted_posts": 1}
 
 
 # --- English -------------------------------------------------------------------------------

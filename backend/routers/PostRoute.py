@@ -22,7 +22,7 @@ from models.post_model import (
     ReportRequest,
     WaterLevel,
 )
-from services import osm
+from services import moderation, osm
 from services.geo import bounding_box, haversine_km
 
 logger = logging.getLogger(__name__)
@@ -182,6 +182,8 @@ async def create_post(
     )
     if recent >= settings.max_posts_per_hour:
         raise HTTPException(status_code=429, detail=t(lang, "err_too_many_posts"))
+    if moderation.has_bad_words(author_name, description, address):
+        raise HTTPException(status_code=422, detail=t(lang, "err_bad_words"))
 
     image_path = None
     if image is not None and image.filename:

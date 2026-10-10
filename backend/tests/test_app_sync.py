@@ -2,6 +2,7 @@
 reads them (see weather.py, osm.py). The app (TypeScript) and the background worker (Kotlin)
 must ask for the same data the server expects."""
 
+import json
 import re
 from pathlib import Path
 
@@ -63,3 +64,18 @@ def test_app_keeps_every_tag_the_server_reads():
     kept = set(re.findall(r"'([a-z:_]+)'", re.search(r"KEEP_TAGS = \[(.*?)\]", OVERPASS_TS.read_text(encoding="utf-8"), re.S).group(1)))
     read = set(re.findall(r'tags\.get\("([^"]+)"', Path(osm.__file__).read_text(encoding="utf-8")))
     assert read and read <= kept, f"overpass.ts drops tags the server reads: {read - kept}"
+
+
+def test_one_version_number_everywhere():
+    """Settings shows APP_VERSION; the stores show versionName (Android) and MARKETING_VERSION (iOS)."""
+    config = MOBILE / "config.ts"
+    if not config.exists():
+        pytest.skip("mobile app not checked out")
+    version = re.search(r"APP_VERSION = '([^']+)'", config.read_text(encoding="utf-8")).group(1)
+    assert json.loads((MOBILE / "package.json").read_text(encoding="utf-8"))["version"] == version
+    gradle = (MOBILE / "android/app/build.gradle").read_text(encoding="utf-8")
+    assert re.search(r'versionName "([^"]+)"', gradle).group(1) == version
+    xcode = (MOBILE / "ios/FloodShield.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+    assert set(re.findall(r"MARKETING_VERSION = ([^;]+);", xcode)) == {version}
+    # The iOS background check names the same version when it calls Open-Meteo.
+    assert f'"FloodShield/{version} (iOS app;' in (MOBILE / "ios/FloodShield/FSAlertScheduler.mm").read_text(encoding="utf-8")

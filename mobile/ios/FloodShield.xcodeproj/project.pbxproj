@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F5A1E7000000000000000A04 /* FSAlertScheduler.mm in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E7000000000000000A02 /* FSAlertScheduler.mm */; };
 		0C80B921A6F3F58F76C31292 /* libPods-FloodShield.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-FloodShield.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
@@ -15,6 +16,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F5A1E7000000000000000A01 /* FSAlertScheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FSAlertScheduler.h; path = FloodShield/FSAlertScheduler.h; sourceTree = "<group>"; };
+		F5A1E7000000000000000A02 /* FSAlertScheduler.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = FSAlertScheduler.mm; path = FloodShield/FSAlertScheduler.mm; sourceTree = "<group>"; };
+		F5A1E7000000000000000A03 /* FloodShield-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "FloodShield-Bridging-Header.h"; path = "FloodShield/FloodShield-Bridging-Header.h"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* FloodShield.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FloodShield.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = FloodShield/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = FloodShield/Info.plist; sourceTree = "<group>"; };
@@ -44,6 +48,9 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				F5A1E7000000000000000A01 /* FSAlertScheduler.h */,
+				F5A1E7000000000000000A02 /* FSAlertScheduler.mm */,
+				F5A1E7000000000000000A03 /* FloodShield-Bridging-Header.h */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -247,6 +254,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				F5A1E7000000000000000A04 /* FSAlertScheduler.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -272,10 +280,15 @@
 					"$(inherited)",
 					"-ObjC",
 					"-lc++",
+					"-framework",
+					BackgroundTasks,
+					"-framework",
+					UserNotifications,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.floodshield.app";
 				PRODUCT_NAME = FloodShield;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OBJC_BRIDGING_HEADER = "FloodShield/FloodShield-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -301,10 +314,15 @@
 					"$(inherited)",
 					"-ObjC",
 					"-lc++",
+					"-framework",
+					BackgroundTasks,
+					"-framework",
+					UserNotifications,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.floodshield.app";
 				PRODUCT_NAME = FloodShield;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OBJC_BRIDGING_HEADER = "FloodShield/FloodShield-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";

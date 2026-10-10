@@ -13,6 +13,7 @@ MOBILE = Path(__file__).resolve().parents[2] / "mobile"
 COPIES = [
     MOBILE / "services" / "openMeteo.ts",
     MOBILE / "android/app/src/main/java/com/floodshield/app/alerts/AlertWorker.kt",
+    MOBILE / "ios/FloodShield/FSAlertScheduler.mm",
 ]
 EXPECTED = {
     "FORECAST_URL": weather.FORECAST_URL,
@@ -23,8 +24,9 @@ EXPECTED = {
 
 
 def constant(source: str, name: str) -> str:
-    """The value of `NAME = "a" + "b"` (several string pieces joined, as both files write them)."""
-    found = re.search(rf"{name}\s*=\s*((?:\s*\+?\s*(['\"])[^'\"]*\2)+)", source)
+    """The value of `NAME = "a" + "b"` (TypeScript, Kotlin) or `NAME = @"a" @"b"` (Objective-C):
+    several string pieces joined."""
+    found = re.search(rf"{name}\s*=\s*((?:\s*\+?\s*@?(['\"])[^'\"]*\2)+)", source)
     assert found, f"{name} not found"
     return "".join(piece[1] for piece in re.findall(r"(['\"])([^'\"]*)\1", found.group(1)))
 

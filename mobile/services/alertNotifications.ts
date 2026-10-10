@@ -3,7 +3,10 @@ import AlertScheduler from '../specs/NativeAlertScheduler';
 import {getApiBaseUrl} from './axiosClient';
 import {getLanguage, translate} from '../i18n';
 
-/** Android 13+ requires asking before showing notifications. */
+/**
+ * Android 13+ requires asking before showing notifications. On iOS the native module asks when
+ * alerts are configured (FSAlertScheduler.mm), because the answer only matters to it.
+ */
 export async function requestNotificationPermission(): Promise<boolean> {
   if (Platform.OS !== 'android' || Platform.Version < 33) {
     return true;

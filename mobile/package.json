@@ -58,6 +58,11 @@
     "jsSrcsDir": "specs",
     "android": {
       "javaPackageName": "com.floodshield.app.specs"
+    },
+    "ios": {
+      "modulesProvider": {
+        "AlertScheduler": "FSAlertScheduler"
+      }
     }
   }
 }

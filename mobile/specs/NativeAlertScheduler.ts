@@ -2,9 +2,11 @@ import type {TurboModule} from 'react-native';
 import {TurboModuleRegistry} from 'react-native';
 
 /**
- * Android background alert checker (see android/.../alerts/AlertWorker.kt).
- * Every ~30 minutes, even when the app is closed, it asks the API for alerts at the last known
- * location and shows a notification for each new moderate/high/severe alert.
+ * Background alert checker: it asks the API for alerts at the last known location and shows a
+ * notification for each new moderate/high/severe alert, even when the app is closed.
+ * - Android (android/.../alerts/AlertWorker.kt): every ~30 minutes with WorkManager.
+ * - iOS (ios/FloodShield/FSAlertScheduler.mm): Background App Refresh, which iOS runs when it
+ *   decides (often a few times a day), so the app also checks every time it is opened.
  */
 export interface Spec extends TurboModule {
   configure(
@@ -21,5 +23,5 @@ export interface Spec extends TurboModule {
   checkNow(): void;
 }
 
-// `get` (not `getEnforcing`) so the app still runs where the module does not exist (iOS, tests).
+// `get` (not `getEnforcing`) so the app still runs where the module does not exist (tests).
 export default TurboModuleRegistry.get<Spec>('AlertScheduler');

@@ -67,7 +67,6 @@ const NearbySheltersScreen = () => {
       <View style={styles.itemContent}>
         <View style={styles.badges}>
           <Text style={styles.itemType}>{item.kind_label}</Text>
-          {item.official && <Text style={styles.officialBadge}>{t('official')}</Text>}
         </View>
         <Text style={styles.itemName}>{item.name}</Text>
         {item.address ? <Text style={styles.itemAddress}>{item.address}</Text> : null}
@@ -222,16 +221,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
     overflow: 'hidden',
-  },
-  officialBadge: {
-    fontSize: vw(3.2),
-    color: 'white',
-    backgroundColor: '#27AE60',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginLeft: 6,
   },
   itemName: {
     fontSize: vw(4),

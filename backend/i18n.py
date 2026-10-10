@@ -73,6 +73,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "vi": "Tên hoặc nội dung có từ ngữ không phù hợp. Vui lòng sửa lại rồi gửi.",
         "en": "Your name or report contains offensive words. Please change them and send again.",
     },
+    "err_banned": {
+        "vi": "Bạn không thể đăng bài nữa vì đã vi phạm quy tắc cộng đồng.",
+        "en": "You can no longer post because you broke the community rules.",
+    },
     "err_image_too_large": {"vi": "Ảnh tối đa {mb} MB", "en": "Images can be at most {mb} MB"},
     "err_post_not_found": {"vi": "Không tìm thấy bài viết", "en": "Post not found"},
     "err_not_your_post": {
@@ -92,7 +96,6 @@ MESSAGES: dict[str, dict[str, str]] = {
     "kind_police": {"vi": "Công an", "en": "Police station"},
     "kind_other": {"vi": "Nơi trú ẩn", "en": "Shelter"},
     "kind_official": {"vi": "Điểm sơ tán", "en": "Evacuation point"},
-    "source_local_authorities": {"vi": "Chính quyền địa phương", "en": "Local authorities"},
     # --- Flood outlook ---------------------------------------------------------------------
     "risk_none": {"vi": "Bình thường", "en": "Normal"},
     "risk_watch": {"vi": "Theo dõi", "en": "Watch"},

@@ -39,7 +39,7 @@ neighbours share what is happening on the ground.
   Firebase needed.
 - **Weather:** current conditions, a 48-hour and a 7-day forecast, and a live sunrise-to-sunset arc.
 - **Evacuation places:** schools, ward offices (UBND), community centres and hospitals from
-  OpenStreetMap, plus official shelters, sorted by distance with walking directions.
+  OpenStreetMap, plus shelters the administrator adds, sorted by distance with walking directions.
 - **Emergency numbers:** 111–115 built in, so they work offline, with slide-to-call.
 - **Community reports:** photo, water level and location; "I see it too" confirmations;
   report, block, automatic hiding after 3 reports, and in-app data deletion.

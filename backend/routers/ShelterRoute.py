@@ -34,7 +34,7 @@ async def nearby_shelters(
     db: AsyncSession = Depends(get_db),
     lang: Lang = Depends(get_lang),
 ):
-    """Evacuation places near a location: official ones first, then OpenStreetMap places
+    """Evacuation places near a location: the administrator's ones first, then OpenStreetMap places
     (schools, community centres, ward offices, hospitals...), queried by this server."""
     community = []
     try:
@@ -66,7 +66,8 @@ async def nearby_shelters_from_app(
 async def with_official(
     db: AsyncSession, lat: float, lon: float, radius_km: float, lang: Lang, community: list[dict]
 ) -> list[dict]:
-    """Official shelters entered by an administrator first, then the OpenStreetMap places."""
+    """Shelters entered by the administrator first ("official": true, meaning only "not from
+    OpenStreetMap"; the app shows no badge), then the OpenStreetMap places."""
     min_lat, max_lat, min_lon, max_lon = bounding_box(lat, lon, max(radius_km, 15))
     rows = (
         await db.execute(
@@ -90,7 +91,7 @@ async def with_official(
             "phone": s.phone,
             "note": s.note,
             "official": True,
-            "source": t(lang, "source_local_authorities"),
+            "source": "FloodShield",
         }
         for s in rows
     ]

@@ -265,6 +265,42 @@ async def test_posts_with_swearing_are_refused(client):
     assert (await client.delete("/api/v1/me", headers=third)).json() == {"deleted_posts": 1}
 
 
+@pytest.mark.asyncio
+async def test_admin_bans_an_abusive_author(client):
+    abuser = {"X-Device-Id": "device-dddd-4444"}
+    neighbour = {"X-Device-Id": "device-eeee-5555"}
+    base = {"author_name": "X", "description": "Spam spam spam", "latitude": "10.0", "longitude": "105.0"}
+    first = (await client.post("/api/v1/posts", data=base, headers=abuser)).json()
+    await client.post("/api/v1/posts", data=base, headers=abuser)
+    other = (await client.post("/api/v1/posts", data={**base, "author_name": "Lan"}, headers=neighbour)).json()
+    await client.post(f"/api/v1/posts/{other['id']}/confirm", headers=abuser)
+
+    assert (await client.post(f"/api/v1/admin/posts/{first['id']}/ban-author")).status_code == 401
+    r = await client.post(f"/api/v1/admin/posts/{first['id']}/ban-author", headers={"X-Admin-Token": "test-admin"})
+    assert r.json() == {"banned": True, "deleted_posts": 2}
+
+    # The abuser's posts and confirmations are gone, and they can't post again (in either language).
+    ids = [p["id"] for p in (await client.get("/api/v1/posts")).json()["posts"]]
+    assert first["id"] not in ids and other["id"] in ids
+    assert next(p for p in (await client.get("/api/v1/posts")).json()["posts"] if p["id"] == other["id"])["confirm_count"] == 0
+    refused = await client.post("/api/v1/posts", data=base, headers=abuser)
+    assert refused.status_code == 403
+    assert refused.json()["detail"].startswith("Bạn không thể đăng bài nữa")
+    refused = await client.post("/api/v1/posts", data=base, headers={**abuser, **EN})
+    assert refused.json()["detail"].startswith("You can no longer post")
+    # Other people are not affected.
+    assert (await client.post("/api/v1/posts", data=base, headers=neighbour)).status_code == 201
+    await client.delete("/api/v1/me", headers=neighbour)
+
+
+@pytest.mark.asyncio
+async def test_contact_email_for_the_app(client, monkeypatch):
+    monkeypatch.setattr(main.settings, "contact_email", "")
+    assert (await client.get("/api/v1/contact")).json() == {"email": None}
+    monkeypatch.setattr(main.settings, "contact_email", "help@example.org")
+    assert (await client.get("/api/v1/contact")).json() == {"email": "help@example.org"}
+
+
 # --- English -------------------------------------------------------------------------------
 
 EN = {"Accept-Language": "en-US,en;q=0.9"}

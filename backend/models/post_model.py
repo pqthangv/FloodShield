@@ -72,6 +72,15 @@ class PostVote(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
 
 
+class BannedDevice(Base):
+    """A device an administrator blocked from posting (the community rules: zero tolerance)."""
+
+    __tablename__ = "BannedDevices"
+
+    device_id = Column(String(64), primary_key=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+
 class PostResponse(BaseModel):
     id: int
     author_name: str

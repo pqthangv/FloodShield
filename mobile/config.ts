@@ -6,7 +6,7 @@
  * so the emulator / USB-connected phone can reach it at localhost:8000.
  *
  * Production (release builds for Google Play): deploy the API with HTTPS and put its URL here.
- * The server address can also be changed at runtime in Cài đặt > Máy chủ API.
+ * Debug builds can also switch server at runtime: Settings > tap the version > API server.
  */
 const DEV_API_URL = 'http://localhost:8000/api/v1';
 const PROD_API_URL = 'https://floodshield-api-ese8.onrender.com/api/v1';

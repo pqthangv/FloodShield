@@ -86,6 +86,12 @@ async def health(upstream: bool = False):
     }
 
 
+@app.get("/api/v1/contact", tags=["system"])
+async def contact():
+    """The address shown in the app's Settings > Contact us (CONTACT_EMAIL; null when not set)."""
+    return {"email": settings.contact_email or None}
+
+
 @app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
 async def privacy_policy():
     contact = settings.contact_email or "(chưa cấu hình / not configured)"
@@ -120,7 +126,8 @@ này: tới Open-Meteo (open-meteo.com, khoảng 1 km) để lấy dự báo th�
 Google Maps khi bạn chọn chỉ đường.</p>
 <h2>3. Lưu trữ và xóa dữ liệu</h2>
 <p>Bài đăng hiển thị trong 7 ngày và có thể được lưu trữ tối đa 90 ngày. Bạn có thể xóa từng bài đăng, hoặc xóa toàn bộ
-dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi</b>. Bài đăng vi phạm có thể bị ẩn hoặc xóa.</p>
+dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi</b>. Bài đăng vi phạm có thể bị ẩn hoặc xóa; khi đó mã
+thiết bị của người vi phạm có thể được giữ lại để chặn đăng bài.</p>
 <h2>4. Liên hệ</h2>
 <p>Email: {contact}</p>
 <hr>
@@ -149,7 +156,8 @@ services: to Open-Meteo (open-meteo.com, about 1 km) for the weather forecast, a
 you ask for directions.</p>
 <h2>3. Storing and deleting data</h2>
 <p>Posts are shown for 7 days and may be stored for up to 90 days. You can delete each of your posts, or delete all of
-your data in <b>Settings &rarr; Delete my data</b>. Posts that break the community rules may be hidden or removed.</p>
+your data in <b>Settings &rarr; Delete my data</b>. Posts that break the community rules may be hidden or removed; the
+device ID of someone who breaks them may then be kept, to block it from posting.</p>
 <h2>4. Contact</h2>
 <p>Email: {contact}</p>
 </div>

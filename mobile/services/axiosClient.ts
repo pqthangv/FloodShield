@@ -7,9 +7,12 @@ let apiBaseUrl = DEFAULT_API_URL;
 
 export const getApiBaseUrl = () => apiBaseUrl;
 
-/** Loads the server address chosen in Settings (if any). Call once at startup. */
+/**
+ * Loads the server address chosen in Settings (if any). Call once at startup. Development builds
+ * only: store builds hide that setting, so they also ignore an address saved by an older version.
+ */
 export async function initApiBaseUrl() {
-  const override = await storage.getApiUrl();
+  const override = __DEV__ ? await storage.getApiUrl() : null;
   if (override) {
     apiBaseUrl = override;
   }

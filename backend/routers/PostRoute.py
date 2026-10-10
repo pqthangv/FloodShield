@@ -12,6 +12,7 @@ from config import public_base_url, settings
 from database import get_db
 from i18n import Lang, get_lang, t
 from models.post_model import (
+    BannedDevice,
     ConfirmResponse,
     Post,
     PostCategory,
@@ -175,6 +176,8 @@ async def create_post(
     lang: Lang = Depends(get_lang),
 ):
     device_id = require_device(x_device_id, lang)
+    if await db.get(BannedDevice, device_id) is not None:
+        raise HTTPException(status_code=403, detail=t(lang, "err_banned"))
 
     hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     recent = await db.scalar(
@@ -295,6 +298,13 @@ async def delete_my_data(
 ):
     """Deletes every post, photo and vote created from this device (Google Play data deletion)."""
     device_id = require_device(x_device_id, lang)
+    deleted = await delete_device_data(db, device_id)
+    await db.commit()
+    return {"deleted_posts": deleted}
+
+
+async def delete_device_data(db: AsyncSession, device_id: str) -> int:
+    """Removes a device's posts, photos and votes (without committing). Returns the number of posts."""
     posts = (await db.execute(select(Post).where(Post.device_id == device_id))).scalars().all()
     for post in posts:
         await remove_image(db, post.image_path)
@@ -309,5 +319,4 @@ async def delete_my_data(
         if other is not None:
             other.confirm_count = max(0, other.confirm_count - 1)
     await db.execute(delete(PostVote).where(PostVote.device_id == device_id))
-    await db.commit()
-    return {"deleted_posts": len(posts)}
+    return len(posts)

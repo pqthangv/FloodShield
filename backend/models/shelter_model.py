@@ -6,7 +6,7 @@ from database import Base
 
 
 class Shelter(Base):
-    """An official evacuation point entered by an administrator."""
+    """An evacuation point entered by the administrator."""
 
     __tablename__ = "Shelters"
 

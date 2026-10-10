@@ -88,7 +88,7 @@ const vi = {
   areaLabel: 'Khu vực: {area}',
   viewDetails: 'Xem chi tiết',
   alertSources:
-    'Nguồn: Open-Meteo, GloFAS, GDACS và cơ quan địa phương. Luôn làm theo hướng dẫn của chính quyền.',
+    'Nguồn: Open-Meteo, GloFAS và GDACS. Luôn làm theo hướng dẫn của chính quyền.',
   sourceLabel: 'Nguồn: {source}',
   fullReport: 'Xem báo cáo chi tiết ↗',
   severityWithLabel: 'Mức độ: {label}',
@@ -127,7 +127,6 @@ const vi = {
   progress: 'Đã hoàn thành {done}/{total}',
 
   // Shelters
-  official: 'Chính thức',
   distanceFromYou: 'Cách bạn {distance}',
   capacity: ' · Sức chứa {count} người',
   directionsTo: 'Chỉ đường đến {name}',
@@ -193,8 +192,8 @@ const vi = {
   communityRules:
     '• Chỉ chia sẻ thông tin thật, do bạn trực tiếp chứng kiến.\n' +
     '• Không đăng nội dung xúc phạm, quảng cáo, lừa đảo hoặc thông tin cá nhân của người khác.\n' +
+    '• FloodShield không khoan nhượng với nội dung phản cảm và người dùng lạm dụng: bài vi phạm sẽ bị xóa, người đăng sẽ bị chặn.\n' +
     '• Bài viết, ảnh và vị trí bạn gửi sẽ được hiển thị công khai.\n' +
-    '• Bài viết vi phạm sẽ bị ẩn hoặc xóa.\n' +
     '• Khi gặp nguy hiểm, hãy gọi 112 / 114 / 115 trước tiên.',
   agree: 'Tôi đồng ý',
   currentGps: 'Vị trí GPS hiện tại',
@@ -262,6 +261,7 @@ const vi = {
   sectionLanguage: 'Ngôn ngữ / Language',
   sectionInfo: 'Thông tin',
   privacyPolicy: 'Chính sách quyền riêng tư',
+  contactUs: 'Liên hệ',
   dataSources: 'Nguồn dữ liệu',
   dataSourcesList:
     'Thời tiết: Open-Meteo.com (CC BY 4.0)\n' +

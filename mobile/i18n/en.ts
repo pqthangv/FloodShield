@@ -88,7 +88,7 @@ const en: Record<keyof typeof vi, string> = {
   areaLabel: 'Area: {area}',
   viewDetails: 'Details',
   alertSources:
-    'Sources: Open-Meteo, GloFAS, GDACS and local authorities. Always follow the instructions of the authorities.',
+    'Sources: Open-Meteo, GloFAS and GDACS. Always follow the instructions of the authorities.',
   sourceLabel: 'Source: {source}',
   fullReport: 'Full report ↗',
   severityWithLabel: 'Severity: {label}',
@@ -127,7 +127,6 @@ const en: Record<keyof typeof vi, string> = {
   progress: '{done}/{total} done',
 
   // Shelters
-  official: 'Official',
   distanceFromYou: '{distance} away',
   capacity: ' · Room for {count} people',
   directionsTo: 'Directions to {name}',
@@ -193,8 +192,8 @@ const en: Record<keyof typeof vi, string> = {
   communityRules:
     '• Only share real information that you have seen yourself.\n' +
     "• Don't post offensive content, ads, scams or other people's personal information.\n" +
+    '• FloodShield has zero tolerance for objectionable content and abusive users: such posts are removed and their authors are blocked.\n' +
     '• Your post, photo and location will be shown publicly.\n' +
-    '• Posts that break the rules will be hidden or deleted.\n' +
     '• If you are in danger, call 112 / 114 / 115 first.',
   agree: 'I agree',
   currentGps: 'Current GPS location',
@@ -262,6 +261,7 @@ const en: Record<keyof typeof vi, string> = {
   sectionLanguage: 'Ngôn ngữ / Language',
   sectionInfo: 'About',
   privacyPolicy: 'Privacy policy',
+  contactUs: 'Contact us',
   dataSources: 'Data sources',
   dataSourcesList:
     'Weather: Open-Meteo.com (CC BY 4.0)\n' +

@@ -43,7 +43,7 @@ async def test_shelters_from_places_the_app_downloaded(client):
     r = await client.post("/api/v1/shelters", json={**HUE, "radius_km": 5, "elements": ELEMENTS}, headers=EN)
     assert r.status_code == 200, r.text
     shelters = r.json()["shelters"]
-    # Official first, then the nearest OpenStreetMap places; unnamed and far-away ones dropped.
+    # The administrator's first, then the nearest OpenStreetMap places; unnamed and far-away ones dropped.
     assert [s["name"] for s in shelters] == [
         "Nhà văn hóa phường Vĩnh Ninh", "Bệnh viện Trung ương Huế", "Nguyen Tri Phuong School",
     ]

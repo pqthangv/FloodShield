@@ -1,4 +1,4 @@
-"""Endpoints for administrators / local authorities. Every request needs the X-Admin-Token
+"""Endpoints for the app's administrator. Every request needs the X-Admin-Token
 header matching the ADMIN_TOKEN environment variable. Use them from http://<server>/docs."""
 
 from typing import Optional
@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import settings
 from database import get_db
 from models.alert_model import ManualAlert, ManualAlertCreate
-from models.post_model import Post
+from models.post_model import BannedDevice, Post
 from models.shelter_model import Shelter, ShelterCreate
-from routers.PostRoute import to_response
+from routers.PostRoute import delete_device_data, to_response
 from services import alerts
 
 
@@ -95,3 +95,18 @@ async def restore_post(post_id: int, db: AsyncSession = Depends(get_db)):
     post.report_count = 0
     await db.commit()
     return {"ok": True}
+
+
+@router.post("/posts/{post_id}/ban-author")
+async def ban_author(post_id: int, db: AsyncSession = Depends(get_db)):
+    """Blocks the phone that wrote this post from posting again and deletes all of its posts.
+    The block is per app install: reinstalling the app gives a new device id."""
+    post = await db.get(Post, post_id)
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    device_id = post.device_id
+    if await db.get(BannedDevice, device_id) is None:
+        db.add(BannedDevice(device_id=device_id))
+    deleted = await delete_device_data(db, device_id)
+    await db.commit()
+    return {"banned": True, "deleted_posts": deleted}

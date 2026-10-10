@@ -145,6 +145,10 @@ export const communityAPI = {
 
   deleteMyData: async (): Promise<{deleted_posts: number}> =>
     axiosClient.delete('/me'),
+
+  /** The address for Settings > Contact us (set on the server, so it isn't in the app's code). */
+  contactEmail: async (): Promise<string | null> =>
+    ((await axiosClient.get('/contact')) as unknown as {email: string | null}).email,
 };
 
 export default disasterAPI;

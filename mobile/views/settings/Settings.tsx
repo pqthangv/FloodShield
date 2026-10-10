@@ -65,13 +65,27 @@ const SettingsScreen = () => {
   const [blockedCount, setBlockedCount] = useState(0);
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [contactEmail, setContactEmail] = useState<string | null>(null);
 
   useEffect(() => {
     storage.getNickname().then(n => setNickname(n || ''));
     storage.getBlockedAuthors().then(ids => setBlockedCount(ids.length));
+    communityAPI.contactEmail().then(setContactEmail).catch(() => {});
   }, []);
 
   const privacyUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, '') + '/privacy';
+
+  // Email if the server told us the address (and the phone has a mail app); otherwise the
+  // privacy policy, which also lists it.
+  const contactUs = () => {
+    if (!contactEmail) {
+      Linking.openURL(privacyUrl);
+      return;
+    }
+    Linking.openURL(`mailto:${contactEmail}`).catch(() =>
+      Alert.alert(t('contactUs'), contactEmail),
+    );
+  };
 
   const deleteMyData = () =>
     Alert.alert(
@@ -178,14 +192,16 @@ const SettingsScreen = () => {
 
         <Text style={styles.section}>{t('sectionInfo')}</Text>
         <Row title={t('privacyPolicy')} onPress={() => Linking.openURL(privacyUrl)} />
+        <Row title={t('contactUs')} subtitle={contactEmail || undefined} onPress={contactUs} />
         <Row title={t('dataSources')} subtitle={t('dataSourcesList')} />
         <Row title={t('note')} subtitle={t('disclaimer')} />
+        {/* Choosing another API server is for development only, never in store builds. */}
         <Row
           title={t('version', {version: APP_VERSION})}
-          subtitle={showAdvanced ? undefined : t('showAdvanced')}
-          onPress={() => setShowAdvanced(!showAdvanced)}
+          subtitle={__DEV__ && !showAdvanced ? t('showAdvanced') : undefined}
+          onPress={__DEV__ ? () => setShowAdvanced(!showAdvanced) : undefined}
         />
-        {showAdvanced && (
+        {__DEV__ && showAdvanced && (
           <View style={styles.advanced}>
             <Text style={styles.rowTitle}>{t('apiServer')}</Text>
             <TextInput

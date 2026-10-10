@@ -96,6 +96,10 @@ jobs:
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
       - name: Screenshots in the iPhone simulator
         if: env.SCREENSHOTS == 'true'
+        env:
+          # Maestro's helper inside the simulator can take minutes to start on a busy machine
+          # (in milliseconds; the error message itself suggests raising it).
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
         run: |
           set -euo pipefail
           APP=ios/build/Build/Products/Release-iphonesimulator/FloodShield.app
@@ -117,7 +121,8 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b > /dev/null
           # The tidy status bar of App Store screenshots.
-          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged             --batteryLevel 100 --wifiBars 3 --cellularBars 4
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged \
+            --batteryLevel 100 --wifiBars 3 --cellularBars 4
           xcrun simctl location "$UDID" set 16.4637,107.5909
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl privacy "$UDID" grant location com.floodshield.app
@@ -128,9 +133,16 @@ jobs:
             python3 .maestro/demo_data.py "$lang"
             # Maestro only saves screenshots inside its own output folder: collect them afterwards,
             # also when a later screen failed, and keep its logs for debugging.
-            out="$RUNNER_TEMP/maestro-$lang"
-            status=0
-            maestro test --test-output-dir "$out" .maestro/screenshots.yaml "$@" || status=$?
+            for attempt in 1 2; do
+              out="$RUNNER_TEMP/maestro-$lang-$attempt"
+              status=0
+              maestro test --test-output-dir "$out" .maestro/screenshots.yaml "$@" || status=$?
+              # Not a single screenshot means it failed while starting: try once more.
+              if [ $status -eq 0 ] || [ -n "$(find "$out" -path "*takeScreenshot*" -name "*.png" -print -quit)" ]; then
+                break
+              fi
+              echo "$lang: failed before the first screenshot (attempt $attempt)"
+            done
             mkdir -p "screenshots/$lang" "screenshots/maestro-logs"
             find "$out" -path "*takeScreenshot*" -name "*.png" -exec cp {} "screenshots/$lang/" \;
             cp -R "$out" "screenshots/maestro-logs/$lang" 2>/dev/null || true
@@ -138,8 +150,14 @@ jobs:
             return $status
           }
           failed=0
-          shoot en -e LANGUAGE=English -e SUNRISE=Sunrise -e NEARBY_SHELTERS="Nearby shelters"             -e DIRECTIONS=Directions -e TAB_FORECAST=Forecast -e TAB_ALERTS=ALERTS -e DETAILS=Details             -e TAB_RIVER=RIVER -e TAB_SKILLS=Skills -e SKILLS_TITLE="DISASTER RESPONSE SKILLS"             -e TAB_COMMUNITY=Community -e COMMUNITY_TITLE="Reports near you" || failed=1
-          shoot vi -e LANGUAGE="Tiếng Việt" -e SUNRISE="Bình minh" -e NEARBY_SHELTERS="Nơi sơ tán gần bạn"             -e DIRECTIONS="Chỉ đường" -e TAB_FORECAST="Dự báo" -e TAB_ALERTS="CẢNH BÁO" -e DETAILS="Xem chi tiết"             -e TAB_RIVER="LŨ SÔNG" -e TAB_SKILLS="Kỹ năng" -e SKILLS_TITLE="KỸ NĂNG ỨNG PHÓ THIÊN TAI"             -e TAB_COMMUNITY="Cộng đồng" -e COMMUNITY_TITLE="Cảnh báo thực tế gần bạn" || failed=1
+          shoot en -e LANGUAGE=English -e SUNRISE=Sunrise -e NEARBY_SHELTERS="Nearby shelters" \
+            -e DIRECTIONS=Directions -e TAB_FORECAST=Forecast -e TAB_ALERTS=ALERTS -e DETAILS=Details \
+            -e TAB_RIVER=RIVER -e TAB_SKILLS=Skills -e SKILLS_TITLE="DISASTER RESPONSE SKILLS" \
+            -e TAB_COMMUNITY=Community -e COMMUNITY_TITLE="Reports near you" || failed=1
+          shoot vi -e LANGUAGE="Tiếng Việt" -e SUNRISE="Bình minh" -e NEARBY_SHELTERS="Nơi sơ tán gần bạn" \
+            -e DIRECTIONS="Chỉ đường" -e TAB_FORECAST="Dự báo" -e TAB_ALERTS="CẢNH BÁO" -e DETAILS="Xem chi tiết" \
+            -e TAB_RIVER="LŨ SÔNG" -e TAB_SKILLS="Kỹ năng" -e SKILLS_TITLE="KỸ NĂNG ỨNG PHÓ THIÊN TAI" \
+            -e TAB_COMMUNITY="Cộng đồng" -e COMMUNITY_TITLE="Cảnh báo thực tế gần bạn" || failed=1
           exit $failed
       - name: Keep the screenshots
         if: always() && env.SCREENSHOTS == 'true'

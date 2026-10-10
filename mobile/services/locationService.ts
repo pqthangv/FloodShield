@@ -2,6 +2,12 @@ import Geolocation from '@react-native-community/geolocation';
 import {PermissionsAndroid, Platform} from 'react-native';
 import {translate} from '../i18n';
 
+// iOS: ask only "While Using the App". The library would otherwise pick the level from Info.plist,
+// and FloodShield never needs location in the background (the alert checker uses the saved place).
+if (Platform.OS === 'ios') {
+  Geolocation.setRNConfiguration({skipPermissionRequests: false, authorizationLevel: 'whenInUse'});
+}
+
 export interface LocationCoords {
   latitude: number;
   longitude: number;

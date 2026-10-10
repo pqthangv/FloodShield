@@ -35,7 +35,19 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>FloodShield dùng vị trí của bạn để hiển thị thời tiết, cảnh báo thiên tai và nơi sơ tán gần bạn. / FloodShield uses your location to show the weather, disaster alerts and evacuation places near you.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>FloodShield dùng camera khi bạn chụp ảnh tình hình ngập lụt để đăng lên bảng tin cộng đồng. / FloodShield uses the camera when you take a photo of flooding to post in the community feed.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FloodShield dùng ảnh bạn chọn để đăng lên bảng tin cộng đồng. / FloodShield uses the photo you choose to post in the community feed.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.floodshield.app.alerts</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

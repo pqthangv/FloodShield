@@ -26,6 +26,7 @@ jest.mock('@react-native-community/geolocation', () => ({
   ),
   watchPosition: jest.fn(),
   clearWatch: jest.fn(),
+  setRNConfiguration: jest.fn(),
 }));
 
 jest.mock('react-native-image-picker', () => ({

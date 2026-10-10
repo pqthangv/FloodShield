@@ -2,18 +2,27 @@ name: iOS build
 
 # Builds the iPhone app on GitHub's macOS machines (free for public repositories), so the iOS
 # version can be developed without a Mac. Unsigned and for the simulator: it proves the app
-# compiles; signed TestFlight builds come later (Apple Developer account needed).
+# compiles. Signed TestFlight builds are made by Codemagic (codemagic.yaml).
+#
+# App Store screenshots only when asked: Actions > iOS build > Run workflow > tick "screenshots".
 on:
   push:
     branches: [main]
     paths: ['mobile/**', '.github/workflows/ios.yml']
   workflow_dispatch:
+    inputs:
+      screenshots:
+        description: Also take App Store screenshots in the iPhone simulator (English and Vietnamese)
+        type: boolean
+        default: true
 
 jobs:
   ios:
     name: iOS (simulator, unsigned)
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
+    env:
+      SCREENSHOTS: ${{ github.event_name == 'workflow_dispatch' && inputs.screenshots }}
     defaults:
       run:
         working-directory: mobile
@@ -25,6 +34,15 @@ jobs:
           cache: npm
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci
+      # Screenshots show a sample warning and sample posts. They come from a temporary copy of the
+      # server started on this machine, never from the live one (real people in Huế would see a
+      # live sample warning, and their phones would notify them). So for screenshot runs only, this
+      # build talks to localhost, which iOS allows (NSAllowsLocalNetworking in Info.plist).
+      - name: 'Screenshot run: use the temporary local server'
+        if: env.SCREENSHOTS == 'true'
+        run: |
+          perl -pi -e "s#^const PROD_API_URL = .*#const PROD_API_URL = 'http://localhost:8000/api/v1';#" config.ts
+          grep -n "const PROD_API_URL" config.ts
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
@@ -38,7 +56,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -workspace FloodShield.xcworkspace -scheme FloodShield -configuration Release \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build 2>&1 \
             | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
@@ -50,4 +68,86 @@ jobs:
           path: |
             mobile/ios/build.log
             mobile/ios/Podfile.lock
+          if-no-files-found: ignore
+
+      # ---- Screenshots (only when asked) ------------------------------------------------------
+      # Maestro taps through the main screens (.maestro/screenshots.yaml). Weather, places,
+      # shelters and river data are real; the warning and the posts are samples (.maestro/demo_data.py).
+      - uses: actions/setup-python@v7
+        if: env.SCREENSHOTS == 'true'
+        with:
+          python-version: '3.12'
+      - name: Start the temporary server
+        if: env.SCREENSHOTS == 'true'
+        working-directory: backend
+        run: |
+          python -m pip install -q -r requirements.txt
+          ADMIN_TOKEN=ci-screenshots nohup python -m uvicorn main:app --port 8000 > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+      - uses: actions/setup-java@v6
+        if: env.SCREENSHOTS == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Maestro
+        if: env.SCREENSHOTS == 'true'
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Screenshots in the iPhone simulator
+        if: env.SCREENSHOTS == 'true'
+        run: |
+          set -euo pipefail
+          APP=ios/build/Build/Products/Release-iphonesimulator/FloodShield.app
+          # iPhone 17 Pro Max if there is one (6.9-inch: the App Store's required screenshot size),
+          # otherwise the newest Pro Max.
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          best = None
+          for runtime, devices in json.load(sys.stdin)["devices"].items():
+              if ".iOS-" not in runtime:
+                  continue
+              version = tuple(int(x) for x in runtime.split(".iOS-")[1].split("-"))
+              for d in devices:
+                  if "Pro Max" in d["name"]:
+                      key = (d["name"] == "iPhone 17 Pro Max", version)
+                      if best is None or key > best[0]:
+                          best = (key, d["udid"], d["name"] + " / iOS " + ".".join(map(str, version)))
+          print(best[1]); print("Simulator:", best[2], file=sys.stderr)')
+          PREFS="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Preferences/.GlobalPreferences"
+          # Start it once, so its settings folder exists before the language is written into it.
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b > /dev/null
+
+          shoot() {  # language, region, then the texts Maestro waits for and taps (see the flow file)
+            lang=$1; region=$2; shift 2
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+            defaults write "$PREFS" AppleLanguages -array "$lang"
+            defaults write "$PREFS" AppleLocale -string "$region"
+            xcrun simctl boot "$UDID"
+            xcrun simctl bootstatus "$UDID" -b > /dev/null
+            # The tidy status bar of App Store screenshots.
+            xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged \
+              --batteryLevel 100 --wifiBars 3 --cellularBars 4
+            xcrun simctl location "$UDID" set 16.4637,107.5909
+            xcrun simctl install "$UDID" "$APP"
+            xcrun simctl privacy "$UDID" grant location com.floodshield.app
+            python3 .maestro/demo_data.py "$lang"
+            mkdir -p "screenshots/$lang"
+            maestro test .maestro/screenshots.yaml -e OUT="$PWD/screenshots/$lang" "$@"
+          }
+          shoot en en_US -e ALLOW=Allow -e SUNRISE=Sunrise -e NEARBY_SHELTERS="Nearby shelters" \
+            -e DIRECTIONS=Directions -e TAB_FORECAST=Forecast -e TAB_RIVER=RIVER \
+            -e TAB_SKILLS=Skills -e TAB_COMMUNITY=Community
+          shoot vi vi_VN -e ALLOW="Cho phép" -e SUNRISE="Bình minh" -e NEARBY_SHELTERS="Nơi sơ tán gần bạn" \
+            -e DIRECTIONS="Chỉ đường" -e TAB_FORECAST="Dự báo" -e TAB_RIVER="LŨ SÔNG" \
+            -e TAB_SKILLS="Kỹ năng" -e TAB_COMMUNITY="Cộng đồng"
+      - name: Keep the screenshots
+        if: always() && env.SCREENSHOTS == 'true'
+        run: cp "$RUNNER_TEMP/server.log" screenshots/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v7
+        if: always() && env.SCREENSHOTS == 'true'
+        with:
+          name: ios-screenshots
+          path: mobile/screenshots/
           if-no-files-found: ignore

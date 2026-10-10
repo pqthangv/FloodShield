@@ -46,6 +46,31 @@ static NSString *StringOrEmpty(id value)
 
 typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 
+/// iOS hides notifications while the app is open unless told otherwise. Show them like Android
+/// does (this is also what makes Settings > "Check now" visibly work).
+@interface FSNotificationPresenter : NSObject <UNUserNotificationCenterDelegate>
+@end
+
+@implementation FSNotificationPresenter
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+       willPresentNotification:(UNNotification *)notification
+         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler
+{
+  completionHandler(UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionList |
+                    UNNotificationPresentationOptionSound);
+}
+
+- (void)userNotificationCenter:(UNUserNotificationCenter *)center
+    didReceiveNotificationResponse:(UNNotificationResponse *)response
+             withCompletionHandler:(void (^)(void))completionHandler
+{
+  // Tapping the notification just opens the app, which shows the alert.
+  completionHandler();
+}
+
+@end
+
 @interface FSAlertScheduler () <NativeAlertSchedulerSpec>
 @end
 
@@ -110,6 +135,11 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 
 + (void)registerBackgroundTask
 {
+  // The notification center only keeps a weak reference to its delegate: keep it alive here.
+  static FSNotificationPresenter *presenter;
+  presenter = [FSNotificationPresenter new];
+  UNUserNotificationCenter.currentNotificationCenter.delegate = presenter;
+
   [BGTaskScheduler.sharedScheduler registerForTaskWithIdentifier:kTaskId
                                                       usingQueue:nil
                                                    launchHandler:^(__kindof BGTask *task) {

@@ -1,0 +1,63 @@
+# Photographs the main screens of FloodShield in the iPhone simulator (App Store screenshots).
+# .github/workflows/ios.yml runs it once per language, passing that language's texts:
+#   maestro test .maestro/screenshots.yaml -e OUT=... -e SUNRISE=Sunrise -e ALLOW=Allow ...
+# Maestro waits for a text that only appears once the data has loaded before each screenshot.
+appId: com.floodshield.app
+---
+- setLocation:
+    latitude: 16.4637
+    longitude: 107.5909
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+# Notifications can't always be pre-allowed in the simulator: answer iOS's question if it shows.
+- tapOn:
+    text: ${ALLOW}
+    optional: true
+- extendedWaitUntil:
+    visible: ${SUNRISE}
+    timeout: 120000
+- tapOn:
+    text: ${ALLOW}
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${OUT}/1-home
+
+- scrollUntilVisible:
+    element: ${NEARBY_SHELTERS}
+    direction: DOWN
+- tapOn: ${NEARBY_SHELTERS}
+# The phone asks OpenStreetMap itself, which can be slow when its servers are busy.
+- extendedWaitUntil:
+    visible: ${DIRECTIONS}
+    timeout: 150000
+    optional: true
+- takeScreenshot: ${OUT}/2-shelters
+
+# Back to the home screen, with the data loaded again.
+- launchApp
+- extendedWaitUntil:
+    visible: ${SUNRISE}
+    timeout: 120000
+- tapOn: "${TAB_FORECAST}, tab, 2 of 4"
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${OUT}/3-alerts
+- tapOn: ${TAB_RIVER}
+- extendedWaitUntil:
+    visible: ".*m³/s.*"
+    timeout: 60000
+    optional: true
+- takeScreenshot: ${OUT}/4-river
+
+- tapOn: "${TAB_SKILLS}, tab, 3 of 4"
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${OUT}/5-skills
+
+- tapOn: "${TAB_COMMUNITY}, tab, 4 of 4"
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${OUT}/6-community

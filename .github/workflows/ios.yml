@@ -133,15 +133,25 @@ jobs:
             xcrun simctl install "$UDID" "$APP"
             xcrun simctl privacy "$UDID" grant location com.floodshield.app
             python3 .maestro/demo_data.py "$lang"
-            mkdir -p "screenshots/$lang"
-            maestro test .maestro/screenshots.yaml -e OUT="$PWD/screenshots/$lang" "$@"
+            # Maestro only saves screenshots inside its own output folder: collect them afterwards,
+            # also when a later screen failed, and keep its logs for debugging.
+            out="$RUNNER_TEMP/maestro-$lang"
+            status=0
+            maestro test --test-output-dir "$out" .maestro/screenshots.yaml "$@" || status=$?
+            mkdir -p "screenshots/$lang" "screenshots/maestro-logs"
+            find "$out" -path "*takeScreenshot*" -name "*.png" -exec cp {} "screenshots/$lang/" \;
+            cp -R "$out" "screenshots/maestro-logs/$lang" 2>/dev/null || true
+            echo "$lang: $(ls "screenshots/$lang" | wc -l | tr -d ' ') screenshots"
+            return $status
           }
+          failed=0
           shoot en en_US -e ALLOW=Allow -e SUNRISE=Sunrise -e NEARBY_SHELTERS="Nearby shelters" \
             -e DIRECTIONS=Directions -e TAB_FORECAST=Forecast -e TAB_RIVER=RIVER \
-            -e TAB_SKILLS=Skills -e TAB_COMMUNITY=Community
+            -e TAB_SKILLS=Skills -e TAB_COMMUNITY=Community || failed=1
           shoot vi vi_VN -e ALLOW="Cho phép" -e SUNRISE="Bình minh" -e NEARBY_SHELTERS="Nơi sơ tán gần bạn" \
             -e DIRECTIONS="Chỉ đường" -e TAB_FORECAST="Dự báo" -e TAB_RIVER="LŨ SÔNG" \
-            -e TAB_SKILLS="Kỹ năng" -e TAB_COMMUNITY="Cộng đồng"
+            -e TAB_SKILLS="Kỹ năng" -e TAB_COMMUNITY="Cộng đồng" || failed=1
+          exit $failed
       - name: Keep the screenshots
         if: always() && env.SCREENSHOTS == 'true'
         run: cp "$RUNNER_TEMP/server.log" screenshots/ 2>/dev/null || true

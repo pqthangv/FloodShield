@@ -1,6 +1,7 @@
 # Photographs the main screens of FloodShield in the iPhone simulator (App Store screenshots).
 # .github/workflows/ios.yml runs it once per language, passing that language's texts:
-#   maestro test .maestro/screenshots.yaml -e OUT=... -e SUNRISE=Sunrise -e ALLOW=Allow ...
+#   maestro test --test-output-dir DIR .maestro/screenshots.yaml -e SUNRISE=Sunrise -e ALLOW=Allow ...
+# Screenshots land in DIR/<run>/<flow>/takeScreenshot/ (Maestro allows no other place).
 # Maestro waits for a text that only appears once the data has loaded before each screenshot.
 appId: com.floodshield.app
 ---
@@ -23,7 +24,7 @@ appId: com.floodshield.app
     optional: true
 - waitForAnimationToEnd:
     timeout: 10000
-- takeScreenshot: ${OUT}/1-home
+- takeScreenshot: 1-home
 
 - scrollUntilVisible:
     element: ${NEARBY_SHELTERS}
@@ -34,7 +35,7 @@ appId: com.floodshield.app
     visible: ${DIRECTIONS}
     timeout: 150000
     optional: true
-- takeScreenshot: ${OUT}/2-shelters
+- takeScreenshot: 2-shelters
 
 # Back to the home screen, with the data loaded again.
 - launchApp
@@ -44,20 +45,20 @@ appId: com.floodshield.app
 - tapOn: "${TAB_FORECAST}, tab, 2 of 4"
 - waitForAnimationToEnd:
     timeout: 10000
-- takeScreenshot: ${OUT}/3-alerts
+- takeScreenshot: 3-alerts
 - tapOn: ${TAB_RIVER}
 - extendedWaitUntil:
     visible: ".*m³/s.*"
     timeout: 60000
     optional: true
-- takeScreenshot: ${OUT}/4-river
+- takeScreenshot: 4-river
 
 - tapOn: "${TAB_SKILLS}, tab, 3 of 4"
 - waitForAnimationToEnd:
     timeout: 10000
-- takeScreenshot: ${OUT}/5-skills
+- takeScreenshot: 5-skills
 
 - tapOn: "${TAB_COMMUNITY}, tab, 4 of 4"
 - waitForAnimationToEnd:
     timeout: 10000
-- takeScreenshot: ${OUT}/6-community
+- takeScreenshot: 6-community

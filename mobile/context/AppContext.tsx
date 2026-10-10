@@ -13,10 +13,12 @@ import {errorMessage, initApiBaseUrl} from '../services/axiosClient';
 import locationService, {DEFAULT_LOCATIONS} from '../services/locationService';
 import {getLanguage, translate, useI18n} from '../i18n';
 import {Alert, WeatherData} from '../services/model';
+import {fetchFloodData} from '../services/glofas';
 import {fetchForecast} from '../services/openMeteo';
 import storage, {SavedLocation} from '../services/storage';
 import {
   markAlertsSeen,
+  rememberRiver,
   requestNotificationPermission,
   syncAlertScheduler,
 } from '../services/alertNotifications';
@@ -70,26 +72,32 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
 
   const loadData = useCallback(async (loc: SavedLocation) => {
     setLoading(true);
-    // Download the forecast with the phone's own internet address (see services/openMeteo.ts),
-    // once for both requests.
+    // Download the forecast and the river data with the phone's own internet address (see
+    // services/openMeteo.ts and glofas.ts), once for all requests. The weather is shown without
+    // waiting for the river data, which takes longer the first time (20 years of history).
+    const flood = fetchFloodData(loc.latitude, loc.longitude);
     const forecast = await fetchForecast(loc.latitude, loc.longitude);
-    const [w, a] = await Promise.allSettled([
-      disasterAPI.getWeather(loc.latitude, loc.longitude, forecast),
-      disasterAPI.getAlerts(loc.latitude, loc.longitude, forecast),
-    ]);
-    if (w.status === 'fulfilled') {
-      setWeather(w.value);
-      setWeatherError(null);
-    } else {
-      setWeatherError(errorMessage(w.reason));
-    }
-    if (a.status === 'fulfilled') {
-      setAlerts(a.value.alerts);
-      setAlertsError(null);
-      markAlertsSeen(a.value.alerts.map(item => item.id));
-    } else {
-      setAlertsError(errorMessage(a.reason));
-    }
+    const weatherShown = disasterAPI.getWeather(loc.latitude, loc.longitude, forecast).then(
+      value => {
+        setWeather(value);
+        setWeatherError(null);
+      },
+      reason => setWeatherError(errorMessage(reason)),
+    );
+    const alertsShown = flood
+      .then(river => {
+        rememberRiver(loc.latitude, loc.longitude, river);
+        return disasterAPI.getAlerts(loc.latitude, loc.longitude, forecast, river);
+      })
+      .then(
+        value => {
+          setAlerts(value.alerts);
+          setAlertsError(null);
+          markAlertsSeen(value.alerts.map(item => item.id));
+        },
+        reason => setAlertsError(errorMessage(reason)),
+      );
+    await Promise.all([weatherShown, alertsShown]);
     lastFetch.current = Date.now();
     setLoading(false);
   }, []);

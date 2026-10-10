@@ -60,6 +60,7 @@ MESSAGES: dict[str, dict[str, str]] = {
     "err_forecast_invalid": {"vi": "Dữ liệu dự báo không hợp lệ", "en": "Invalid forecast data"},
     "err_alerts": {"vi": "Chưa kiểm tra được cảnh báo, vui lòng thử lại sau", "en": "Could not check for alerts, please try again later"},
     "err_flood": {"vi": "Không thể tải dữ liệu lũ", "en": "Could not load the flood data"},
+    "err_flood_invalid": {"vi": "Dữ liệu sông không hợp lệ", "en": "The river data is not valid"},
     "err_place": {"vi": "Không xác định được địa danh", "en": "Could not find the place name"},
     "err_search": {"vi": "Không thể tìm kiếm địa điểm", "en": "Could not search for places"},
     "err_device_id": {"vi": "Thiếu mã thiết bị (X-Device-Id)", "en": "Missing device id (X-Device-Id)"},

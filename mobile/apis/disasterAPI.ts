@@ -1,4 +1,5 @@
 import axiosClient from '../services/axiosClient';
+import {FloodData, fetchFloodData} from '../services/glofas';
 import {fetchPlaces} from '../services/overpass';
 import {
   Alert,
@@ -55,13 +56,26 @@ const disasterAPI = {
       () => axiosClient.get('/weather', {params: {lat, lon}}),
     ),
 
-  getFlood: async (lat: number, lon: number): Promise<FloodOutlook> =>
-    axiosClient.get('/flood', {params: {lat, lon}}),
+  /** The phone downloads the river data itself (see services/glofas.ts); the server analyses it. */
+  getFlood: async (lat: number, lon: number): Promise<FloodOutlook> => {
+    const flood = await fetchFloodData(lat, lon);
+    return withPhoneData(
+      flood,
+      () => axiosClient.post('/flood', {latitude: lat, longitude: lon, flood}),
+      () => axiosClient.get('/flood', {params: {lat, lon}}),
+    );
+  },
 
-  getAlerts: async (lat: number, lon: number, forecast?: object | null): Promise<{alerts: Alert[]}> =>
+  getAlerts: async (
+    lat: number,
+    lon: number,
+    forecast?: object | null,
+    flood?: FloodData | null,
+  ): Promise<{alerts: Alert[]}> =>
     withPhoneData(
       forecast,
-      () => axiosClient.post('/alerts', {latitude: lat, longitude: lon, forecast}),
+      () =>
+        axiosClient.post('/alerts', {latitude: lat, longitude: lon, forecast, flood: flood || undefined}),
       () => axiosClient.get('/alerts', {params: {lat, lon}}),
     ),
 

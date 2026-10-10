@@ -19,6 +19,11 @@ static NSString *const DAILY_VARS =
     @"sunrise,sunset";
 /// ~1 km (ward level), like the app (services/openMeteo.ts).
 static const double SNAP_STEP = 0.01;
+// Keep equal to services/glofas.ts, AlertWorker.kt and backend/services/flood.py (a test checks).
+static NSString *const FLOOD_URL = @"https://flood-api.open-meteo.com/v1/flood";
+static NSString *const FORECAST_VARS = @"river_discharge,river_discharge_p25,river_discharge_p75";
+static const int PAST_DAYS = 3;
+static const int FORECAST_DAYS = 16;
 
 /// Must match BGTaskSchedulerPermittedIdentifiers in Info.plist, or iOS refuses to register it.
 static NSString *const kTaskId = @"com.floodshield.app.alerts";
@@ -33,6 +38,7 @@ static NSString *const kKeyLongitude = @"fs_alerts_longitude";
 static NSString *const kKeyEnabled = @"fs_alerts_enabled";
 static NSString *const kKeyLanguage = @"fs_alerts_language";
 static NSString *const kKeySeen = @"fs_alerts_seen_ids";
+static NSString *const kKeyRiver = @"fs_alerts_river";
 
 static double Snap(double value)
 {
@@ -117,6 +123,11 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
                     completionHandler:^(BOOL granted, NSError *_Nullable error){
                     }];
   [FSAlertScheduler scheduleNextCheck];
+}
+
+- (void)setRiver:(NSString *)river
+{
+  [NSUserDefaults.standardUserDefaults setObject:river forKey:kKeyRiver];
 }
 
 - (void)markSeen:(NSArray *)ids
@@ -258,25 +269,94 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
              finish(NO);
              return;
            }
-           // 2. The server turns it into alerts (POST /alerts).
-           NSDictionary *payload =
-               @{@"latitude" : @(latitude), @"longitude" : @(longitude), @"forecast" : forecast};
-           NSMutableURLRequest *post = [NSMutableURLRequest
-               requestWithURL:[NSURL URLWithString:[base stringByAppendingString:@"/alerts"]]];
-           post.HTTPMethod = @"POST";
-           post.HTTPBody = [NSJSONSerialization dataWithJSONObject:payload options:0 error:nil];
-           [post setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-           [post setValue:language forHTTPHeaderField:@"Accept-Language"];
-           [self send:post
-               session:session
-                  then:^(NSInteger postStatus, NSData *postBody) {
-                    // An older server without the POST route, or a rejected forecast: let it fetch.
-                    if (postStatus == 404 || postStatus == 405 || postStatus == 422) {
-                      serverFetches();
-                    } else {
-                      finish([self handleAlertsResponse:postStatus body:postBody]);
-                    }
-                  }];
+           // 2. The river the app found here, with its forecast (see services/glofas.ts).
+           [self riverNearLatitude:latitude
+                         longitude:longitude
+                           session:session
+                              then:^(NSDictionary *_Nullable river) {
+                                if (cancelled) {
+                                  finish(NO);
+                                  return;
+                                }
+                                // 3. The server turns them into alerts (POST /alerts).
+                                NSMutableDictionary *payload = [@{
+                                  @"latitude" : @(latitude),
+                                  @"longitude" : @(longitude),
+                                  @"forecast" : forecast
+                                } mutableCopy];
+                                if (river) {
+                                  payload[@"flood"] = river;
+                                }
+                                NSMutableURLRequest *post = [NSMutableURLRequest
+                                    requestWithURL:[NSURL URLWithString:[base stringByAppendingString:@"/alerts"]]];
+                                post.HTTPMethod = @"POST";
+                                post.HTTPBody = [NSJSONSerialization dataWithJSONObject:payload
+                                                                                options:0
+                                                                                  error:nil];
+                                [post setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+                                [post setValue:language forHTTPHeaderField:@"Accept-Language"];
+                                [self send:post
+                                    session:session
+                                       then:^(NSInteger postStatus, NSData *postBody) {
+                                         // An older server without the POST route, or rejected
+                                         // data: let it fetch.
+                                         if (postStatus == 404 || postStatus == 405 || postStatus == 422) {
+                                           serverFetches();
+                                         } else {
+                                           finish([self handleAlertsResponse:postStatus body:postBody]);
+                                         }
+                                       }];
+                              }];
+         }];
+}
+
+/// The river the app found near this place (setRiver) with its forecast downloaded now, as
+/// POST /alerts takes it; nil when there is none for this place or the download failed.
++ (void)riverNearLatitude:(double)latitude
+                longitude:(double)longitude
+                  session:(NSURLSession *)session
+                     then:(void (^)(NSDictionary *_Nullable river))then
+{
+  NSData *saved = [[NSUserDefaults.standardUserDefaults stringForKey:kKeyRiver]
+      dataUsingEncoding:NSUTF8StringEncoding];
+  id river = saved ? [NSJSONSerialization JSONObjectWithData:saved options:0 error:nil] : nil;
+  // Only for the place it was found for: the user may have moved since.
+  if (![river isKindOfClass:NSDictionary.class] ||
+      ![river[@"latitude"] isKindOfClass:NSNumber.class] ||
+      ![river[@"longitude"] isKindOfClass:NSNumber.class] ||
+      fabs([river[@"latitude"] doubleValue] - latitude) >= 0.05 ||
+      fabs([river[@"longitude"] doubleValue] - longitude) >= 0.05) {
+    then(nil);
+    return;
+  }
+  id cell = river[@"cell"];
+  if (cell == NSNull.null) {
+    then(@{@"cell" : NSNull.null}); // no river nearby
+    return;
+  }
+  if (![cell isKindOfClass:NSDictionary.class] ||
+      ![cell[@"latitude"] isKindOfClass:NSNumber.class] ||
+      ![cell[@"longitude"] isKindOfClass:NSNumber.class]) {
+    then(nil);
+    return;
+  }
+  NSString *url = [NSString
+      stringWithFormat:@"%@?latitude=%@&longitude=%@&daily=%@&past_days=%d&forecast_days=%d",
+                       FLOOD_URL, cell[@"latitude"], cell[@"longitude"], FORECAST_VARS, PAST_DAYS,
+                       FORECAST_DAYS];
+  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
+  request.timeoutInterval = 20;
+  id maxima = [river[@"annual_maxima"] isKindOfClass:NSArray.class] ? river[@"annual_maxima"] : @[];
+  [self send:request
+      session:session
+         then:^(NSInteger status, NSData *body) {
+           id json = (status >= 200 && status < 300 && body)
+               ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil]
+               : nil;
+           id daily = [json isKindOfClass:NSDictionary.class] ? json[@"daily"] : nil;
+           then([daily isKindOfClass:NSDictionary.class]
+                    ? @{@"cell" : cell, @"forecast" : daily, @"annual_maxima" : maxima}
+                    : nil);
          }];
 }
 

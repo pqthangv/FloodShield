@@ -40,7 +40,7 @@ async def fake_forecast(lat, lon):
     }
 
 
-async def fake_flood(db, lat, lon, lang="vi"):
+async def fake_flood(db, lat, lon, lang="vi", supplied=None):
     return {"risk": "none", "river": None, "thresholds": None, "forecast": [], "peak": None,
             "risk_label": "Bình thường", "summary": ""}
 

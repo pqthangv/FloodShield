@@ -17,6 +17,11 @@ export interface Spec extends TurboModule {
     /** 'vi' or 'en': language of the notification texts (sent as Accept-Language). */
     language: string,
   ): void;
+  /**
+   * The river the app found near a location (services/glofas.ts), as JSON:
+   * {latitude, longitude, cell, annual_maxima}. The worker downloads only that river's forecast.
+   */
+  setRiver(river: string): void;
   /** Alerts already shown inside the app, so the worker does not notify them again. */
   markSeen(ids: string[]): void;
   /** Runs one check immediately (useful for testing). */

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from services import osm, weather
+from services import flood, osm, weather
 
 MOBILE = Path(__file__).resolve().parents[2] / "mobile"
 COPIES = [
@@ -79,3 +79,43 @@ def test_one_version_number_everywhere():
     assert set(re.findall(r"MARKETING_VERSION = ([^;]+);", xcode)) == {version}
     # The iOS background check names the same version when it calls Open-Meteo.
     assert f'"FloodShield/{version} (iOS app;' in (MOBILE / "ios/FloodShield/FSAlertScheduler.mm").read_text(encoding="utf-8")
+
+
+GLOFAS_TS = MOBILE / "services" / "glofas.ts"
+GLOFAS_FIXTURE = MOBILE / "__tests__" / "fixtures" / "glofas.json"
+
+
+def test_app_downloads_the_river_data_the_server_would():
+    """The phone downloads the GloFAS data itself (glofas.ts); flood.py analyses it."""
+    if not GLOFAS_TS.exists():
+        pytest.skip("mobile app not checked out")
+    source = GLOFAS_TS.read_text(encoding="utf-8")
+    for name in ("FLOOD_URL", "FORECAST_VARS"):
+        assert constant(source, name) == getattr(flood, name), f"{name} in glofas.ts differs from flood.py"
+    for name in ("GRID_STEP", "GRID_RADIUS", "SEARCH_SNAP", "MIN_RIVER_DISCHARGE", "HISTORY_YEARS",
+                 "PAST_DAYS", "FORECAST_DAYS"):
+        found = re.search(rf"export const {name} = ([\d.]+);", source)
+        assert found and float(found.group(1)) == float(getattr(flood, name)), f"{name} differs"
+
+
+@pytest.mark.parametrize("path", COPIES[1:], ids=lambda p: p.name)
+def test_background_checkers_download_the_river_forecast_the_server_reads(path):
+    """AlertWorker.kt and FSAlertScheduler.mm download the forecast of the river the app found."""
+    if not path.exists():
+        pytest.skip("mobile app not checked out")
+    source = path.read_text(encoding="utf-8")
+    for name in ("FLOOD_URL", "FORECAST_VARS"):
+        assert constant(source, name) == getattr(flood, name), f"{name} in {path.name} differs from flood.py"
+    for name in ("PAST_DAYS", "FORECAST_DAYS"):
+        found = re.search(rf"{name} = (\d+);?\n", source)
+        assert found and int(found.group(1)) == getattr(flood, name), f"{name} in {path.name} differs"
+
+
+def test_server_gives_the_answers_the_app_tests_expect():
+    """glofas.test.ts checks the app's copies against the same sample and answers."""
+    if not GLOFAS_FIXTURE.exists():
+        pytest.skip("mobile app not checked out")
+    sample = json.loads(GLOFAS_FIXTURE.read_text(encoding="utf-8"))
+    assert flood.pick_river_cell(sample["cells"], *sample["snapped"]) == sample["expected_cell"]
+    history = sample["history"]
+    assert flood.annual_maxima(history["time"], history["river_discharge"]) == sample["expected_maxima"]

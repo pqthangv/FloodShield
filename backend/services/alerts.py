@@ -439,12 +439,18 @@ async def _given(value):
 
 
 async def build_alerts(
-    db: AsyncSession, lat: float, lon: float, lang: Lang = "vi", raw: Optional[dict] = None
+    db: AsyncSession,
+    lat: float,
+    lon: float,
+    lang: Lang = "vi",
+    raw: Optional[dict] = None,
+    river: Optional[dict] = None,
 ) -> list[dict]:
-    """`raw`: an Open-Meteo forecast the app downloaded itself; otherwise this server fetches it."""
+    """`raw` (Open-Meteo forecast) and `river` (GloFAS data): what the app downloaded itself;
+    for what it didn't send, this server fetches the data."""
     raw, outlook, events, place = await asyncio.gather(
         _given(raw) if raw is not None else weather.fetch_raw_forecast(lat, lon),
-        flood.get_flood_outlook(db, lat, lon, lang),
+        flood.get_flood_outlook(db, lat, lon, lang, supplied=river),
         gdacs.fetch_events(),
         osm.reverse_geocode(lat, lon, lang),
         return_exceptions=True,

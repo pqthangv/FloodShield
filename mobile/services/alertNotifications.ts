@@ -1,6 +1,7 @@
 import {PermissionsAndroid, Platform} from 'react-native';
 import AlertScheduler from '../specs/NativeAlertScheduler';
 import {getApiBaseUrl} from './axiosClient';
+import type {FloodData} from './glofas';
 import {getLanguage, translate} from '../i18n';
 
 /**
@@ -31,6 +32,17 @@ export function syncAlertScheduler(
   enabled: boolean,
 ) {
   AlertScheduler?.configure(getApiBaseUrl(), latitude, longitude, enabled, getLanguage());
+}
+
+/**
+ * The background checker can't search for the river itself (20 years of history), so the app
+ * hands over what it found; the checker then downloads just that river's forecast.
+ */
+export function rememberRiver(latitude: number, longitude: number, flood: FloodData | null) {
+  if (flood) {
+    const river = {latitude, longitude, cell: flood.cell, annual_maxima: flood.annual_maxima || []};
+    AlertScheduler?.setRiver(JSON.stringify(river));
+  }
 }
 
 /** Alerts the user already saw in the app should not pop up as notifications later. */

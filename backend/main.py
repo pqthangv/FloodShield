@@ -121,7 +121,7 @@ Mã này không gắn với danh tính, số điện thoại hay tài khoản Go
 <h2>2. Bên thứ ba</h2>
 <p>Máy chủ FloodShield lấy dữ liệu từ Open-Meteo (thời tiết, GloFAS/Copernicus), GDACS (thiên tai) và OpenStreetMap
 (địa danh, nơi sơ tán), sử dụng tọa độ đã được làm tròn. Ứng dụng cũng gửi trực tiếp tọa độ đã làm tròn tới hai dịch vụ
-này: tới Open-Meteo (open-meteo.com, khoảng 1 km) để lấy dự báo thời tiết, và tới máy chủ Overpass của OpenStreetMap
+này: tới Open-Meteo (open-meteo.com) để lấy dự báo thời tiết (khoảng 1 km) và dự báo lũ sông (khoảng 10 km), và tới máy chủ Overpass của OpenStreetMap
 (overpass-api.de và máy chủ dự phòng maps.mail.ru, khoảng 2 km) để tìm nơi sơ tán gần bạn. Ứng dụng có thể mở
 Google Maps khi bạn chọn chỉ đường.</p>
 <h2>3. Lưu trữ và xóa dữ liệu</h2>
@@ -151,7 +151,8 @@ spam. It is not linked to your identity, your phone number, or your Google or Ap
 <h2>2. Third parties</h2>
 <p>The FloodShield server gets data from Open-Meteo (weather, GloFAS/Copernicus), GDACS (disasters) and OpenStreetMap
 (place names, shelters), using rounded coordinates. The app also sends rounded coordinates directly to two of these
-services: to Open-Meteo (open-meteo.com, about 1 km) for the weather forecast, and to OpenStreetMap's Overpass servers
+services: to Open-Meteo (open-meteo.com) for the weather forecast (about 1 km) and the river flood forecast (about
+10 km), and to OpenStreetMap's Overpass servers
 (overpass-api.de, with maps.mail.ru as backup, about 2 km) to find shelters near you. The app can open Google Maps when
 you ask for directions.</p>
 <h2>3. Storing and deleting data</h2>

@@ -32,10 +32,11 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
 
     val alerts =
         try {
-          // The phone downloads the forecast itself (see services/openMeteo.ts) and the server
-          // turns it into alerts. Without one, the server tries to fetch the forecast itself.
+          // The phone downloads the forecast and the river data itself (see services/openMeteo.ts
+          // and glofas.ts) and the server turns them into alerts. What the phone couldn't get,
+          // the server tries to fetch itself.
           val forecast = fetchForecast(lat, lon)
-          (forecast?.let { postAlerts(baseUrl, lat, lon, it, prefs.language) })
+          (forecast?.let { postAlerts(baseUrl, lat, lon, it, fetchRiver(prefs.river, lat, lon), prefs.language) })
               ?: request("$baseUrl/alerts?lat=$lat&lon=$lon", prefs.language).alerts()
         } catch (e: IOException) {
           return Result.retry()
@@ -69,9 +70,44 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     }
   }
 
-  /** Alerts from the phone's own forecast; null when the server can't take it (old or rejected). */
-  private fun postAlerts(baseUrl: String, lat: Double, lon: Double, forecast: JSONObject, language: String): JSONArray? {
+  /**
+   * The river the app found here (setRiver) with its forecast downloaded now, as POST /alerts
+   * takes it; null when there is none for this place or the download failed.
+   */
+  private fun fetchRiver(saved: String?, lat: Double, lon: Double): JSONObject? {
+    return try {
+      val river = JSONObject(saved ?: return null)
+      // Only for the place it was found for: the user may have moved since.
+      if (Math.abs(river.getDouble("latitude") - lat) >= 0.05 ||
+          Math.abs(river.getDouble("longitude") - lon) >= 0.05 ||
+          !river.has("cell")) return null
+      if (river.isNull("cell")) return JSONObject().put("cell", JSONObject.NULL) // no river nearby
+      val cell = river.getJSONObject("cell")
+      val url =
+          "$FLOOD_URL?latitude=${cell.getDouble("latitude")}&longitude=${cell.getDouble("longitude")}" +
+              "&daily=$FORECAST_VARS&past_days=$PAST_DAYS&forecast_days=$FORECAST_DAYS"
+      val (code, body) = request(url, null, timeoutMs = 20_000)
+      if (code !in 200..299) return null
+      JSONObject()
+          .put("cell", cell)
+          .put("forecast", JSONObject(body).getJSONObject("daily"))
+          .put("annual_maxima", river.optJSONArray("annual_maxima") ?: JSONArray())
+    } catch (e: Exception) {
+      null
+    }
+  }
+
+  /** Alerts from the phone's own data; null when the server can't take it (old or rejected). */
+  private fun postAlerts(
+      baseUrl: String,
+      lat: Double,
+      lon: Double,
+      forecast: JSONObject,
+      river: JSONObject?,
+      language: String,
+  ): JSONArray? {
     val body = JSONObject().put("latitude", lat).put("longitude", lon).put("forecast", forecast)
+    river?.let { body.put("flood", it) }
     val response = request("$baseUrl/alerts", language, body.toString())
     return if (response.first in setOf(404, 405, 422)) null else response.alerts()
   }
@@ -175,6 +211,12 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     /** ~1 km (ward level), like the app (services/openMeteo.ts). */
     private const val SNAP_STEP = 0.01
 
+    // Keep equal to services/glofas.ts and backend/services/flood.py (a backend test checks).
+    private const val FLOOD_URL = "https://flood-api.open-meteo.com/v1/flood"
+    private const val FORECAST_VARS = "river_discharge,river_discharge_p25,river_discharge_p75"
+    private const val PAST_DAYS = 3
+    private const val FORECAST_DAYS = 16
+
     private fun snap(value: Double) = Math.round(Math.round(value / SNAP_STEP) * SNAP_STEP * 10000) / 10000.0
 
     fun createChannel(context: Context) {
@@ -217,6 +259,11 @@ class AlertPrefs(context: Context) {
   var language: String
     get() = prefs.getString("language", null) ?: "vi"
     set(value) = prefs.edit().putString("language", value).apply()
+
+  /** JSON from the app: the river near the saved location (see fetchRiver). */
+  var river: String?
+    get() = prefs.getString("river", null)
+    set(value) = prefs.edit().putString("river", value).apply()
 
   /** Insertion-ordered so the oldest ids can be dropped. */
   fun seenIds(): LinkedHashSet<String> {

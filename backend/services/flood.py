@@ -7,6 +7,10 @@ How the risk is computed:
    to the annual maximum discharge and derive the 2-, 5- and 20-year return-period levels
    (the same approach GloFAS uses for its own flood alerts). They are stored in the database.
 3. Compare the forecast for the next 10 days with those thresholds.
+
+Open-Meteo's free limit is per IP address and this server's is shared, so the app downloads the
+GloFAS data itself (mobile/services/glofas.ts) and sends it with POST /flood and POST /alerts.
+That data is only used for its sender's answer, never stored or shown to anyone else.
 """
 
 import asyncio
@@ -37,6 +41,10 @@ FORECAST_WINDOW_DAYS = 10
 # Limit how many new rivers we analyse per day to stay inside the free quota.
 HISTORY_YEARS = 20
 MAX_NEW_THRESHOLDS_PER_DAY = 10
+# The forecast request (the app asks for the same; a test checks glofas.ts).
+FORECAST_VARS = "river_discharge,river_discharge_p25,river_discharge_p75"
+PAST_DAYS = 3
+FORECAST_DAYS = 16
 
 logger = logging.getLogger(__name__)
 _budget = {"day": None, "used": 0}
@@ -87,6 +95,16 @@ def classify(peak: Optional[float], peak_upper: Optional[float], thresholds: Opt
     return "none"
 
 
+def pick_river_cell(cells: list[dict], lat_s: float, lon_s: float) -> Optional[dict]:
+    """Downstream cells of the main river carry slightly more water; among the cells on the main
+    river (>= half of the largest flow) take the one closest to the user. Same as glofas.ts."""
+    if not cells:
+        return None
+    largest = max(c["median_discharge"] for c in cells)
+    main_river = [c for c in cells if c["median_discharge"] >= 0.5 * largest]
+    return min(main_river, key=lambda c: haversine_km(lat_s, lon_s, c["latitude"], c["longitude"]))
+
+
 async def _find_river_cell(lat: float, lon: float) -> Optional[dict]:
     lat_s, lon_s = snap(lat, SEARCH_SNAP), snap(lon, SEARCH_SNAP)
 
@@ -116,13 +134,7 @@ async def _find_river_cell(lat: float, lon: float) -> Optional[dict]:
                 cells.append(
                     {"latitude": cell["latitude"], "longitude": cell["longitude"], "median_discharge": values[0]}
                 )
-        if not cells:
-            return {}  # cache "no river" too
-        # Downstream cells of the main river carry slightly more water; among the cells on the
-        # main river (>= half of the largest flow) take the one closest to the user.
-        largest = max(c["median_discharge"] for c in cells)
-        main_river = [c for c in cells if c["median_discharge"] >= 0.5 * largest]
-        return min(main_river, key=lambda c: haversine_km(lat_s, lon_s, c["latitude"], c["longitude"]))
+        return pick_river_cell(cells, lat_s, lon_s) or {}  # cache "no river" too
 
     cell = await cache.get_or_set(f"flood-cell:{lat_s}:{lon_s}", 30 * 24 * 3600, load)
     if not cell or cell["median_discharge"] < MIN_RIVER_DISCHARGE:
@@ -227,9 +239,9 @@ async def _forecast(cell_lat: float, cell_lon: float) -> dict:
             params={
                 "latitude": cell_lat,
                 "longitude": cell_lon,
-                "daily": "river_discharge,river_discharge_p25,river_discharge_p75",
-                "past_days": 3,
-                "forecast_days": 16,
+                "daily": FORECAST_VARS,
+                "past_days": PAST_DAYS,
+                "forecast_days": FORECAST_DAYS,
             },
         )
         resp.raise_for_status()
@@ -238,8 +250,30 @@ async def _forecast(cell_lat: float, cell_lon: float) -> dict:
     return await cache.get_or_set(f"flood-fc:{cell_lat}:{cell_lon}", 3 * 3600, load)
 
 
-async def get_flood_outlook(db: AsyncSession, lat: float, lon: float, lang: Lang = "vi") -> dict:
-    cell = await _find_river_cell(lat, lon)
+async def _stored_thresholds(db: AsyncSession, cell_lat: float, cell_lon: float) -> Optional[dict]:
+    """Flood levels this server computed itself earlier (cache or database), without fetching."""
+    cached = cache.get(f"flood-thr:{cell_lat}:{cell_lon}")
+    if cached is not None:
+        return cached or None
+    row = await db.scalar(
+        select(RiverThreshold).where(
+            RiverThreshold.latitude == cell_lat, RiverThreshold.longitude == cell_lon
+        )
+    )
+    return _threshold_dict(row) if row else None
+
+
+async def get_flood_outlook(
+    db: AsyncSession, lat: float, lon: float, lang: Lang = "vi", supplied: Optional[dict] = None
+) -> dict:
+    """`supplied`: the GloFAS data the app downloaded itself ({"cell", "forecast",
+    "annual_maxima"}, checked by WeatherRoute); otherwise this server fetches it."""
+    if supplied is None:
+        cell = await _find_river_cell(lat, lon)
+    else:
+        cell = supplied["cell"]
+        if cell and cell["median_discharge"] < MIN_RIVER_DISCHARGE:
+            cell = None
     if not cell:
         return {
             "river": None,
@@ -252,8 +286,14 @@ async def get_flood_outlook(db: AsyncSession, lat: float, lon: float, lang: Lang
         }
 
     c_lat, c_lon = cell["latitude"], cell["longitude"]
-    daily = await _forecast(c_lat, c_lon)
-    thresholds = await _thresholds(db, c_lat, c_lon)
+    if supplied is None:
+        daily = await _forecast(c_lat, c_lon)
+        thresholds = await _thresholds(db, c_lat, c_lon)
+    else:
+        daily = supplied["forecast"]
+        # The levels this server computed itself if it has them; else from the phone's history
+        # (for this answer only: never stored, so a faked history can only fool its sender).
+        thresholds = await _stored_thresholds(db, c_lat, c_lon) or gumbel_thresholds(supplied["annual_maxima"])
 
     today = datetime.now(timezone.utc).date().isoformat()
     forecast = []

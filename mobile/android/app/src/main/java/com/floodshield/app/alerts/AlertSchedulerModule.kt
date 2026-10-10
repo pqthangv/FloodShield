@@ -44,6 +44,10 @@ class AlertSchedulerModule(reactContext: ReactApplicationContext) :
     workManager.enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.KEEP, request)
   }
 
+  override fun setRiver(river: String) {
+    prefs.river = river
+  }
+
   override fun markSeen(ids: ReadableArray) {
     val seen = prefs.seenIds()
     for (i in 0 until ids.size()) {

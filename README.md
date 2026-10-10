@@ -31,8 +31,9 @@ neighbours share what is happening on the ground.
   streets, strong wind (Beaufort scale), heat (35/37/39 °C) and landslide risk in hilly terrain,
   using the thresholds of Vietnam's national weather service. Active typhoons, floods and
   earthquakes come from GDACS, plus warnings an administrator issues for an area.
-- **River flood forecast:** finds the main river near the user and compares its 16-day
-  discharge forecast (GloFAS) with 2-, 5- and 20-year flood levels derived from 20 years of history.
+- **River flood forecast:** finds the main river near the user, shows its 16-day discharge
+  forecast (GloFAS) and warns when the next 10 days, the more reliable part, exceed the 2-, 5- or
+  20-year flood levels derived from 20 years of history.
 - **Background notifications:** an Android WorkManager job checks the user's area about every
   30 minutes, even when the app is closed, and notifies once per new or escalated alert. No
   Firebase needed.

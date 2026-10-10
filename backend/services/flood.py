@@ -29,6 +29,9 @@ GRID_RADIUS = 3  # cells in each direction -> 7x7 grid
 # point counts as one call against Open-Meteo's free quota (10,000/day).
 SEARCH_SNAP = 0.1
 MIN_RIVER_DISCHARGE = 5.0  # m3/s; below this there is no meaningful river nearby
+# The chart shows GloFAS's 16-day forecast, but only the first 10 days decide the risk: river
+# forecasts get less reliable further ahead. The texts don't mention the number, to keep the
+# screen simple (the app is meant for everyone, including the elderly).
 FORECAST_WINDOW_DAYS = 10
 # Open-Meteo bills one call per 14 days of data, so 20 years of history costs ~520 calls.
 # Limit how many new rivers we analyse per day to stay inside the free quota.

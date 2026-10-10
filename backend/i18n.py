@@ -105,8 +105,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "There is not enough historical data yet to assess the flood risk of the river near you.",
     },
     "flood_normal": {
-        "vi": "Mực nước sông gần bạn dự kiến ở mức bình thường trong 10 ngày tới.",
-        "en": "The river near you is expected to stay at normal levels for the next 10 days.",
+        "vi": "Mực nước sông gần bạn dự kiến ở mức bình thường.",
+        "en": "The river near you is expected to stay at normal levels.",
     },
     "flood_watch": {
         "vi": "Có khả năng (thấp) lưu lượng sông vượt mức báo động. Tiếp tục theo dõi.",

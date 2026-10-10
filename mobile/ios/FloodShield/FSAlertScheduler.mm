@@ -140,7 +140,7 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
     }
   };
   [self runCheckWithCompletion:^(BOOL success) {
-    [task setTaskCompleted:success];
+    [task setTaskCompletedWithSuccess:success];
   }
                   onExpiration:^(void (^cancelRequests)(void)) {
                     cancel = [cancelRequests copy];

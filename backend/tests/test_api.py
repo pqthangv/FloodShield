@@ -86,12 +86,16 @@ async def test_api_documentation_needs_the_admin_login(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_privacy_policy_in_both_languages(client):
-    page = (await client.get("/privacy")).text
-    for heading in ("Dữ liệu chúng tôi thu thập", "Bên thứ ba", "Lưu trữ và xóa dữ liệu",
-                    "Data we collect", "Third parties", "Storing and deleting data"):
-        assert heading in page
-    assert "{contact}" not in page
+async def test_privacy_policy_one_page_per_language(client):
+    vi_headings = ("Dữ liệu chúng tôi thu thập", "Bên thứ ba", "Lưu trữ và xóa dữ liệu", "Liên hệ")
+    en_headings = ("Data we collect", "Third parties", "Storing and deleting data", "Contact")
+    vi = (await client.get("/privacy")).text  # the address given to Google Play and the App Store
+    en = (await client.get("/privacy/en")).text
+    assert all(h in vi for h in vi_headings) and not any(h in vi for h in en_headings[:3])
+    assert all(h in en for h in en_headings) and not any(h in en for h in vi_headings)
+    assert 'href="/privacy/en"' in vi and 'href="/privacy"' in en  # each links to the other language
+    assert '<html lang="vi">' in vi and '<html lang="en">' in en
+    assert "{contact}" not in vi + en
 
 
 @pytest.mark.asyncio

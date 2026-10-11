@@ -129,17 +129,39 @@ async def contact():
 
 @app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
 async def privacy_policy():
-    contact = settings.contact_email or "(chưa cấu hình / not configured)"
-    return PRIVACY_HTML.replace("{contact}", contact)
+    """In Vietnamese: the address given to Google Play and the App Store. English: /privacy/en."""
+    return privacy_page("vi")
 
 
-PRIVACY_HTML = """<!doctype html>
-<html lang="vi"><head><meta charset="utf-8">
+@app.get("/privacy/en", response_class=HTMLResponse, include_in_schema=False)
+async def privacy_policy_en():
+    return privacy_page("en")
+
+
+def privacy_page(lang: str) -> str:
+    contact = settings.contact_email or ("(chưa cấu hình)" if lang == "vi" else "(not configured)")
+    title, other = PRIVACY_TITLES[lang], PRIVACY_SWITCH[lang]
+    body = (PRIVACY_VI if lang == "vi" else PRIVACY_EN).replace("{contact}", contact)
+    return PRIVACY_PAGE.format(lang=lang, title=title, switch=other, body=body)
+
+
+PRIVACY_TITLES = {"vi": "FloodShield - Chính sách quyền riêng tư", "en": "FloodShield - Privacy Policy"}
+# A link to the same policy in the other language.
+PRIVACY_SWITCH = {
+    "vi": '<p class="lang"><a href="/privacy/en" lang="en">English</a></p>',
+    "en": '<p class="lang"><a href="/privacy" lang="vi">Tiếng Việt</a></p>',
+}
+
+PRIVACY_PAGE = """<!doctype html>
+<html lang="{lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FloodShield - Chính sách quyền riêng tư / Privacy Policy</title>
-<style>body{font-family:system-ui,sans-serif;max-width:760px;margin:auto;padding:16px;line-height:1.55;color:#1F2D54}
-h1{font-size:1.5em}h2{font-size:1.15em;margin-top:1.6em}</style></head><body>
-<h1>Chính sách quyền riêng tư - FloodShield</h1>
+<title>{title}</title>
+<style>body{{font-family:system-ui,sans-serif;max-width:760px;margin:auto;padding:16px;line-height:1.55;color:#1F2D54}}
+h1{{font-size:1.5em}}h2{{font-size:1.15em;margin-top:1.6em}}.lang{{text-align:right;margin:0}}</style></head><body>
+{switch}
+{body}</body></html>"""
+
+PRIVACY_VI = """<h1>Chính sách quyền riêng tư - FloodShield</h1>
 <p>FloodShield giúp bạn nhận cảnh báo lũ lụt, thiên tai, thời tiết và chia sẻ thông tin ngập lụt với cộng đồng.
 Chúng tôi chỉ thu thập dữ liệu cần thiết cho các chức năng này. FloodShield là ứng dụng độc lập, không thuộc và không
 đại diện cho bất kỳ cơ quan nhà nước nào.</p>
@@ -165,9 +187,9 @@ dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi<
 thiết bị của người vi phạm có thể được giữ lại để chặn đăng bài.</p>
 <h2>4. Liên hệ</h2>
 <p>Email: {contact}</p>
-<hr>
-<div lang="en">
-<h1>Privacy Policy - FloodShield</h1>
+"""
+
+PRIVACY_EN = """<h1>Privacy Policy - FloodShield</h1>
 <p>FloodShield gives you flood, disaster and weather alerts, and lets you share flooding information with your
 community. We only collect the data these features need. FloodShield is an independent app. It is not affiliated with,
 and does not represent, any government agency.</p>
@@ -196,5 +218,4 @@ your data in <b>Settings &rarr; Delete my data</b>. Posts that break the communi
 device ID of someone who breaks them may then be kept, to block it from posting.</p>
 <h2>4. Contact</h2>
 <p>Email: {contact}</p>
-</div>
-</body></html>"""
+"""

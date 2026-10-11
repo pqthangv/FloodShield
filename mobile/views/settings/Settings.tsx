@@ -73,7 +73,9 @@ const SettingsScreen = () => {
     communityAPI.contactEmail().then(setContactEmail).catch(() => {});
   }, []);
 
-  const privacyUrl = getApiBaseUrl().replace(/\/api\/v1\/?$/, '') + '/privacy';
+  // In the app's language: /privacy is Vietnamese, /privacy/en English.
+  const privacyUrl =
+    getApiBaseUrl().replace(/\/api\/v1\/?$/, '') + (lang === 'en' ? '/privacy/en' : '/privacy');
 
   // Email if the server told us the address (and the phone has a mail app); otherwise the
   // privacy policy, which also lists it.

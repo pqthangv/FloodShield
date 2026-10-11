@@ -73,15 +73,16 @@ const SettingsScreen = () => {
     communityAPI.contactEmail().then(setContactEmail).catch(() => {});
   }, []);
 
-  // In the app's language: /privacy is Vietnamese, /privacy/en English.
-  const privacyUrl =
-    getApiBaseUrl().replace(/\/api\/v1\/?$/, '') + (lang === 'en' ? '/privacy/en' : '/privacy');
+  // Pages on the server in the app's language: /privacy and /support are Vietnamese, /…/en English.
+  const pageUrl = (page: string) =>
+    getApiBaseUrl().replace(/\/api\/v1\/?$/, '') + `/${page}` + (lang === 'en' ? '/en' : '');
+  const privacyUrl = pageUrl('privacy');
 
   // Email if the server told us the address (and the phone has a mail app); otherwise the
-  // privacy policy, which also lists it.
+  // support page, which also lists it.
   const contactUs = () => {
     if (!contactEmail) {
-      Linking.openURL(privacyUrl);
+      Linking.openURL(pageUrl('support'));
       return;
     }
     Linking.openURL(`mailto:${contactEmail}`).catch(() =>

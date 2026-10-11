@@ -130,34 +130,50 @@ async def contact():
 @app.get("/privacy", response_class=HTMLResponse, include_in_schema=False)
 async def privacy_policy():
     """In Vietnamese: the address given to Google Play and the App Store. English: /privacy/en."""
-    return privacy_page("vi")
+    return info_page("privacy", "vi")
 
 
 @app.get("/privacy/en", response_class=HTMLResponse, include_in_schema=False)
 async def privacy_policy_en():
-    return privacy_page("en")
+    return info_page("privacy", "en")
 
 
-def privacy_page(lang: str) -> str:
+@app.get("/support", response_class=HTMLResponse, include_in_schema=False)
+async def support():
+    """Help and contact (the App Store's Support URL), in Vietnamese. English: /support/en."""
+    return info_page("support", "vi")
+
+
+@app.get("/support/en", response_class=HTMLResponse, include_in_schema=False)
+async def support_en():
+    return info_page("support", "en")
+
+
+def info_page(page: str, lang: str) -> str:
+    """The privacy policy and support pages: Vietnamese at /<page>, English at /<page>/en, each
+    linking to the other language."""
     contact = settings.contact_email or ("(chưa cấu hình)" if lang == "vi" else "(not configured)")
-    title, other = PRIVACY_TITLES[lang], PRIVACY_SWITCH[lang]
-    body = (PRIVACY_VI if lang == "vi" else PRIVACY_EN).replace("{contact}", contact)
-    return PRIVACY_PAGE.format(lang=lang, title=title, switch=other, body=body)
+    switch = (
+        f'<p class="lang"><a href="/{page}/en" lang="en">English</a></p>'
+        if lang == "vi"
+        else f'<p class="lang"><a href="/{page}" lang="vi">Tiếng Việt</a></p>'
+    )
+    body = PAGE_BODIES[page][lang].replace("{contact}", contact)
+    return PAGE.format(lang=lang, title=PAGE_TITLES[page][lang], switch=switch, body=body)
 
 
-PRIVACY_TITLES = {"vi": "FloodShield - Chính sách quyền riêng tư", "en": "FloodShield - Privacy Policy"}
-# A link to the same policy in the other language.
-PRIVACY_SWITCH = {
-    "vi": '<p class="lang"><a href="/privacy/en" lang="en">English</a></p>',
-    "en": '<p class="lang"><a href="/privacy" lang="vi">Tiếng Việt</a></p>',
+PAGE_TITLES = {
+    "privacy": {"vi": "FloodShield - Chính sách quyền riêng tư", "en": "FloodShield - Privacy Policy"},
+    "support": {"vi": "FloodShield - Hỗ trợ", "en": "FloodShield - Support"},
 }
 
-PRIVACY_PAGE = """<!doctype html>
+PAGE = """<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <style>body{{font-family:system-ui,sans-serif;max-width:760px;margin:auto;padding:16px;line-height:1.55;color:#1F2D54}}
-h1{{font-size:1.5em}}h2{{font-size:1.15em;margin-top:1.6em}}.lang{{text-align:right;margin:0}}</style></head><body>
+h1{{font-size:1.5em}}h2{{font-size:1.15em;margin-top:1.6em}}h3{{font-size:1em;margin:1.2em 0 .3em}}
+.lang{{text-align:right;margin:0}}a{{color:#2A78D6}}</style></head><body>
 {switch}
 {body}</body></html>"""
 
@@ -219,3 +235,66 @@ device ID of someone who breaks them may then be kept, to block it from posting.
 <h2>4. Contact</h2>
 <p>Email: {contact}</p>
 """
+
+SUPPORT_VI = """<h1>Hỗ trợ - FloodShield</h1>
+<p>FloodShield cảnh báo mưa lớn, lũ sông và thiên tai theo vị trí của bạn, chỉ nơi sơ tán gần nhất và giúp bạn chia sẻ
+tình hình ngập với cộng đồng. Ứng dụng miễn phí, không cần tài khoản.</p>
+<p><b>Khi gặp nguy hiểm, hãy gọi 112 (cứu nạn), 114 (cứu hỏa) hoặc 115 (cấp cứu) trước tiên.</b></p>
+<h2>Liên hệ</h2>
+<p>Email: <a href="mailto:{contact}">{contact}</a>. Bạn cũng có thể vào <b>Cài đặt &rarr; Liên hệ</b> trong ứng dụng.</p>
+<h2>Câu hỏi thường gặp</h2>
+<h3>Vì sao tôi không nhận được thông báo?</h3>
+<ul>
+<li>Cho phép FloodShield gửi thông báo trong phần Cài đặt của điện thoại.</li>
+<li>Trong ứng dụng: <b>Cài đặt &rarr; Cảnh báo thiên tai</b> phải đang bật.</li>
+<li>Trên iPhone: bật <b>Cài đặt &rarr; Cài đặt chung &rarr; Làm mới ứng dụng trong nền</b>. iOS tự quyết định lúc nào
+ứng dụng được kiểm tra, nên thông báo có thể đến chậm. Mở ứng dụng để xem cảnh báo mới nhất ngay.</li>
+</ul>
+<h3>Cảnh báo dựa trên nguồn nào?</h3>
+<p>Mưa, gió và nắng nóng: dự báo của Open-Meteo, so với ngưỡng của Trung tâm Dự báo Khí tượng Thủy văn Quốc gia (mưa từ
+50 mm/ngày). Lũ sông: GloFAS (Copernicus). Bão, lũ, động đất: GDACS. Thông tin chỉ mang tính tham khảo; luôn làm theo
+hướng dẫn của chính quyền.</p>
+<h3>Ứng dụng hiển thị sai vị trí</h3>
+<p>Cho phép FloodShield dùng vị trí, hoặc chọn nơi khác: <b>Cài đặt &rarr; Vị trí</b>.</p>
+<h3>Làm sao báo cáo hoặc ẩn bài đăng không phù hợp?</h3>
+<p>Bấm <b>…</b> trên bài đăng, chọn <b>Báo cáo vi phạm</b> hoặc <b>Ẩn bài của người này</b>. Bài bị nhiều người báo cáo
+sẽ tự động bị ẩn; chúng tôi xem xét các báo cáo và chặn người vi phạm.</p>
+<h3>Làm sao xóa dữ liệu của tôi?</h3>
+<p><b>Cài đặt &rarr; Xóa dữ liệu của tôi</b> xóa mọi bài đăng, ảnh và lượt xác nhận của bạn. Xem thêm
+<a href="/privacy">Chính sách quyền riêng tư</a>.</p>
+<p>FloodShield là ứng dụng độc lập, không thuộc và không đại diện cho bất kỳ cơ quan nhà nước nào.</p>
+"""
+
+SUPPORT_EN = """<h1>Support - FloodShield</h1>
+<p>FloodShield warns you about heavy rain, river floods and natural disasters where you are, shows the nearest safe places
+and lets you share flood updates with your community. It is free and needs no account.</p>
+<p><b>If you are in danger, call 112 (rescue), 114 (fire) or 115 (ambulance) first.</b></p>
+<h2>Contact</h2>
+<p>Email: <a href="mailto:{contact}">{contact}</a>. You can also use <b>Settings &rarr; Contact us</b> in the app.</p>
+<h2>Frequently asked questions</h2>
+<h3>Why don't I get notifications?</h3>
+<ul>
+<li>Allow notifications for FloodShield in your phone's Settings.</li>
+<li>In the app, <b>Settings &rarr; Disaster alerts</b> must be on.</li>
+<li>On iPhone, turn on <b>Settings &rarr; General &rarr; Background App Refresh</b>. iOS decides when the app may check,
+so notifications can arrive late. Open the app to see the latest alerts at once.</li>
+</ul>
+<h3>Where do the alerts come from?</h3>
+<p>Rain, wind and heat: Open-Meteo's forecast, compared with the thresholds of Vietnam's National Center for
+Hydro-Meteorological Forecasting (rain from 50 mm a day). River floods: GloFAS (Copernicus). Storms, floods and
+earthquakes: GDACS. For guidance only; always follow the instructions of the authorities.</p>
+<h3>The app shows the wrong place</h3>
+<p>Allow FloodShield to use your location, or choose another place in <b>Settings &rarr; Location</b>.</p>
+<h3>How do I report or hide an inappropriate post?</h3>
+<p>Tap <b>…</b> on the post and choose <b>Report</b> or <b>Hide posts from this person</b>. Posts reported by several
+people are hidden automatically; we review reports and block people who break the rules.</p>
+<h3>How do I delete my data?</h3>
+<p><b>Settings &rarr; Delete my data</b> removes all your posts, photos and confirmations. See also the
+<a href="/privacy/en">Privacy policy</a>.</p>
+<p>FloodShield is an independent app. It is not affiliated with, and does not represent, any government agency.</p>
+"""
+
+PAGE_BODIES = {
+    "privacy": {"vi": PRIVACY_VI, "en": PRIVACY_EN},
+    "support": {"vi": SUPPORT_VI, "en": SUPPORT_EN},
+}

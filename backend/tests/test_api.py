@@ -99,6 +99,19 @@ async def test_privacy_policy_one_page_per_language(client):
 
 
 @pytest.mark.asyncio
+async def test_support_page_one_page_per_language(client, monkeypatch):
+    monkeypatch.setattr(main.settings, "contact_email", "help@example.org")
+    vi = (await client.get("/support")).text  # the App Store's Support URL
+    en = (await client.get("/support/en")).text
+    assert "Câu hỏi thường gặp" in vi and "Frequently asked questions" not in vi
+    assert "Frequently asked questions" in en and "Câu hỏi thường gặp" not in en
+    for page in (vi, en):
+        assert 'href="mailto:help@example.org"' in page and "{contact}" not in page
+    assert 'href="/support/en"' in vi and 'href="/support"' in en
+    assert 'href="/privacy"' in vi and 'href="/privacy/en"' in en  # each links to its own privacy page
+
+
+@pytest.mark.asyncio
 async def test_health_and_seed(client):
     assert (await client.get("/health")).json() == {"status": "ok"}
     types = (await client.get("/api/v1/thientai/")).json()

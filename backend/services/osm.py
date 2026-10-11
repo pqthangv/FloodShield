@@ -221,18 +221,18 @@ async def _photon_place(lat: float, lon: float, lang: Lang) -> dict:
 
 async def search_places(query: str, lang: Lang = "vi") -> list[dict]:
     async def load():
+        # Places in Vietnam only: the alerts, emergency numbers and shelters are for Vietnam (and
+        # "Nha Trang" would otherwise also find "Nhà Trắng", the White House).
         resp = await get_client().get(
             GEOCODING_URL,
-            params={"name": query, "count": 10, "language": lang, "format": "json"},
+            params={"name": query, "count": 10, "language": lang, "format": "json", "countryCode": "VN"},
         )
         resp.raise_for_status()
         results = resp.json().get("results", []) or []
-        # Show places in Vietnam first.
-        results.sort(key=lambda r: r.get("country_code") != "VN")
         return [
             {
                 "name": r.get("name"),
-                "region": ", ".join(p for p in (r.get("admin1"), r.get("country")) if p),
+                "region": r.get("admin1") or "",
                 "latitude": r.get("latitude"),
                 "longitude": r.get("longitude"),
             }

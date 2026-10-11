@@ -20,6 +20,8 @@ export const DEFAULT_LOCATIONS = [
   {name: 'Đà Nẵng', nameEn: 'Da Nang', latitude: 16.0471, longitude: 108.2068},
   {name: 'Huế', nameEn: 'Hue', latitude: 16.4637, longitude: 107.5909},
   {name: 'Cần Thơ', nameEn: 'Can Tho', latitude: 10.0452, longitude: 105.7469},
+  {name: 'Khánh Hòa (Nha Trang)', nameEn: 'Khanh Hoa (Nha Trang)', latitude: 12.2388, longitude: 109.1967},
+  {name: 'Khánh Hòa (Cam Ranh)', nameEn: 'Khanh Hoa (Cam Ranh)', latitude: 11.9214, longitude: 109.1591},
   {name: 'Đồng Tháp (Cao Lãnh)', nameEn: 'Dong Thap (Cao Lanh)', latitude: 10.4591, longitude: 105.6384},
   {name: 'Quảng Ngãi', nameEn: 'Quang Ngai', latitude: 15.1214, longitude: 108.8044},
   {name: 'Lào Cai', nameEn: 'Lao Cai', latitude: 22.4856, longitude: 103.9707},

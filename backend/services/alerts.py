@@ -5,6 +5,7 @@ Combines several free sources into one list of alerts for a coordinate:
   Open-Meteo forecast, using the thresholds of Vietnam's national weather service (NCHMF).
 - River flood risk from GloFAS (see services/flood.py).
 - Active typhoons, floods, earthquakes... from GDACS.
+- Typhoons GDACS doesn't report (yet, or while it is down) from NASA EONET.
 - Warnings entered by an administrator (ManualAlert).
 
 The alert ids are stable (they only change when the date or the severity changes) so the
@@ -13,13 +14,14 @@ phone can avoid notifying twice for the same alert.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from i18n import COUNTRY_VI, Lang, day_label, t
 from models.alert_model import ManualAlert
-from services import flood, gdacs, osm, weather
+from services import eonet, flood, gdacs, osm, weather
 from services.cache import cache
 from services.geo import haversine_km
 
@@ -40,6 +42,27 @@ def beaufort(kmh: Optional[float]) -> int:
     if kmh is None:
         return 0
     return sum(1 for limit in _BEAUFORT_KMH if kmh >= limit)
+
+
+# Used for the times of GDACS and EONET events (given in UTC) when the forecast is missing.
+VIETNAM_UTC_OFFSET = 7 * 3600
+
+
+def _utc(value) -> Optional[datetime]:
+    """A GDACS ("2026-09-27T09:00:00", UTC) or EONET ("2026-10-11T12:00:00Z") time; None if unreadable."""
+    try:
+        when = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+
+
+def _local(when: Optional[datetime], utc_offset: int) -> Optional[str]:
+    """UTC -> the place's clock time, written like the forecast times ("2026-10-11T19:00").
+    The app shows `starts_at` as it is written, without converting time zones."""
+    if when is None:
+        return None
+    return (when + timedelta(seconds=utc_offset)).strftime("%Y-%m-%dT%H:%M")
 
 
 def _alert(**kwargs) -> dict:
@@ -266,7 +289,9 @@ def flood_alert(outlook: dict, area: str, lang: Lang = "vi") -> Optional[dict]:
 _GDACS_SEVERITY = {"green": "moderate", "orange": "high", "red": "severe"}
 
 
-def gdacs_alerts(events: list[dict], lat: float, lon: float, lang: Lang = "vi") -> list[dict]:
+def gdacs_alerts(
+    events: list[dict], lat: float, lon: float, lang: Lang = "vi", utc_offset: int = VIETNAM_UTC_OFFSET
+) -> list[dict]:
     alerts = []
     for feature in events:
         props = feature.get("properties", {})
@@ -336,13 +361,147 @@ def gdacs_alerts(events: list[dict], lat: float, lon: float, lang: Lang = "vi") 
                 title=title,
                 area=country or t(lang, "nearby_region"),
                 description=description,
-                starts_at=props.get("fromdate"),
-                ends_at=props.get("todate"),
+                starts_at=_local(_utc(props.get("fromdate")), utc_offset) or props.get("fromdate"),
+                ends_at=_local(_utc(props.get("todate")), utc_offset) or props.get("todate"),
                 distance_km=round(distance, 1),
                 details=details,
                 disaster_type_id=type_id,
                 url=(props.get("url") or {}).get("report"),
                 source="GDACS",
+            )
+        )
+    return alerts
+
+
+# --- NASA EONET storms -------------------------------------------------------------------
+
+# The agencies whose storm tracks EONET passes on, as shown after "Source:".
+_STORM_AGENCIES = {"JTWC": "JTWC", "NOAA_NHC": "NOAA NHC"}
+# EONET adds a position about 7 hours after it was measured, and leaves ended storms open for weeks.
+_STORM_MAX_AGE = timedelta(hours=24)
+# A GDACS storm this close to EONET's last position is the same storm (names can differ: "15W").
+_SAME_STORM_KM = 500
+_STORM_WORDS = {
+    "super", "severe", "tropical", "subtropical", "post-tropical", "extratropical", "potential",
+    "typhoon", "storm", "depression", "cyclone", "hurricane",
+}
+
+
+def _storm_name(title: str) -> str:
+    """"Super Typhoon Choi-wan" (EONET) -> "Choi-wan"; "CHOI-WAN-26" (GDACS) -> "CHOI-WAN"."""
+    words = [w for w in (title or "").split() if w.lower() not in _STORM_WORDS]
+    return re.sub(r"-\d{2}$", "", " ".join(words))
+
+
+def _storm_fixes(event: dict) -> list[dict]:
+    """The track's positions in time order: {"time", "lat", "lon", "kts"} (kts: wind, may be None)."""
+    fixes = []
+    for g in event.get("geometry") or []:
+        if not isinstance(g, dict) or g.get("type") != "Point":
+            continue
+        when, coords = _utc(g.get("date")), g.get("coordinates") or []
+        try:
+            lon, lat = float(coords[0]), float(coords[1])
+        except (IndexError, TypeError, ValueError):
+            continue
+        value = g.get("magnitudeValue")
+        kts = float(value) if g.get("magnitudeUnit") == "kts" and isinstance(value, (int, float)) else None
+        if when:
+            fixes.append({"time": when, "lat": lat, "lon": lon, "kts": kts})
+    return sorted(fixes, key=lambda f: f["time"])
+
+
+def _gdacs_has_storm(name: str, last: dict, gdacs_events: list[dict]) -> bool:
+    """GDACS reports this storm (its own alert is shown instead), or closed it when EONET's track
+    ends. A storm GDACS closed well before EONET's last position is still going: GDACS lost it."""
+    for feature in gdacs_events:
+        props = feature.get("properties", {})
+        if props.get("eventtype") != "TC":
+            continue
+        coords = (feature.get("geometry") or {}).get("coordinates") or []
+        same_name = bool(name) and name.lower() == _storm_name(props.get("eventname") or "").lower()
+        near = len(coords) >= 2 and haversine_km(last["lat"], last["lon"], coords[1], coords[0]) <= _SAME_STORM_KM
+        if not (same_name or near):
+            continue
+        if gdacs.is_current(feature):
+            return True
+        ended = _utc(props.get("todate"))
+        if ended and ended >= last["time"] - _STORM_MAX_AGE:
+            return True
+    return False
+
+
+def eonet_alerts(
+    storms: list[dict],
+    gdacs_events: list[dict],
+    lat: float,
+    lon: float,
+    lang: Lang = "vi",
+    utc_offset: int = VIETNAM_UTC_OFFSET,
+    now: Optional[datetime] = None,
+) -> list[dict]:
+    """Storms from NASA EONET that GDACS (`gdacs_events`: current and ended) doesn't report.
+
+    Same distances as the GDACS storms: up to 1,500 km, a tropical depression up to 700 km.
+    Further than 700 km a storm is "moderate"; closer, its wind speed sets the severity."""
+    now = now or datetime.now(timezone.utc)
+    alerts = []
+    for event in storms:
+        agencies = [
+            _STORM_AGENCIES[s.get("id")] for s in event.get("sources") or [] if s.get("id") in _STORM_AGENCIES
+        ]
+        fixes = _storm_fixes(event)
+        if not event.get("id") or not agencies or not fixes or now - fixes[-1]["time"] > _STORM_MAX_AGE:
+            continue
+        last = fixes[-1]
+        name = _storm_name(event.get("title"))
+        if _gdacs_has_storm(name, last, gdacs_events):
+            continue
+
+        distance = haversine_km(lat, lon, last["lat"], last["lon"])
+        winds = [f["kts"] for f in fixes if f["kts"] is not None]
+        kmh = winds[-1] * 1.852 if winds else None
+        level = beaufort(kmh) if winds else None
+        depression = level is not None and level < 8  # below 34 knots
+        if distance > 1500 or (depression and distance > 700):
+            continue
+        if distance > 700 or depression:
+            severity = "moderate"
+        elif level is None or level < 12:  # an unknown wind counts as a tropical storm
+            severity = "high"
+        else:  # typhoon: 64 knots and more
+            severity = "severe"
+
+        title = t(lang, "td_title" if depression else "tc_title", name=name) if name else t(lang, "tc_title_unnamed")
+        km = f"{distance:,.0f}"
+        details = [{"label": t(lang, "detail_distance"), "value": f"{km} km"}]
+        if kmh is not None:
+            details.append(
+                {
+                    "label": t(lang, "detail_center_wind"),
+                    "value": t(lang, "beaufort_value", kmh=f"{kmh:.0f}", level=level),
+                }
+            )
+        seen_at = _local(last["time"], utc_offset)
+        details.append(
+            {"label": t(lang, "detail_position_time"), "value": f"{seen_at[11:16]} {day_label(seen_at, lang)}"}
+        )
+        article = next((s.get("url") for s in event.get("sources") or [] if s.get("id") == "EO"), None)
+        alerts.append(
+            _alert(
+                id=f"eonet-{event['id']}-{severity}",
+                category="storm",
+                severity=severity,
+                title=title,
+                area=t(lang, "nearby_region"),
+                description=t(lang, "tc_desc", title=title, km=km),
+                starts_at=_local(fixes[0]["time"], utc_offset),
+                distance_km=round(distance, 1),
+                details=details,
+                disaster_type_id=TYPE_STORM,
+                # A NASA article; the JTWC and NHC links are raw data files, not pages to read.
+                url=article,
+                source=f"NASA EONET ({', '.join(agencies)})",
             )
         )
     return alerts
@@ -448,14 +607,18 @@ async def build_alerts(
 ) -> list[dict]:
     """`raw` (Open-Meteo forecast) and `river` (GloFAS data): what the app downloaded itself;
     for what it didn't send, this server fetches the data."""
-    raw, outlook, events, place = await asyncio.gather(
+    raw, outlook, events, storms, place = await asyncio.gather(
         _given(raw) if raw is not None else weather.fetch_raw_forecast(lat, lon),
         flood.get_flood_outlook(db, lat, lon, lang, supplied=river),
         gdacs.fetch_events(),
+        eonet.fetch_storms(),
         osm.reverse_geocode(lat, lon, lang),
         return_exceptions=True,
     )
     area = place["display"] if isinstance(place, dict) and place.get("display") else t(lang, "your_area")
+    offset = raw.get("utc_offset_seconds") if isinstance(raw, dict) else None
+    if not isinstance(offset, int):
+        offset = VIETNAM_UTC_OFFSET
 
     alerts: list[dict] = []
     if isinstance(raw, Exception):
@@ -477,8 +640,14 @@ async def build_alerts(
         a = flood_alert(outlook, area, lang)
         if a:
             alerts.append(a)
-    if not isinstance(events, Exception):
-        alerts += gdacs_alerts(events, lat, lon, lang)
+    if isinstance(events, Exception):
+        events = []
+    alerts += gdacs_alerts([e for e in events if gdacs.is_current(e)], lat, lon, lang, offset)
+    if not isinstance(storms, Exception):
+        try:
+            alerts += eonet_alerts(storms, events, lat, lon, lang, offset)
+        except Exception:  # unexpected data from EONET only costs its own alerts
+            logger.exception("NASA EONET storms could not be read")
     alerts += await manual_alerts(db, lat, lon, lang)
 
     # Without the forecast we can't say there are no alerts: rain and wind warnings would be

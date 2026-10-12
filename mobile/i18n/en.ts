@@ -88,7 +88,7 @@ const en: Record<keyof typeof vi, string> = {
   areaLabel: 'Area: {area}',
   viewDetails: 'Details',
   alertSources:
-    'Sources: Open-Meteo, GloFAS and GDACS. Always follow the instructions of the authorities.',
+    'Sources: Open-Meteo, GloFAS, GDACS and NASA EONET. Always follow the instructions of the authorities.',
   sourceLabel: 'Source: {source}',
   fullReport: 'Full report ↗',
   severityWithLabel: 'Severity: {label}',
@@ -267,6 +267,7 @@ const en: Record<keyof typeof vi, string> = {
     'Weather: Open-Meteo.com (CC BY 4.0)\n' +
     'River floods: GloFAS - Copernicus Emergency Management Service\n' +
     'Disasters: GDACS (United Nations & European Commission)\n' +
+    'Storm tracks: NASA EONET (JTWC, NOAA NHC)\n' +
     'Maps, shelters: © OpenStreetMap contributors',
   note: 'Note',
   disclaimer:

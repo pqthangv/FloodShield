@@ -12,7 +12,7 @@ import main
 from database import SessionLocal
 from i18n import t
 from models.river_model import RiverThreshold
-from services import flood, gdacs, osm
+from services import eonet, flood, gdacs, osm
 from services.cache import cache
 
 HUE = {"latitude": 16.4637, "longitude": 107.5909}
@@ -67,6 +67,7 @@ async def client(monkeypatch):
         monkeypatch.setattr(flood, name, no_downloads)
     monkeypatch.setattr(osm, "reverse_geocode", place)
     monkeypatch.setattr(gdacs, "fetch_events", no_events)
+    monkeypatch.setattr(eonet, "fetch_storms", no_events)
     cache.clear()
     await main.init_db()
     async with AsyncClient(transport=ASGITransport(app=main.app), base_url="http://test") as c:

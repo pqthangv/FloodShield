@@ -12,10 +12,18 @@ from services.http import get_client
 logger = logging.getLogger(__name__)
 
 EVENTS_URL = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
+CACHE_KEY = "gdacs:events"
+
+
+def is_current(feature: dict) -> bool:
+    return str(feature.get("properties", {}).get("iscurrent")).lower() == "true"
 
 
 async def fetch_events() -> list[dict]:
-    """Current GDACS events as a list of GeoJSON features (cached for 10 minutes)."""
+    """GDACS events of the last 3 weeks as GeoJSON features (cached for 10 minutes).
+
+    Ended events are included: only current ones become alerts, but the ended storms tell
+    which NASA EONET storms GDACS has already closed (see alerts.eonet_alerts)."""
 
     async def load():
         now = datetime.now(timezone.utc)
@@ -29,11 +37,12 @@ async def fetch_events() -> list[dict]:
             },
         )
         resp.raise_for_status()
-        features = resp.json().get("features", [])
-        return [f for f in features if str(f.get("properties", {}).get("iscurrent")).lower() == "true"]
+        return resp.json().get("features", [])
 
     try:
-        return await cache.get_or_set("gdacs:events", 600, load)
+        return await cache.get_or_set(CACHE_KEY, 600, load)
     except Exception as e:  # GDACS being down must not break the alerts endpoint
         logger.warning(f"GDACS unavailable: {e}")
+        # Nor slow it down: without this, every alert check would wait for GDACS to time out.
+        cache.set(CACHE_KEY, [], 120)
         return []

@@ -7,3 +7,10 @@ Thumbs.db
 .vscode/
 docs/screenshots/raw/
 deploy/.env
+
+# Private files that must never reach GitHub: App Store signing keys and personal publishing notes
+private/
+*.p8
+*.p12
+*.cer
+*.mobileprovision

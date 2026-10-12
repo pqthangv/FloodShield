@@ -193,8 +193,11 @@ MESSAGES: dict[str, dict[str, str]] = {
     "detail_rp2": {"vi": "Mức lũ chu kỳ 2 năm", "en": "2-year flood level"},
     "detail_rp20": {"vi": "Mức lũ chu kỳ 20 năm", "en": "20-year flood level"},
     "source_glofas": {"vi": "GloFAS (Copernicus) qua Open-Meteo", "en": "GloFAS (Copernicus) via Open-Meteo"},
-    # --- Alerts: GDACS ---------------------------------------------------------------------
+    # --- Alerts: GDACS and NASA EONET -----------------------------------------------------
     "tc_title": {"vi": "Bão {name}", "en": "Tropical cyclone {name}"},
+    "td_title": {"vi": "Áp thấp nhiệt đới {name}", "en": "Tropical depression {name}"},
+    "detail_center_wind": {"vi": "Gió mạnh nhất gần tâm", "en": "Strongest wind near the center"},
+    "detail_position_time": {"vi": "Vị trí lúc", "en": "Position at"},
     "tc_title_unnamed": {"vi": "Bão / áp thấp nhiệt đới", "en": "Tropical storm or depression"},
     "tc_desc": {
         "vi": "{title} đang ở cách bạn khoảng {km} km. Theo dõi tin bão chính thức từ Trung tâm Dự "

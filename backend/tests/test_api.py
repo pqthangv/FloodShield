@@ -1,11 +1,12 @@
 import io
+from datetime import datetime, timedelta, timezone
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
 import main
-from services import alerts, gdacs, osm, weather
+from services import alerts, eonet, gdacs, osm, weather
 from services.cache import cache
 
 DEVICE = {"X-Device-Id": "device-aaaa-1111"}
@@ -55,6 +56,7 @@ async def client(monkeypatch):
     monkeypatch.setattr(weather, "fetch_raw_forecast", fake_forecast)
     monkeypatch.setattr(alerts.flood, "get_flood_outlook", fake_flood)
     monkeypatch.setattr(gdacs, "fetch_events", fake_events)
+    monkeypatch.setattr(eonet, "fetch_storms", fake_events)
     cache.clear()
     await main.init_db()
     transport = ASGITransport(app=main.app)
@@ -145,6 +147,32 @@ async def test_alerts_from_forecast(client):
     data = (await client.get("/api/v1/alerts", params={"lat": 10.77, "lon": 106.7})).json()
     assert [a["id"] for a in data["alerts"]] == ["rain-2026-10-05-high"]
     assert data["alerts"][0]["area"] == "Phường Test, TP Test"
+
+
+@pytest.mark.asyncio
+async def test_alerts_include_storms_from_nasa_eonet(client, monkeypatch):
+    seen = (datetime.now(timezone.utc) - timedelta(hours=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    async def storms():
+        return [{
+            "id": "EONET_9", "title": "Typhoon Yagi", "sources": [{"id": "JTWC", "url": "https://x/wp.tcw"}],
+            "geometry": [{"date": seen, "type": "Point", "coordinates": [109.0, 12.0],
+                          "magnitudeValue": 90.0, "magnitudeUnit": "kts"}],
+        }]
+
+    monkeypatch.setattr(eonet, "fetch_storms", storms)
+    data = (await client.get("/api/v1/alerts", params={"lat": 10.77, "lon": 106.7})).json()
+    assert [a["id"] for a in data["alerts"]] == ["eonet-EONET_9-severe", "rain-2026-10-05-high"]
+
+
+@pytest.mark.asyncio
+async def test_unreadable_eonet_data_does_not_break_the_alerts(client, monkeypatch):
+    async def odd_storms():
+        return [{"id": "EONET_1", "sources": ["JTWC"], "geometry": "?"}]
+
+    monkeypatch.setattr(eonet, "fetch_storms", odd_storms)
+    r = await client.get("/api/v1/alerts", params={"lat": 10.77, "lon": 106.7})
+    assert r.status_code == 200 and [a["id"] for a in r.json()["alerts"]] == ["rain-2026-10-05-high"]
 
 
 async def phone_forecast(lat, lon):

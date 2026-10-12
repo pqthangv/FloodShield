@@ -88,7 +88,7 @@ const vi = {
   areaLabel: 'Khu vực: {area}',
   viewDetails: 'Xem chi tiết',
   alertSources:
-    'Nguồn: Open-Meteo, GloFAS và GDACS. Luôn làm theo hướng dẫn của chính quyền.',
+    'Nguồn: Open-Meteo, GloFAS, GDACS và NASA EONET. Luôn làm theo hướng dẫn của chính quyền.',
   sourceLabel: 'Nguồn: {source}',
   fullReport: 'Xem báo cáo chi tiết ↗',
   severityWithLabel: 'Mức độ: {label}',
@@ -267,6 +267,7 @@ const vi = {
     'Thời tiết: Open-Meteo.com (CC BY 4.0)\n' +
     'Lũ sông: GloFAS - Copernicus Emergency Management Service\n' +
     'Thiên tai: GDACS (Liên Hợp Quốc & Ủy ban châu Âu)\n' +
+    'Đường đi của bão: NASA EONET (JTWC, NOAA NHC)\n' +
     'Bản đồ, nơi sơ tán: © OpenStreetMap contributors',
   note: 'Lưu ý',
   disclaimer:

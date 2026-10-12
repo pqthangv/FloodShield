@@ -192,7 +192,7 @@ Mã này không gắn với danh tính, số điện thoại hay tài khoản Go
 </ul>
 <p>Chúng tôi không yêu cầu đăng ký tài khoản, không hiển thị quảng cáo và không bán dữ liệu.</p>
 <h2>2. Bên thứ ba</h2>
-<p>Máy chủ FloodShield lấy dữ liệu từ Open-Meteo (thời tiết, GloFAS/Copernicus), GDACS (thiên tai) và OpenStreetMap
+<p>Máy chủ FloodShield lấy dữ liệu từ Open-Meteo (thời tiết, GloFAS/Copernicus), GDACS, NASA EONET (thiên tai, bão) và OpenStreetMap
 (địa danh, nơi sơ tán), sử dụng tọa độ đã được làm tròn. Ứng dụng cũng gửi trực tiếp tọa độ đã làm tròn tới hai dịch vụ
 này: tới Open-Meteo (open-meteo.com) để lấy dự báo thời tiết (khoảng 1 km) và dự báo lũ sông (khoảng 10 km), và tới máy chủ Overpass của OpenStreetMap
 (overpass-api.de và máy chủ dự phòng maps.mail.ru, khoảng 2 km) để tìm nơi sơ tán gần bạn. Ứng dụng có thể mở
@@ -222,7 +222,7 @@ spam. It is not linked to your identity, your phone number, or your Google or Ap
 </ul>
 <p>We don't require an account, don't show ads and don't sell data.</p>
 <h2>2. Third parties</h2>
-<p>The FloodShield server gets data from Open-Meteo (weather, GloFAS/Copernicus), GDACS (disasters) and OpenStreetMap
+<p>The FloodShield server gets data from Open-Meteo (weather, GloFAS/Copernicus), GDACS, NASA EONET (disasters, storms) and OpenStreetMap
 (place names, shelters), using rounded coordinates. The app also sends rounded coordinates directly to two of these
 services: to Open-Meteo (open-meteo.com) for the weather forecast (about 1 km) and the river flood forecast (about
 10 km), and to OpenStreetMap's Overpass servers
@@ -252,7 +252,7 @@ tình hình ngập với cộng đồng. Ứng dụng miễn phí, không cần 
 </ul>
 <h3>Cảnh báo dựa trên nguồn nào?</h3>
 <p>Mưa, gió và nắng nóng: dự báo của Open-Meteo, so với ngưỡng của Trung tâm Dự báo Khí tượng Thủy văn Quốc gia (mưa từ
-50 mm/ngày). Lũ sông: GloFAS (Copernicus). Bão, lũ, động đất: GDACS. Thông tin chỉ mang tính tham khảo; luôn làm theo
+50 mm/ngày). Lũ sông: GloFAS (Copernicus). Bão: GDACS và NASA EONET. Lũ, động đất: GDACS. Thông tin chỉ mang tính tham khảo; luôn làm theo
 hướng dẫn của chính quyền.</p>
 <h3>Ứng dụng hiển thị sai vị trí</h3>
 <p>Cho phép FloodShield dùng vị trí, hoặc chọn nơi khác: <b>Cài đặt &rarr; Vị trí</b>.</p>
@@ -281,8 +281,8 @@ so notifications can arrive late. Open the app to see the latest alerts at once.
 </ul>
 <h3>Where do the alerts come from?</h3>
 <p>Rain, wind and heat: Open-Meteo's forecast, compared with the thresholds of Vietnam's National Center for
-Hydro-Meteorological Forecasting (rain from 50 mm a day). River floods: GloFAS (Copernicus). Storms, floods and
-earthquakes: GDACS. For guidance only; always follow the instructions of the authorities.</p>
+Hydro-Meteorological Forecasting (rain from 50 mm a day). River floods: GloFAS (Copernicus). Storms: GDACS and
+NASA EONET. Floods and earthquakes: GDACS. For guidance only; always follow the instructions of the authorities.</p>
 <h3>The app shows the wrong place</h3>
 <p>Allow FloodShield to use your location, or choose another place in <b>Settings &rarr; Location</b>.</p>
 <h3>How do I report or hide an inappropriate post?</h3>

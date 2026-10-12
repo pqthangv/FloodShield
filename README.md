@@ -30,7 +30,8 @@ neighbours share what is happening on the ground.
 - **Location-based alerts:** heavy rain (50/100/200 mm per day), intense rain that floods
   streets, strong wind (Beaufort scale), heat (35/37/39 °C) and landslide risk in hilly terrain,
   using the thresholds of Vietnam's national weather service. Active typhoons, floods and
-  earthquakes come from GDACS, plus warnings an administrator issues for an area.
+  earthquakes come from GDACS, with typhoon tracks from NASA EONET (JTWC) as a backup, plus
+  warnings an administrator issues for an area.
 - **River flood forecast:** finds the main river near the user, shows its 16-day discharge
   forecast (GloFAS) and warns when the next 10 days, the more reliable part, exceed the 2-, 5- or
   20-year flood levels derived from 20 years of history.
@@ -54,6 +55,7 @@ flowchart LR
     OM["Open-Meteo<br/>weather forecast"]
     GF["GloFAS v4<br/>river discharge"]
     GD["GDACS<br/>disaster events"]
+    EO["NASA EONET<br/>typhoon tracks"]
     OSM["OpenStreetMap<br/>places, shelters"]
   end
   subgraph API["backend/ - FastAPI"]
@@ -65,7 +67,7 @@ flowchart LR
     UI["Screens"]
     WORKER["WorkManager job<br/>(Kotlin TurboModule)"]
   end
-  OM & GF & GD & OSM --> CACHE --> ENGINE
+  OM & GF & GD & EO & OSM --> CACHE --> ENGINE
   ENGINE <--> DB
   ENGINE -- "REST /api/v1" --> UI
   ENGINE -- "every ~30 min" --> WORKER --> NOTIF["Android<br/>notification"]
@@ -118,8 +120,8 @@ flowchart LR
 |---|---|
 | Mobile | React Native 0.87 (new architecture, Hermes), TypeScript, React Navigation 7, react-native-svg (custom charts), Kotlin + AndroidX WorkManager |
 | Backend | Python 3.12+, FastAPI, SQLAlchemy 2 (async), Pydantic 2, httpx, Pillow |
-| Data | Open-Meteo, GloFAS v4 (Copernicus), GDACS, OpenStreetMap (Overpass, Nominatim) |
-| Quality | pytest (40 tests, on SQLite and PostgreSQL), Jest (7 tests), ESLint, TypeScript type checking, GitHub Actions CI |
+| Data | Open-Meteo, GloFAS v4 (Copernicus), GDACS, NASA EONET, OpenStreetMap (Overpass, Nominatim) |
+| Quality | pytest (100 tests, on SQLite and PostgreSQL), Jest (9 tests), ESLint, TypeScript type checking, GitHub Actions CI |
 | Deployment | Docker, PostgreSQL; live on Render (free) + Neon from [`render.yaml`](render.yaml) |
 
 ## Repository layout
@@ -162,4 +164,5 @@ starts everything. To run the API on your own server instead of Render, see [`de
 
 Weather data by [Open-Meteo.com](https://open-meteo.com) (CC BY 4.0) · River discharge: GloFAS,
 Copernicus Emergency Management Service · Disaster events: [GDACS](https://www.gdacs.org) ·
+Storm tracks: [NASA EONET](https://eonet.gsfc.nasa.gov) (JTWC, NOAA NHC) ·
 Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL)

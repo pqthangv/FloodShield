@@ -129,6 +129,9 @@ const Screens = () => {
             <Stack.Screen
               name="EmergencyContacts"
               component={EmergencyContactsScreen}
+              // Calling is a slide to the right, the same move as iOS's swipe back: without
+              // this, the slide closed the screen instead of calling. The ← button still works.
+              options={{gestureEnabled: false}}
             />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen

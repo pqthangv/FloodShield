@@ -33,6 +33,9 @@ const Home = () => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <CustomStatusBar barStyle="dark-content" backgroundColor={'#C9E5FF'} />
+      {/* Behind the list: blue above (seen when pulling down to refresh, like the header) and
+          white below (seen when the bottom bounces, like the content). */}
+      <View style={styles.bottomFill} pointerEvents="none" />
       <ScrollView
         ref={tourScroll.ref}
         onScroll={tourScroll.onScroll}
@@ -72,12 +75,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#C9E5FF',
   },
-  scroll: {
+  bottomFill: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'white',
   },
+  scroll: {
+    backgroundColor: 'transparent',
+  },
   scrollViewContent: {
+    flexGrow: 1,
     alignItems: 'center',
     paddingBottom: vh(4),
+    backgroundColor: 'white',
   },
   header: {
     width: '100%',

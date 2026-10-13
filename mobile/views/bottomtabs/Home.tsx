@@ -15,12 +15,14 @@ import CustomStatusBar from '../../components/CustomStatusBar';
 import {useApp} from '../../context/AppContext';
 import {useI18n} from '../../i18n';
 import {settingsIcon} from '../../assets/svgIcon';
+import {useTourScroll} from '../../components/tour/Tour';
 
 const Home = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {refresh} = useApp();
   const {t} = useI18n();
   const [refreshing, setRefreshing] = useState(false);
+  const tourScroll = useTourScroll();
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -32,6 +34,9 @@ const Home = () => {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <CustomStatusBar barStyle="dark-content" backgroundColor={'#C9E5FF'} />
       <ScrollView
+        ref={tourScroll.ref}
+        onScroll={tourScroll.onScroll}
+        scrollEventThrottle={16}
         style={styles.scroll}
         contentContainerStyle={styles.scrollViewContent}
         refreshControl={

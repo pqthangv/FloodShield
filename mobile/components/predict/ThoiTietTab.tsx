@@ -68,14 +68,23 @@ const ThoiTietTab = () => {
             <View
               key={item.time}
               style={[styles.hourlyItem, isCurrent && styles.currentHourItem]}>
-              <Text style={[styles.hourlyTime, isCurrent && styles.currentHourText]}>
+              <Text
+                style={[styles.hourlyTime, isCurrent && styles.currentHourText]}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 {isCurrent ? t('now') : timeOf(item.time)}
               </Text>
               <Image source={weatherImage(item.icon)} style={styles.weatherIconSmall} />
-              <Text style={[styles.hourlyRain, isCurrent && styles.currentHourText]}>
+              <Text
+                style={[styles.hourlyRain, isCurrent && styles.currentHourText]}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 💧{item.precipitation_probability ?? 0}%
               </Text>
-              <Text style={[styles.hourlyTemp, isCurrent && styles.currentHourText]}>
+              <Text
+                style={[styles.hourlyTemp, isCurrent && styles.currentHourText]}
+                numberOfLines={1}
+                adjustsFontSizeToFit>
                 {Math.round(item.temperature)}°
               </Text>
             </View>

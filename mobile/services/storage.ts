@@ -8,6 +8,7 @@ const KEYS = {
   blockedAuthors: 'blockedAuthors',
   rulesAccepted: 'communityRulesAccepted',
   apiUrl: 'apiUrlOverride',
+  welcomeSeen: 'welcomeSeen',
   checklist: (typeId: number) => `checklist:${typeId}`,
 };
 
@@ -78,6 +79,15 @@ const storage = {
     url
       ? AsyncStorage.setItem(KEYS.apiUrl, url)
       : AsyncStorage.removeItem(KEYS.apiUrl),
+
+  /** The first-launch tour is shown once. Someone with a saved place used the app before it. */
+  async getWelcomeSeen(): Promise<boolean> {
+    return (
+      (await getJSON<boolean>(KEYS.welcomeSeen, false)) ||
+      (await AsyncStorage.getItem(KEYS.location)) !== null
+    );
+  },
+  setWelcomeSeen: () => setJSON(KEYS.welcomeSeen, true),
 
   getChecklist: (typeId: number) =>
     getJSON<number[]>(KEYS.checklist(typeId), []),

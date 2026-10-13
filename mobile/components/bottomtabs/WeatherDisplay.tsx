@@ -93,7 +93,9 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
   if (!weather) {
     return (
       <View style={container}>
-        <Text style={dynamicStyles.dateText}>{longDate()}</Text>
+        <Text style={[dynamicStyles.dateText, styles.dateLine]} numberOfLines={1} adjustsFontSizeToFit>
+          {longDate()}
+        </Text>
         <Text style={dynamicStyles.weatherConditionText}>
           {!location
             ? locationError || t('noLocation')
@@ -115,7 +117,9 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
   const {current} = weather;
   return (
     <View style={container}>
-      <Text style={dynamicStyles.dateText}>{longDate()}</Text>
+      <Text style={[dynamicStyles.dateText, styles.dateLine]} numberOfLines={1} adjustsFontSizeToFit>
+        {longDate()}
+      </Text>
 
       <View style={styles.weatherSection}>
         <Image source={weatherImage(current.icon)} style={styles.weatherIcon} />
@@ -143,24 +147,36 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
 
       <View style={styles.detailsSection}>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>{t('updated')}</Text>
-          <Text style={dynamicStyles.detailValue}>{timeOf(current.time)}</Text>
+          <Text style={dynamicStyles.detailLabel} numberOfLines={1} adjustsFontSizeToFit>
+            {t('updated')}
+          </Text>
+          <Text style={dynamicStyles.detailValue} numberOfLines={1} adjustsFontSizeToFit>
+            {timeOf(current.time)}
+          </Text>
         </View>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>{t('wind')}</Text>
-          <Text style={dynamicStyles.detailValue}>
+          <Text style={dynamicStyles.detailLabel} numberOfLines={1} adjustsFontSizeToFit>
+            {t('wind')}
+          </Text>
+          <Text style={dynamicStyles.detailValue} numberOfLines={1} adjustsFontSizeToFit>
             {current.wind_speed} km/h
           </Text>
         </View>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>{t('feelsLike')}</Text>
-          <Text style={dynamicStyles.detailValue}>
+          <Text style={dynamicStyles.detailLabel} numberOfLines={1} adjustsFontSizeToFit>
+            {t('feelsLike')}
+          </Text>
+          <Text style={dynamicStyles.detailValue} numberOfLines={1} adjustsFontSizeToFit>
             {Math.round(current.apparent_temperature)}°
           </Text>
         </View>
         <View style={styles.detailItem}>
-          <Text style={dynamicStyles.detailLabel}>{t('humidity')}</Text>
-          <Text style={dynamicStyles.detailValue}>{current.humidity}%</Text>
+          <Text style={dynamicStyles.detailLabel} numberOfLines={1} adjustsFontSizeToFit>
+            {t('humidity')}
+          </Text>
+          <Text style={dynamicStyles.detailValue} numberOfLines={1} adjustsFontSizeToFit>
+            {current.humidity}%
+          </Text>
         </View>
       </View>
     </View>
@@ -206,8 +222,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     width: '100%',
   },
+  // Four equal columns whose text shrinks to fit, even with the phone's largest text size.
   detailItem: {
+    flex: 1,
     alignItems: 'center',
+    paddingHorizontal: vw(0.5),
+  },
+  // Keeps the date clear of the settings button floating over the top-right corner.
+  dateLine: {
+    paddingHorizontal: vw(9),
   },
 });
 

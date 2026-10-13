@@ -1,4 +1,4 @@
-import React, {JSX, useMemo, useRef} from 'react';
+import React, {JSX, useCallback, useMemo, useRef} from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Linking,
   Animated,
   PanResponder,
+  Pressable,
   Alert,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
@@ -94,14 +95,32 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
   const {t} = useI18n();
   const translateX = useRef(new Animated.Value(0)).current;
 
+  // A tap never calls, so a call isn't started by mistake (in a pocket, or by a child): the
+  // button moves a little to show that it slides.
+  const nudge = useCallback(
+    () =>
+      Animated.sequence([
+        Animated.timing(translateX, {toValue: vw(12), duration: 180, useNativeDriver: true}),
+        Animated.spring(translateX, {toValue: 0, useNativeDriver: true, bounciness: 12}),
+      ]).start(),
+    [translateX],
+  );
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dy) < 20,
+        // The button takes the touch as soon as it's pressed: the card around it would otherwise
+        // keep it, and a child can't take a touch back from its parent once it has started.
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_, g) => {
           translateX.setValue(Math.max(0, Math.min(g.dx, SLIDE_FULL_RANGE)));
         },
         onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dx) < 8 && Math.abs(g.dy) < 8) {
+            nudge();
+            return;
+          }
           if (g.dx >= SLIDE_TO_CALL_THRESHOLD) {
             callNumber(item.number);
           }
@@ -115,16 +134,22 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
           Animated.spring(translateX, {toValue: 0, useNativeDriver: true}).start();
         },
       }),
-    [item.number, translateX],
+    [item.number, translateX, nudge],
   );
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={() => confirmCall(item)}
+    <Pressable
+      onPress={nudge}
       style={[styles.itemContainer, {backgroundColor: item.color}]}
       accessibilityRole="button"
-      accessibilityLabel={t('contactA11y', {name: t(item.name), number: item.number})}>
+      accessibilityLabel={t('contactA11y', {name: t(item.name), number: item.number})}
+      // Screen reader users can't slide: their double tap asks "Call 115?" first.
+      accessibilityActions={[{name: 'activate'}]}
+      onAccessibilityAction={event => {
+        if (event.nativeEvent.actionName === 'activate') {
+          confirmCall(item);
+        }
+      }}>
       <View style={styles.staticContentContainer}>
         <View style={styles.infoContainer}>
           <Text style={styles.itemName}>{t(item.name)}</Text>
@@ -144,7 +169,7 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
         ]}>
         {item.icon}
       </Animated.View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 

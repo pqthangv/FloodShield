@@ -1,5 +1,5 @@
 import React from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator} from 'react-native';
 import {vh, vw} from '../../services/styleProps';
 import {contactIcon, homeLocationIcon} from '../../assets/svgIcon';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
@@ -7,13 +7,18 @@ import {useApp} from '../../context/AppContext';
 import {SEVERITY_COLOR, severityLabel} from '../../services/format';
 import {useI18n} from '../../i18n';
 import SunPath from './SunPath';
+import {useTourTarget} from '../tour/Tour';
 
 const AdditionalInfo = () => {
   const navigation = useNavigation<NavigationProp<any>>();
-  const {alerts, alertsError, weather, location} = useApp();
+  const {alerts, alertsError, alertsChecked, weather, location} = useApp();
   const {t} = useI18n();
   const topAlert = alerts.find(a => a.severity !== 'info') || alerts[0];
-  const allClear = !alertsError && !!location;
+  const checking = !!location && !alertsError && !alertsChecked;
+  const allClear = !!location && !alertsError && alertsChecked;
+  const alertsTarget = useTourTarget('alerts');
+  const sheltersTarget = useTourTarget('shelters');
+  const emergencyTarget = useTourTarget('emergency');
   const today = weather?.daily?.[0];
 
   const openAlerts = () =>
@@ -44,6 +49,7 @@ const AdditionalInfo = () => {
 
       {topAlert ? (
         <TouchableOpacity
+          ref={alertsTarget}
           style={styles.warningCard}
           onPress={openAlerts}
           activeOpacity={0.85}>
@@ -81,21 +87,34 @@ const AdditionalInfo = () => {
           </View>
         </TouchableOpacity>
       ) : (
-        // Green and ✅ only when the check worked and found nothing: an error or a missing
-        // location must not look like "all clear".
-        <View style={[styles.warningCard, allClear && styles.safeCard]}>
+        // Green and ✅ only when the check was done and found nothing: before that, after an
+        // error or without a location, it must not look like "all clear".
+        <View
+          ref={alertsTarget}
+          collapsable={false}
+          style={[styles.warningCard, allClear && styles.safeCard]}>
           <View style={styles.warningHeader}>
-            <Text style={styles.warningIcon}>{allClear ? '✅' : '⚠️'}</Text>
+            {checking ? (
+              <ActivityIndicator color="white" style={styles.checkingIcon} />
+            ) : (
+              <Text style={styles.warningIcon}>{allClear ? '✅' : '⚠️'}</Text>
+            )}
             <Text style={styles.warningTitle}>
-              {alertsError ? t('alertsLoadFailed') : t('noAlerts')}
+              {alertsError
+                ? t('alertsLoadFailed')
+                : checking
+                  ? t('checkingAlerts')
+                  : t('noAlerts')}
             </Text>
           </View>
-          <Text style={styles.warningText}>
-            {alertsError ||
-              (location
-                ? t('noAlertsForArea')
-                : t('chooseLocationForAlerts'))}
-          </Text>
+          {!checking && (
+            <Text style={styles.warningText}>
+              {alertsError ||
+                (location
+                  ? t('noAlertsForArea')
+                  : t('chooseLocationForAlerts'))}
+            </Text>
+          )}
         </View>
       )}
 
@@ -112,19 +131,25 @@ const AdditionalInfo = () => {
         <Text style={styles.supportTitle}>{t('support')}</Text>
         <View style={styles.supportButtonsContainer}>
           <TouchableOpacity
+            ref={sheltersTarget}
             style={styles.supportButton}
             onPress={() => navigation.navigate('NearbyShelters')}>
             <View style={styles.supportButtonContent}>
               {homeLocationIcon(vw(5), vw(5))}
-              <Text style={styles.supportButtonText}>{t('nearbyShelters')}</Text>
+              <Text style={styles.supportButtonText} numberOfLines={2} adjustsFontSizeToFit>
+                {t('nearbyShelters')}
+              </Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity
+            ref={emergencyTarget}
             style={styles.supportButton}
             onPress={() => navigation.navigate('EmergencyContacts')}>
             <View style={styles.supportButtonContent}>
               {contactIcon(vw(5), vw(5))}
-              <Text style={styles.supportButtonText}>{t('emergencyContacts')}</Text>
+              <Text style={styles.supportButtonText} numberOfLines={2} adjustsFontSizeToFit>
+                {t('emergencyContacts')}
+              </Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -163,6 +188,9 @@ const styles = StyleSheet.create({
   warningIcon: {
     fontSize: vw(5),
     color: 'white',
+    marginRight: vw(2),
+  },
+  checkingIcon: {
     marginRight: vw(2),
   },
   warningTitle: {

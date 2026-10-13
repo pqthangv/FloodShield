@@ -13,7 +13,7 @@ import {errorMessage, initApiBaseUrl} from '../services/axiosClient';
 import locationService, {DEFAULT_LOCATIONS} from '../services/locationService';
 import {getLanguage, translate, useI18n} from '../i18n';
 import {Alert, WeatherData} from '../services/model';
-import {fetchFloodData} from '../services/glofas';
+import {fetchFloodData, haversineKm} from '../services/glofas';
 import {fetchForecast} from '../services/openMeteo';
 import {prefetchShelters} from '../services/shelters';
 import storage, {SavedLocation} from '../services/storage';
@@ -34,6 +34,8 @@ interface AppContextValue {
   weatherError: string | null;
   alerts: Alert[];
   alertsError: string | null;
+  /** The alerts for the current place were checked (found or failed): until then, no "all clear". */
+  alertsChecked: boolean;
   loading: boolean;
   notificationsEnabled: boolean;
   /** Re-reads GPS (in GPS mode) and reloads weather and alerts. */
@@ -57,14 +59,25 @@ export const useApp = () => {
   return value;
 };
 
-export const AppProvider = ({children}: {children: React.ReactNode}) => {
+/**
+ * `holdStartup`: wait before locating the user (and asking for the permissions), while the
+ * first-launch tour explains why the app needs them.
+ */
+export const AppProvider = ({
+  children,
+  holdStartup = false,
+}: {
+  children: React.ReactNode;
+  holdStartup?: boolean;
+}) => {
   const [location, setLocation] = useState<SavedLocation | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [locating, setLocating] = useState(true);
+  const [locating, setLocating] = useState(!holdStartup);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [alertsError, setAlertsError] = useState<string | null>(null);
+  const [alertsChecked, setAlertsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notificationsEnabled, setNotifications] = useState(true);
   const lastFetch = useRef(0);
@@ -94,9 +107,13 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
         value => {
           setAlerts(value.alerts);
           setAlertsError(null);
+          setAlertsChecked(true);
           markAlertsSeen(value.alerts.map(item => item.id));
         },
-        reason => setAlertsError(errorMessage(reason)),
+        reason => {
+          setAlertsError(errorMessage(reason));
+          setAlertsChecked(true);
+        },
       );
     await Promise.all([weatherShown, alertsShown]);
     // Then the shelters, which take longest: the shelters screen opens with them (shelters.ts).
@@ -107,6 +124,12 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
 
   const applyLocation = useCallback(
     async (loc: SavedLocation) => {
+      const previous = locationRef.current;
+      // Another place: its alerts aren't known yet. (A new GPS fix nearby keeps the last answer
+      // on screen while it refreshes.)
+      if (!previous || haversineKm(previous.latitude, previous.longitude, loc.latitude, loc.longitude) > 1) {
+        setAlertsChecked(false);
+      }
       locationRef.current = loc;
       setLocation(loc);
       setLocationError(null);
@@ -133,8 +156,13 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
     }
   }, [applyLocation, loadData]);
 
-  // Startup: restore settings and the last location, then try GPS.
+  // Startup: restore settings and the last location, then try GPS. Once, when not held.
+  const started = useRef(false);
   useEffect(() => {
+    if (holdStartup || started.current) {
+      return;
+    }
+    started.current = true;
     (async () => {
       await initApiBaseUrl();
       const enabled = await storage.getNotificationsEnabled();
@@ -155,7 +183,7 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
         await requestNotificationPermission();
       }
     })();
-  }, [applyLocation, locateWithGps]);
+  }, [holdStartup, applyLocation, locateWithGps]);
 
   // The API returns alerts and weather texts in the app's language: reload them when the user
   // switches language, and tell the background checker.
@@ -232,6 +260,7 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
       weatherError,
       alerts,
       alertsError,
+      alertsChecked,
       loading,
       notificationsEnabled,
       refresh,
@@ -247,6 +276,7 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
       weatherError,
       alerts,
       alertsError,
+      alertsChecked,
       loading,
       notificationsEnabled,
       refresh,

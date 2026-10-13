@@ -79,7 +79,7 @@ rounded first, and the server does all the processing. A test keeps the TypeScri
 Python versions of these requests identical. The flood levels come from 20 years of GloFAS river
 data: the yearly peaks are fitted with a Gumbel distribution
 ([`backend/services/flood.py`](backend/services/flood.py)). GitHub Actions runs 85 pytest tests (on
-SQLite and PostgreSQL) and 15 Jest tests on every change.
+SQLite and PostgreSQL) and 18 Jest tests on every change.
 
 To run it yourself on Windows, `scripts/setup-dev-windows.ps1` installs the tools and
 `scripts/start-dev.ps1` starts the API and the app.
@@ -88,7 +88,8 @@ To run it yourself on Windows, `scripts/setup-dev-windows.ps1` installs the tool
 
 Weather by [Open-Meteo.com](https://open-meteo.com) (CC BY 4.0) · River data: GloFAS, Copernicus
 Emergency Management Service · Disaster events: [GDACS](https://www.gdacs.org) · Map data ©
-[OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL)
+[OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL) · Checklist pictures:
+[Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (MIT)
 
 ## Feedback
 

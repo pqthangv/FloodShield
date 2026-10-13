@@ -267,7 +267,8 @@ const vi = {
     'Thời tiết: Open-Meteo.com (CC BY 4.0)\n' +
     'Lũ sông: GloFAS - Copernicus Emergency Management Service\n' +
     'Thiên tai: GDACS (Liên Hợp Quốc & Ủy ban châu Âu)\n' +
-    'Bản đồ, nơi sơ tán: © OpenStreetMap contributors',
+    'Bản đồ, nơi sơ tán: © OpenStreetMap contributors\n' +
+    'Hình minh họa: Microsoft Fluent Emoji (MIT)',
   note: 'Lưu ý',
   disclaimer:
     'FloodShield là ứng dụng độc lập, không thuộc và không đại diện cho bất kỳ cơ quan nhà nước nào. Thông tin chỉ mang tính tham khảo. Luôn làm theo hướng dẫn của chính quyền và Trung tâm Dự báo KTTV Quốc gia (nchmf.gov.vn).',
@@ -281,6 +282,20 @@ const vi = {
   minutesAgo: '{count} phút trước',
   hoursAgo: '{count} giờ trước',
   daysAgo: '{count} ngày trước',
+  // First launch: a tour over the home screen, before the app asks for the location
+  tourSkip: 'Bỏ qua',
+  tourNext: 'Tiếp',
+  tourContinue: 'Tiếp tục',
+  tourAlerts: 'Cảnh báo mưa lớn, lũ và bão cho nơi bạn ở hiện ở đây.',
+  tourShelters: 'Bấm vào đây để tìm nơi sơ tán gần nhất, kể cả khi mất mạng.',
+  tourEmergency: 'Bấm vào đây để gọi cấp cứu, cứu hỏa hoặc công an.',
+  tourLocationTitle: 'Ứng dụng cần vị trí của bạn',
+  tourLocationText:
+    'Để báo mưa lớn, lũ và bão đúng nơi bạn ở, và tìm nơi sơ tán gần nhất. ' +
+    'Vị trí chỉ dùng cho việc này, không lưu lịch sử. ' +
+    'Bạn cũng có thể tự chọn một nơi trong Cài đặt.\n\n' +
+    'Sau đó, ứng dụng sẽ xin gửi thông báo khi có cảnh báo mới.',
+  checkingAlerts: 'Đang kiểm tra cảnh báo...',
 };
 
 export default vi;

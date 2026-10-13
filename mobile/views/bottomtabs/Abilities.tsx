@@ -5,6 +5,7 @@ import {
   Text,
   View,
   Image,
+  ImageSourcePropType,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
@@ -18,6 +19,19 @@ import {Dissater} from '../../services/model';
 import {useApp} from '../../context/AppContext';
 import {errorMessage} from '../../services/axiosClient';
 import {useI18n} from '../../i18n';
+
+// A picture and a colour for each disaster type (ids from backend/seed.py). The pictures are
+// Microsoft's Fluent Emoji (MIT license, see assets/abilities/LICENSE-fluentui-emoji.txt).
+const TYPE_ART: Record<number, {image: ImageSourcePropType; color: string}> = {
+  1: {image: require('../../assets/abilities/storm.png'), color: '#DDE2FF'},
+  2: {image: require('../../assets/abilities/flood.png'), color: '#D3EBFF'},
+  3: {image: require('../../assets/abilities/wildfire.png'), color: '#FFE1D2'},
+  4: {image: require('../../assets/abilities/landslide.png'), color: '#E6EBD9'},
+  5: {image: require('../../assets/abilities/drought.png'), color: '#FCEBC4'},
+  6: {image: require('../../assets/abilities/heat.png'), color: '#FFDCDC'},
+  7: {image: require('../../assets/abilities/earthquake.png'), color: '#FFF1C9'},
+};
+const OTHER_ART = TYPE_ART[2];
 
 const Abilities = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -83,10 +97,14 @@ const Abilities = () => {
                 : t('checklist')}
             </Text>
           </View>
-          <Image
-            source={require('../../assets/abilities/bground.png')}
-            style={styles.cardImage}
-          />
+          <View
+            style={[styles.cardArt, {backgroundColor: (TYPE_ART[type.id] ?? OTHER_ART).color}]}>
+            <Image
+              source={(TYPE_ART[type.id] ?? OTHER_ART).image}
+              style={styles.cardArtImage}
+              accessibilityIgnoresInvertColors
+            />
+          </View>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -244,10 +262,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#777',
   },
-  cardImage: {
+  cardArt: {
     width: '40%',
     height: '100%',
     marginLeft: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardArtImage: {
+    width: 76,
+    height: 76,
   },
   tabsContainer: {
     flexDirection: 'row',

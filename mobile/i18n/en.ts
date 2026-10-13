@@ -267,7 +267,8 @@ const en: Record<keyof typeof vi, string> = {
     'Weather: Open-Meteo.com (CC BY 4.0)\n' +
     'River floods: GloFAS - Copernicus Emergency Management Service\n' +
     'Disasters: GDACS (United Nations & European Commission)\n' +
-    'Maps, shelters: © OpenStreetMap contributors',
+    'Maps, shelters: © OpenStreetMap contributors\n' +
+    'Pictures: Microsoft Fluent Emoji (MIT)',
   note: 'Note',
   disclaimer:
     "FloodShield is an independent app. It is not affiliated with, and does not represent, any government agency. For guidance only. Always follow the instructions of the authorities and of Vietnam's National Center for Hydro-Meteorological Forecasting (nchmf.gov.vn).",
@@ -281,6 +282,20 @@ const en: Record<keyof typeof vi, string> = {
   minutesAgo: '{count} min ago',
   hoursAgo: '{count} h ago',
   daysAgo: '{count} days ago',
+  // First launch: a tour over the home screen, before the app asks for the location
+  tourSkip: 'Skip',
+  tourNext: 'Next',
+  tourContinue: 'Continue',
+  tourAlerts: 'Warnings about heavy rain, floods and storms where you are show up here.',
+  tourShelters: 'Tap here to find the nearest safe place, even without internet.',
+  tourEmergency: 'Tap here to call an ambulance, the fire brigade or the police.',
+  tourLocationTitle: 'FloodShield needs your location',
+  tourLocationText:
+    'So it can warn you about heavy rain, floods and storms where you are, and find the ' +
+    'nearest safe places. Your location is only used for this, and no history of it is kept. ' +
+    'You can also choose a place yourself in Settings.\n\n' +
+    'Then it will ask to send you a notification when there is a new warning.',
+  checkingAlerts: 'Checking for alerts...',
 };
 
 export default en;

@@ -21,6 +21,7 @@ import EmergencyContactsScreen from './components/home/EmergencyContactsScreen';
 import SettingsScreen from './views/settings/Settings';
 import LocationPickerScreen from './views/settings/LocationPicker';
 import {AppProvider} from './context/AppContext';
+import {TourProvider, useFirstLaunchTour} from './components/tour/Tour';
 import {I18nProvider, useI18n} from './i18n';
 
 export type RootStackParamList = {
@@ -107,34 +108,45 @@ const TabNavigator = () => {
   );
 };
 
+// The first-launch tour runs over the real screens; the app only locates the user (and asks
+// for the permissions) once it's over.
+const Screens = () => {
+  const tour = useFirstLaunchTour();
+  return (
+    <AppProvider holdStartup={tour.state !== 'done'}>
+      <TourProvider active={tour.state === 'show'} onFinish={tour.finish}>
+        <NavigationContainer>
+          <Stack.Navigator
+            initialRouteName="MainTabs"
+            screenOptions={{headerShown: false}}>
+            <Stack.Screen name="MainTabs" component={TabNavigator} />
+            <Stack.Screen name="MustDo" component={MustDoScreen} />
+            <Stack.Screen name="AddReport" component={AddReport} />
+            <Stack.Screen
+              name="NearbyShelters"
+              component={NearbySheltersScreen}
+            />
+            <Stack.Screen
+              name="EmergencyContacts"
+              component={EmergencyContactsScreen}
+            />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen
+              name="LocationPicker"
+              component={LocationPickerScreen}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </TourProvider>
+    </AppProvider>
+  );
+};
+
 const App = () => {
   return (
     <SafeAreaProvider>
       <I18nProvider>
-        <AppProvider>
-          <NavigationContainer>
-            <Stack.Navigator
-              initialRouteName="MainTabs"
-              screenOptions={{headerShown: false}}>
-              <Stack.Screen name="MainTabs" component={TabNavigator} />
-              <Stack.Screen name="MustDo" component={MustDoScreen} />
-              <Stack.Screen name="AddReport" component={AddReport} />
-              <Stack.Screen
-                name="NearbyShelters"
-                component={NearbySheltersScreen}
-              />
-              <Stack.Screen
-                name="EmergencyContacts"
-                component={EmergencyContactsScreen}
-              />
-              <Stack.Screen name="Settings" component={SettingsScreen} />
-              <Stack.Screen
-                name="LocationPicker"
-                component={LocationPickerScreen}
-              />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </AppProvider>
+        <Screens />
       </I18nProvider>
     </SafeAreaProvider>
   );

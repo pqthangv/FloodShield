@@ -1,11 +1,23 @@
 package com.floodshield.app
 
+import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 class MainActivity : ReactActivity() {
+
+  /**
+   * Edge-to-edge on every Android version, the way Google Play checks for it. Android 15+ forces
+   * it anyway; React Native then sets the same up itself (edgeToEdgeEnabled in gradle.properties),
+   * so the screens look the same either way.
+   */
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+  }
 
   /**
    * Returns the name of the main component registered from JavaScript. This is used to schedule

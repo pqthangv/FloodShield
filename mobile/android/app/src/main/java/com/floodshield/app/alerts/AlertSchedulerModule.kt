@@ -24,13 +24,17 @@ class AlertSchedulerModule(reactContext: ReactApplicationContext) :
       longitude: Double,
       enabled: Boolean,
       language: String,
+      deviceId: String,
   ) {
     prefs.apiBaseUrl = apiBaseUrl.trimEnd('/')
     prefs.latitude = latitude
     prefs.longitude = longitude
     prefs.enabled = enabled
     prefs.language = language
+    prefs.deviceId = deviceId
     AlertWorker.createChannel(reactApplicationContext)
+    // Registers for rain-warning pushes, or removes the registration when alerts are off.
+    PushRegistration.update(reactApplicationContext)
 
     if (!enabled) {
       workManager.cancelUniqueWork(PERIODIC_WORK)

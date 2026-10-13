@@ -1,13 +1,16 @@
 # Hourly rain warnings by push notification (scripts/rain_push.py).
+#
+# Started every hour from outside, by cron-job.org calling GitHub's API (workflow_dispatch). On
+# purpose there is no `schedule:` here: GitHub disables scheduled workflows in a public repository
+# after 60 days without commits, and a disabled workflow can't be started at all.
+#
 # Needs two repository secrets (Settings -> Secrets and variables -> Actions):
 #   FLOODSHIELD_API  e.g. https://floodshield-api-ese8.onrender.com/api/v1
 #   PUSH_JOB_TOKEN   the server's PUSH_JOB_TOKEN (Render -> Environment), not ADMIN_TOKEN
-# GitHub runs scheduled jobs only from the default branch (main), sometimes a few minutes late.
+# GitHub only starts workflows that are on the default branch (main).
 name: Rain push
 
 on:
-  schedule:
-    - cron: '7 * * * *'
   workflow_dispatch:
 
 concurrency:

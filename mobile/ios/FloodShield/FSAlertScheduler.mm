@@ -100,6 +100,7 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
         longitude:(double)longitude
           enabled:(BOOL)enabled
          language:(NSString *)language
+         deviceId:(NSString *)deviceId
 {
   NSString *base = apiBaseUrl;
   while ([base hasSuffix:@"/"]) {

@@ -27,7 +27,7 @@ static const int FORECAST_DAYS = 16;
 
 /// Must match BGTaskSchedulerPermittedIdentifiers in Info.plist, or iOS refuses to register it.
 static NSString *const kTaskId = @"com.floodshield.app.alerts";
-static NSString *const kUserAgent = @"FloodShield/1.0.0 (iOS app; https://github.com/pqthangv/FloodShield)";
+static NSString *const kUserAgent = @"FloodShield/1.0.1 (iOS app; https://github.com/pqthangv/FloodShield)";
 /// iOS treats this as "not before": it decides when the check really runs.
 static const NSTimeInterval kInterval = 30 * 60;
 static const NSUInteger kMaxSeen = 300;

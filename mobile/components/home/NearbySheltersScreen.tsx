@@ -14,7 +14,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomStatusBar from '../CustomStatusBar';
 import {vh, vw} from '../../services/styleProps';
 import {backIcon, directionsIcon, phoneIcon} from '../../assets/svgIcon';
-import disasterAPI from '../../apis/disasterAPI';
+import {loadShelters, savedShelters} from '../../services/shelters';
 import {Shelter} from '../../services/model';
 import {useApp} from '../../context/AppContext';
 import {errorMessage} from '../../services/axiosClient';
@@ -30,35 +30,41 @@ const NearbySheltersScreen = () => {
   const navigation = useNavigation();
   const {location} = useApp();
   const {t, lang} = useI18n();
-  const [shelters, setShelters] = useState<Shelter[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Usually found already, in the background since the app opened (services/shelters.ts).
+  const [initial] = useState(() =>
+    location ? savedShelters(location.latitude, location.longitude, lang) : null,
+  );
+  const [shelters, setShelters] = useState<Shelter[]>(initial ?? []);
+  const [loading, setLoading] = useState(!initial);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!location) {
-      setLoading(false);
-      return;
-    }
-    setError(null);
-    try {
-      const data = await disasterAPI.getShelters(location.latitude, location.longitude);
-      setShelters(data.shelters);
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [location]);
+  // Runs again when the language changes: kind labels come from the API in the current language.
+  const load = useCallback(
+    async (refresh = false) => {
+      if (!location) {
+        setLoading(false);
+        return;
+      }
+      setError(null);
+      try {
+        setShelters(await loadShelters(location.latitude, location.longitude, lang, refresh));
+      } catch (e) {
+        setError(errorMessage(e));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [location, lang],
+  );
 
-  // Reload when the language changes: kind labels come from the API in the current language.
   useEffect(() => {
     load();
-  }, [load, lang]);
+  }, [load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
+    await load(true);
     setRefreshing(false);
   }, [load]);
 
@@ -138,7 +144,7 @@ const NearbySheltersScreen = () => {
                 : error || t('noShelters')}
             </Text>
             {error && (
-              <Text style={styles.retry} onPress={load}>
+              <Text style={styles.retry} onPress={() => load(true)}>
                 {t('retry')}
               </Text>
             )}

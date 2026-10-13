@@ -44,7 +44,7 @@ const round = (value: number, digits: number) =>
   Math.round(value * 10 ** digits) / 10 ** digits;
 export const snapTo = (value: number, step: number) => round(Math.round(value / step) * step, 4);
 
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const rad = (d: number) => (d * Math.PI) / 180;
   const a =
     Math.sin(rad(lat2 - lat1) / 2) ** 2 +

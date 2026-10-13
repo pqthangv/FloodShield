@@ -15,6 +15,7 @@ import {getLanguage, translate, useI18n} from '../i18n';
 import {Alert, WeatherData} from '../services/model';
 import {fetchFloodData} from '../services/glofas';
 import {fetchForecast} from '../services/openMeteo';
+import {prefetchShelters} from '../services/shelters';
 import storage, {SavedLocation} from '../services/storage';
 import {
   markAlertsSeen,
@@ -98,6 +99,8 @@ export const AppProvider = ({children}: {children: React.ReactNode}) => {
         reason => setAlertsError(errorMessage(reason)),
       );
     await Promise.all([weatherShown, alertsShown]);
+    // Then the shelters, which take longest: the shelters screen opens with them (shelters.ts).
+    prefetchShelters(loc.latitude, loc.longitude, getLanguage());
     lastFetch.current = Date.now();
     setLoading(false);
   }, []);

@@ -13,6 +13,7 @@ const AdditionalInfo = () => {
   const {alerts, alertsError, weather, location} = useApp();
   const {t} = useI18n();
   const topAlert = alerts.find(a => a.severity !== 'info') || alerts[0];
+  const allClear = !alertsError && !!location;
   const today = weather?.daily?.[0];
 
   const openAlerts = () =>
@@ -80,9 +81,11 @@ const AdditionalInfo = () => {
           </View>
         </TouchableOpacity>
       ) : (
-        <View style={[styles.warningCard, styles.safeCard]}>
+        // Green and ✅ only when the check worked and found nothing: an error or a missing
+        // location must not look like "all clear".
+        <View style={[styles.warningCard, allClear && styles.safeCard]}>
           <View style={styles.warningHeader}>
-            <Text style={styles.warningIcon}>✅</Text>
+            <Text style={styles.warningIcon}>{allClear ? '✅' : '⚠️'}</Text>
             <Text style={styles.warningTitle}>
               {alertsError ? t('alertsLoadFailed') : t('noAlerts')}
             </Text>

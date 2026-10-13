@@ -71,7 +71,7 @@ const CanhBaoTab = () => {
   if (alerts.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyIcon}>{alertsError ? '⚠️' : '✅'}</Text>
+        <Text style={styles.emptyIcon}>{alertsError || !location ? '⚠️' : '✅'}</Text>
         <Text style={styles.emptyText}>
           {alertsError ||
             (location

@@ -55,9 +55,12 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Run R8 on release builds: it shrinks, optimizes and obfuscates the Java/Kotlin bytecode.
+ * Google Play flags apps whose code isn't optimized ("DEX optimization", deadline Feb 2027).
+ * Resource shrinking stays off: React Native looks up bundled images by name from JavaScript,
+ * which the resource shrinker can't see.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)

@@ -12,6 +12,13 @@ appId: com.floodshield.app
     clearState: true
     permissions:
       all: allow
+# A first launch shows the short tour, in the phone's language (English here). Skip leads to
+# the card that explains the location; Continue ends the tour.
+- extendedWaitUntil:
+    visible: Skip
+    timeout: 120000
+- tapOn: Skip
+- tapOn: Continue
 # Notifications can't always be pre-allowed in the simulator: answer iOS's question if it shows.
 - tapOn:
     text: Allow

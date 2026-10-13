@@ -1,25 +1,34 @@
 """Push notifications for rain warnings (see services/push.py).
 
 The app registers its push token with PUT /push and removes it with DELETE /push. The hourly job
-(scripts/rain_push.py) uses the two admin endpoints: it reads the areas, downloads their
+(scripts/rain_push.py) uses the two /push/job endpoints: it reads the areas, downloads their
 forecasts and posts them back.
 """
 
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from config import settings
 from database import get_db
 from i18n import Lang, get_lang
 from models.push_model import PushDevice, PushRegistration, RainForecasts
-from routers.AdminRoute import require_admin
 from routers.PostRoute import require_device
 from routers.WeatherRoute import forecast_is_valid
 from services import push
 
+
+def require_push_job(x_push_job_token: Optional[str] = Header(None)):
+    if not settings.push_job_token:
+        raise HTTPException(status_code=503, detail="The push job is disabled (PUSH_JOB_TOKEN not set)")
+    if not secrets.compare_digest(x_push_job_token or "", settings.push_job_token):
+        raise HTTPException(status_code=401, detail="Invalid push job token")
+
+
 router = APIRouter()
-admin = APIRouter(prefix="/admin/push", dependencies=[Depends(require_admin)])
+job = APIRouter(prefix="/push/job", dependencies=[Depends(require_push_job)])
 
 
 @router.put("/push")
@@ -59,7 +68,7 @@ async def unregister(
     return {"ok": True}
 
 
-@admin.get("/areas")
+@job.get("/areas")
 async def areas(db: AsyncSession = Depends(get_db)):
     """The areas that have phones registered, for the hourly job to download forecasts for."""
     fresh = datetime.now(timezone.utc) - timedelta(days=push.STALE_DAYS)
@@ -71,10 +80,10 @@ async def areas(db: AsyncSession = Depends(get_db)):
     return {"areas": [{"latitude": lat / 10, "longitude": lon / 10} for lat, lon in sorted(rows)]}
 
 
-@admin.post("/rain")
+@job.post("/rain")
 async def rain(body: RainForecasts, db: AsyncSession = Depends(get_db)):
     """Sends the new rain warnings in these forecasts. Unlike forecasts sent by phones, these come
-    from the hourly job (admin token), so they may be used for every phone in the area."""
+    from the hourly job (push job token), so they may be used for every phone in the area."""
     forecasts = [(f.latitude, f.longitude, f.forecast) for f in body.forecasts
                  if forecast_is_valid(f.forecast, f.latitude, f.longitude)]
     result = await push.send_rain_warnings(db, forecasts)

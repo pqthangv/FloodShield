@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     max_posts_per_hour: int = 5
     max_upload_mb: int = 8
 
+    # Lets the hourly rain-warning job (scripts/rain_push.py) use /api/v1/push/job/*, and nothing
+    # else, so a leaked copy can't do what ADMIN_TOKEN can. The job endpoints are off when empty.
+    push_job_token: str = ""
     # Push notifications for rain warnings; each platform is off while its settings are empty.
     # Android: the Firebase service account's JSON key (Firebase console -> Project settings ->
     # Service accounts -> Generate new private key), pasted whole.

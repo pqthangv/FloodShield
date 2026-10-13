@@ -84,7 +84,7 @@ app.include_router(ShelterRoute.router, prefix="/api/v1", tags=["shelters"])
 app.include_router(PostRoute.router, prefix="/api/v1", tags=["community"])
 app.include_router(AdminRoute.router, prefix="/api/v1", tags=["admin"])
 app.include_router(PushRoute.router, prefix="/api/v1", tags=["push notifications"])
-app.include_router(PushRoute.admin, prefix="/api/v1", tags=["admin"])
+app.include_router(PushRoute.job, prefix="/api/v1", tags=["push notifications"])
 
 
 @app.get("/health", tags=["system"])

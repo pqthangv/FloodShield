@@ -5,7 +5,8 @@ address, and the server's address is shared with many other apps. So this job as
 which areas have phones registered, downloads their forecasts (many places per request), and
 posts them back; the server sends the warnings (backend/services/push.py).
 
-Needs FLOODSHIELD_API (e.g. https://floodshield-api-ese8.onrender.com/api/v1) and ADMIN_TOKEN.
+Needs FLOODSHIELD_API (e.g. https://floodshield-api-ese8.onrender.com/api/v1) and PUSH_JOB_TOKEN
+(the server's PUSH_JOB_TOKEN, which only opens the /push/job endpoints).
 Only the Python standard library, so the job installs nothing.
 """
 
@@ -57,13 +58,13 @@ def forecasts_for(areas):
 
 def main():
     api = os.environ["FLOODSHIELD_API"].rstrip("/")
-    admin = {"X-Admin-Token": os.environ["ADMIN_TOKEN"]}
-    areas = call(f"{api}/admin/push/areas", headers=admin)["areas"]
+    job = {"X-Push-Job-Token": os.environ["PUSH_JOB_TOKEN"]}
+    areas = call(f"{api}/push/job/areas", headers=job)["areas"]
     print(f"{len(areas)} areas with phones")
     totals = {}
     for start in range(0, len(areas), BATCH):
         batch = forecasts_for(areas[start:start + BATCH])
-        result = call(f"{api}/admin/push/rain", body={"forecasts": batch}, headers=admin)
+        result = call(f"{api}/push/job/rain", body={"forecasts": batch}, headers=job)
         for key, value in result.items():
             totals[key] = totals.get(key, 0) + value
     print(json.dumps(totals))

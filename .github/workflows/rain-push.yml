@@ -1,7 +1,7 @@
 # Hourly rain warnings by push notification (scripts/rain_push.py).
 # Needs two repository secrets (Settings -> Secrets and variables -> Actions):
 #   FLOODSHIELD_API  e.g. https://floodshield-api-ese8.onrender.com/api/v1
-#   ADMIN_TOKEN      the server's ADMIN_TOKEN (Render -> Environment)
+#   PUSH_JOB_TOKEN   the server's PUSH_JOB_TOKEN (Render -> Environment), not ADMIN_TOKEN
 # GitHub runs scheduled jobs only from the default branch (main), sometimes a few minutes late.
 name: Rain push
 
@@ -26,4 +26,4 @@ jobs:
       - run: python scripts/rain_push.py
         env:
           FLOODSHIELD_API: ${{ secrets.FLOODSHIELD_API }}
-          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          PUSH_JOB_TOKEN: ${{ secrets.PUSH_JOB_TOKEN }}

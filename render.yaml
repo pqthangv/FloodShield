@@ -29,6 +29,10 @@ services:
         sync: false
       - key: ADMIN_TOKEN
         generateValue: true
+      # For the hourly rain-warning job only: a long random value, the same as GitHub's
+      # PUSH_JOB_TOKEN secret.
+      - key: PUSH_JOB_TOKEN
+        sync: false
       # Push notifications for rain warnings (backend/config.py). Paste the Firebase service
       # account JSON, and the APNs .p8 key's contents with its Key ID and the Apple team ID.
       - key: FCM_SERVICE_ACCOUNT

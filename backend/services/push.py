@@ -2,7 +2,7 @@
 
 This server can't download forecasts itself (Open-Meteo's free limit is per IP address, and
 Render's address is shared), so an hourly job (scripts/rain_push.py) downloads the forecast of
-every area that has phones registered and posts it to /admin/push/rain. The same rain rules as
+every area that has phones registered and posts it to /push/job/rain. The same rain rules as
 in the app turn it into warnings, and each new one is sent once to each phone in the area.
 """
 

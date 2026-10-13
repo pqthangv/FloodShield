@@ -6,6 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ["ADMIN_TOKEN"] = "test-admin"
+os.environ["PUSH_JOB_TOKEN"] = "test-push-job"
 
 # Tests use a throwaway SQLite file by default. Set TEST_DATABASE_URL to run them against
 # PostgreSQL instead (as the CI does); that database is emptied at the start of every run.

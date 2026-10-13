@@ -15,6 +15,7 @@ from database import SessionLocal
 from models.push_model import PushDevice
 from services import push
 
+JOB = {"X-Push-Job-Token": "test-push-job"}
 ADMIN = {"X-Admin-Token": "test-admin"}
 VI_PHONE = {"X-Device-Id": "push-phone-vi-0001", "Accept-Language": "vi"}
 EN_PHONE = {"X-Device-Id": "push-phone-en-0002", "Accept-Language": "en"}
@@ -66,7 +67,7 @@ async def register(c, phone, token, platform="android", where=HANOI):
 
 
 async def run(c, *forecasts):
-    r = await c.post("/api/v1/admin/push/rain", headers=ADMIN, json={"forecasts": [
+    r = await c.post("/api/v1/push/job/rain", headers=JOB, json={"forecasts": [
         {"latitude": f["latitude"], "longitude": f["longitude"], "forecast": f} for f in forecasts]})
     assert r.status_code == 200
     return r.json()
@@ -86,11 +87,14 @@ async def test_registration(client):
 
 
 @pytest.mark.asyncio
-async def test_job_endpoints_need_the_admin_token(client):
+async def test_job_endpoints_need_the_push_job_token(client):
     await register(client, VI_PHONE, "token-vi-" + "a" * 30)
-    assert (await client.get("/api/v1/admin/push/areas")).status_code == 401
-    assert (await client.post("/api/v1/admin/push/rain", json={"forecasts": []})).status_code == 401
-    areas = (await client.get("/api/v1/admin/push/areas", headers=ADMIN)).json()["areas"]
+    assert (await client.get("/api/v1/push/job/areas")).status_code == 401
+    assert (await client.post("/api/v1/push/job/rain", json={"forecasts": []})).status_code == 401
+    # Each token opens only its own endpoints.
+    assert (await client.get("/api/v1/push/job/areas", headers=ADMIN)).status_code == 401
+    assert (await client.get("/api/v1/admin/alerts", headers=JOB)).status_code == 401
+    areas = (await client.get("/api/v1/push/job/areas", headers=JOB)).json()["areas"]
     assert {"latitude": 21.0, "longitude": 105.8} in areas
 
 
@@ -160,7 +164,7 @@ async def test_uninstalled_apps_are_forgotten(client, sent):
 async def test_bad_forecasts_are_counted_not_used(client, sent):
     await register(client, VI_PHONE, "token-vi-" + "a" * 30)
     wrong_place = forecast(10.8, 106.7, daily_mm=(150, 0, 0))
-    r = await client.post("/api/v1/admin/push/rain", headers=ADMIN, json={"forecasts": [
+    r = await client.post("/api/v1/push/job/rain", headers=JOB, json={"forecasts": [
         {"latitude": 21.0, "longitude": 105.8, "forecast": wrong_place},
         {"latitude": 21.0, "longitude": 105.8, "forecast": {"current": {}}},
     ]})
@@ -185,7 +189,7 @@ async def test_phones_that_stopped_checking_in_are_forgotten(client):
         device = await db.get(PushDevice, VI_PHONE["X-Device-Id"])
         device.updated_at = datetime.now(timezone.utc) - timedelta(days=push.STALE_DAYS + 1)
         await db.commit()
-    areas = (await client.get("/api/v1/admin/push/areas", headers=ADMIN)).json()["areas"]
+    areas = (await client.get("/api/v1/push/job/areas", headers=JOB)).json()["areas"]
     assert {"latitude": 21.0, "longitude": 105.8} not in areas
     async with SessionLocal() as db:
         await push.purge(db)

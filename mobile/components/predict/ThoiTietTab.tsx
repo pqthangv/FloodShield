@@ -5,19 +5,19 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import {vw, vh} from '../../services/styleProps';
 import {useApp} from '../../context/AppContext';
 import {
+  isNightAt,
   parseLocal,
   shortDate,
   timeOf,
-  weatherImage,
   weekdayName,
 } from '../../services/format';
 import {useI18n} from '../../i18n';
+import WeatherIcon from '../WeatherIcon';
 
 const ThoiTietTab = () => {
   const {weather, weatherError, loading, refresh} = useApp();
@@ -74,7 +74,12 @@ const ThoiTietTab = () => {
                 adjustsFontSizeToFit>
                 {isCurrent ? t('now') : timeOf(item.time)}
               </Text>
-              <Image source={weatherImage(item.icon)} style={styles.weatherIconSmall} />
+              <WeatherIcon
+                icon={item.icon}
+                night={isNightAt(item.time, weather.daily)}
+                size={vw(8)}
+                style={styles.weatherIconSmall}
+              />
               <Text
                 style={[styles.hourlyRain, isCurrent && styles.currentHourText]}
                 numberOfLines={1}
@@ -102,7 +107,7 @@ const ThoiTietTab = () => {
             return (
               <View key={item.date} style={styles.dailyItem}>
                 <View style={styles.weatherIconLargeCircle}>
-                  <Image source={weatherImage(item.icon)} style={styles.weatherIconLarge} />
+                  <WeatherIcon icon={item.icon} size={vw(11)} />
                 </View>
                 <View style={{width: vw(4)}} />
                 <View style={styles.dailyTextContainer}>
@@ -176,8 +181,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   weatherIconSmall: {
-    width: vw(8),
-    height: vw(8),
     marginVertical: vh(0.5),
   },
   hourlyRain: {
@@ -206,10 +209,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F2D54',
     borderRadius: vw(20),
     padding: vw(2),
-  },
-  weatherIconLarge: {
-    width: vw(11),
-    height: vw(11),
   },
   dailyTextContainer: {
     flex: 1,

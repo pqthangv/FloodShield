@@ -2,7 +2,6 @@ import React from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
@@ -10,8 +9,9 @@ import {
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {vw, vh} from '../../services/styleProps';
 import {locationLabel, useApp} from '../../context/AppContext';
-import {longDate, timeOf, weatherImage} from '../../services/format';
+import {longDate, timeOf} from '../../services/format';
 import {useI18n} from '../../i18n';
+import WeatherIcon from '../WeatherIcon';
 
 interface WeatherDisplayProps {
   textColor: string;
@@ -38,6 +38,8 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
       fontSize: vw(20),
       fontWeight: 'bold',
       color: textColor,
+      // Android adds empty space above big text, which pushed the weather picture up next to it.
+      includeFontPadding: false,
     },
     weatherConditionText: {
       fontSize: vw(4),
@@ -122,7 +124,12 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
       </Text>
 
       <View style={styles.weatherSection}>
-        <Image source={weatherImage(current.icon)} style={styles.weatherIcon} />
+        <WeatherIcon
+          icon={current.icon}
+          night={current.is_day === false}
+          size={vw(35)}
+          style={styles.weatherIcon}
+        />
         <View style={styles.temperatureContainer}>
           <Text style={dynamicStyles.temperatureText}>
             {Math.round(current.temperature)}°
@@ -202,10 +209,10 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'space-around',
   },
+  // Fonts keep empty space above the digits, so centring on the text box would put the picture
+  // too high: line it up with the middle of the temperature and condition text instead.
   weatherIcon: {
-    width: vw(35),
-    height: vw(35),
-    resizeMode: 'contain',
+    transform: [{translateY: vw(2)}],
   },
   temperatureContainer: {
     alignItems: 'center',

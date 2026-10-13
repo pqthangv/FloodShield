@@ -1,4 +1,4 @@
-import {formatDistance, parseLocal, shortDate, timeAgo, timeOf} from '../services/format';
+import {formatDistance, isNightAt, parseLocal, shortDate, timeAgo, timeOf} from '../services/format';
 
 test('parses API local times without shifting the time zone', () => {
   const d = parseLocal('2026-10-04T15:30');
@@ -7,6 +7,22 @@ test('parses API local times without shifting the time zone', () => {
   ]);
   expect(shortDate('2026-10-04')).toBe('4/10');
   expect(timeOf('2026-10-04T05:41')).toBe('05:41');
+});
+
+test('hours before sunrise or after sunset are night', () => {
+  const days = [
+    {date: '2026-10-13', sunrise: '2026-10-13T05:52', sunset: '2026-10-13T17:34'},
+    {date: '2026-10-14', sunrise: '2026-10-14T05:52', sunset: '2026-10-14T17:33'},
+  ];
+  expect(isNightAt('2026-10-13T05:00', days)).toBe(true);
+  expect(isNightAt('2026-10-13T06:00', days)).toBe(false);
+  expect(isNightAt('2026-10-13T17:00', days)).toBe(false);
+  expect(isNightAt('2026-10-13T18:00', days)).toBe(true);
+  // After midnight the next day's sunrise counts.
+  expect(isNightAt('2026-10-14T02:00', days)).toBe(true);
+  expect(isNightAt('2026-10-14T12:00', days)).toBe(false);
+  // A day missing from the forecast is drawn as day.
+  expect(isNightAt('2026-10-20T23:00', days)).toBe(false);
 });
 
 test('formats distances', () => {

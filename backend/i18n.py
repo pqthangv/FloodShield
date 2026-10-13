@@ -127,6 +127,12 @@ MESSAGES: dict[str, dict[str, str]] = {
     # --- Alerts: rain ----------------------------------------------------------------------
     # Last line of a rain warning sent as a push notification.
     "push_source": {"vi": "Nguồn: {source}", "en": "Source: {source}"},
+    # The morning push when rain below the warning level is likely today.
+    "reminder_title": {"vi": "Hôm nay có mưa", "en": "Rain today"},
+    "reminder_desc": {
+        "vi": "Mưa nhiều nhất khoảng {time}. Nhớ mang ô hoặc áo mưa khi ra ngoài.",
+        "en": "Heaviest around {time}. Remember an umbrella or raincoat when you go out.",
+    },
     "rain_extreme": {"vi": "Mưa đặc biệt to", "en": "Extremely heavy rain"},
     "rain_very_heavy": {"vi": "Mưa rất to", "en": "Very heavy rain"},
     "rain_heavy": {"vi": "Mưa to", "en": "Heavy rain"},

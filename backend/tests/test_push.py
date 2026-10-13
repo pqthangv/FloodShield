@@ -51,12 +51,18 @@ def sent(monkeypatch):
     return sent
 
 
-def forecast(lat, lon, daily_mm=(10, 0, 0), hourly_mm=0.0, now="2026-10-14T10:00"):
+def forecast(lat, lon, daily_mm=(10, 0, 0), hourly_mm=0.0, now="2026-10-14T10:00", rain_at=None):
+    """rain_at: {"15:00": (mm, chance %)} for today's hours; other hours are dry."""
     hours = [f"2026-10-14T{h:02d}:00" for h in range(24)] + [f"2026-10-15T{h:02d}:00" for h in range(24)]
+    rain = [hourly_mm] * len(hours)
+    chance = [0] * len(hours)
+    for at, (mm, pct) in (rain_at or {}).items():
+        i = hours.index(f"2026-10-14T{at}")
+        rain[i], chance[i] = mm, pct
     return {
         "latitude": lat, "longitude": lon, "utc_offset_seconds": 25200, "elevation": 10,
         "current": {"time": now, "precipitation": 0},
-        "hourly": {"time": hours, "precipitation": [hourly_mm] * len(hours)},
+        "hourly": {"time": hours, "precipitation": rain, "precipitation_probability": chance},
         "daily": {"time": ["2026-10-14", "2026-10-15", "2026-10-16"], "precipitation_sum": list(daily_mm)},
     }
 
@@ -195,6 +201,50 @@ async def test_phones_that_stopped_checking_in_are_forgotten(client):
         await push.purge(db)
         assert await db.get(PushDevice, VI_PHONE["X-Device-Id"]) is None
 
+
+
+@pytest.mark.asyncio
+async def test_morning_rain_reminder(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    await register(client, EN_PHONE, "token-en-" + "a" * 30, "ios")
+    light = {"11:00": (1.0, 90), "15:00": (3.0, 80)}
+    result = await run(client, forecast(21.0, 105.8, now="2026-10-14T07:00", rain_at=light))
+    assert result["sent"] == 2
+    messages = {platform: m for platform, _, m in sent}
+    assert messages["android"].id == "rain-today-2026-10-14" and messages["android"].kind == "reminder"
+    assert messages["android"].title == "Hôm nay có mưa"
+    assert messages["android"].body.startswith("Mưa nhiều nhất khoảng 15:00. Nhớ mang ô")
+    assert messages["ios"].body == ("Heaviest around 15:00. Remember an umbrella or raincoat when you go out.\n"
+                                    "Source: Open-Meteo")
+    # Once a day.
+    assert (await run(client, forecast(21.0, 105.8, now="2026-10-14T08:00", rain_at=light)))["sent"] == 0
+
+
+@pytest.mark.asyncio
+async def test_reminder_only_in_the_morning_and_for_likely_rain(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    likely = {"15:00": (3.0, 80)}
+    for now in ("2026-10-14T05:00", "2026-10-14T10:00", "2026-10-14T13:00"):
+        assert (await run(client, forecast(21.0, 105.8, now=now, rain_at=likely)))["sent"] == 0
+    for rain in ({"15:00": (1.5, 90)}, {"15:00": (5.0, 50)}, {"22:00": (5.0, 90)}):
+        assert (await run(client, forecast(21.0, 105.8, now="2026-10-14T07:00", rain_at=rain)))["sent"] == 0
+    assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_no_reminder_on_a_day_with_a_heavy_rain_warning(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    stormy = forecast(21.0, 105.8, daily_mm=(120, 0, 0), now="2026-10-14T07:00", rain_at={"15:00": (9.0, 95)})
+    await run(client, stormy)
+    assert [m.kind for _, _, m in sent] == ["warning"]
+
+
+@pytest.mark.asyncio
+async def test_reminder_today_and_warning_for_tomorrow(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    await run(client, forecast(21.0, 105.8, daily_mm=(10, 120, 0), now="2026-10-14T07:00",
+                               rain_at={"15:00": (3.0, 80)}))
+    assert sorted(m.id for _, _, m in sent) == ["rain-2026-10-15-high", "rain-today-2026-10-14"]
 
 # --- The real senders, against a fake Google / Apple ---------------------------------------
 

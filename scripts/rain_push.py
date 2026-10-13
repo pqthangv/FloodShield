@@ -17,10 +17,11 @@ import urllib.parse
 import urllib.request
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-# Only what the rain rules read (services/alerts.py: rain_alerts, intense_rain_alert): the
-# current local time, hourly and daily rain, for the next 3 days.
+# Only what the rain rules read (services/alerts.py: rain_alerts, intense_rain_alert, and
+# services/push.py: rain_reminder): the current local time, hourly rain and its chance, and daily
+# rain, for the next 3 days.
 CURRENT_VARS = "precipitation"
-HOURLY_VARS = "precipitation"
+HOURLY_VARS = "precipitation,precipitation_probability"
 DAILY_VARS = "precipitation_sum"
 FORECAST_DAYS = 3
 # Places per Open-Meteo request, and per post to the server.

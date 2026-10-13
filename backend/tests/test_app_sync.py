@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from services import alerts, flood, osm, weather
+from services import alerts, flood, osm, push, weather
 
 MOBILE = Path(__file__).resolve().parents[2] / "mobile"
 RAIN_JOB = Path(__file__).resolve().parents[2] / "scripts" / "rain_push.py"
@@ -124,11 +124,12 @@ def test_server_gives_the_answers_the_app_tests_expect():
 
 
 def test_rain_job_downloads_what_the_rain_rules_read():
-    """The hourly push job (scripts/rain_push.py) asks Open-Meteo only for what rain_alerts and
-    intense_rain_alert read; a new value read there must be added to the job too."""
+    """The hourly push job (scripts/rain_push.py) asks Open-Meteo only for what rain_alerts,
+    intense_rain_alert and the morning reminder read; a new value read there must be added to the job too."""
     job = RAIN_JOB.read_text(encoding="utf-8")
     asks = lambda name: set(re.search(rf'^{name} = "([^"]*)"', job, re.M).group(1).split(","))
-    rules = inspect.getsource(alerts.rain_alerts) + inspect.getsource(alerts.intense_rain_alert)
+    rules = (inspect.getsource(alerts.rain_alerts) + inspect.getsource(alerts.intense_rain_alert)
+             + inspect.getsource(push.rain_reminder))
     reads = lambda part: set(re.findall(rf'{part}\.get\("([^"]+)"', rules)) - {"time"}
     assert reads("daily") <= asks("DAILY_VARS")
     assert reads("hourly") <= asks("HOURLY_VARS")

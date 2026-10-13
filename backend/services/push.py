@@ -28,6 +28,12 @@ PUSHED_CATEGORIES = {"heavy_rain", "urban_flood"}
 PUSHED_SEVERITIES = {"moderate", "high", "severe"}
 # Moderate and high warnings wait for the morning (local time); severe ones go out at any hour.
 QUIET_FROM, QUIET_UNTIL = 22, 6
+# The morning rain reminder ("take an umbrella"): sent by the first run between these hours, if
+# some hour between REMINDER_RAIN_FROM and REMINDER_RAIN_UNTIL today brings this much rain at this
+# chance or more.
+REMINDER_FROM, REMINDER_UNTIL = 6, 10
+REMINDER_RAIN_FROM, REMINDER_RAIN_UNTIL = 6, 21
+REMINDER_MM, REMINDER_CHANCE = 2.0, 60
 # Phones that haven't checked in for this long are forgotten.
 STALE_DAYS = 60
 SENT_KEEP_DAYS = 14
@@ -49,6 +55,10 @@ class Message:
     title: str
     body: str
     severity: str
+    # "warning", or "reminder" for the morning rain reminder (a quieter notification channel).
+    kind: str = "warning"
+    # The day it is about ("2026-10-14").
+    day: str = ""
 
 
 def rain_warnings(raw: dict, lang: Lang) -> list[Message]:
@@ -62,10 +72,50 @@ def rain_warnings(raw: dict, lang: Lang) -> list[Message]:
             title=a["title"],
             body=f'{a["description"]}\n{t(lang, "push_source", source=a["source"])}',
             severity=a["severity"],
+            day=(a.get("starts_at") or "")[:10],
         )
         for a in found
         if a["category"] in PUSHED_CATEGORIES and a["severity"] in PUSHED_SEVERITIES
     ]
+
+
+def rain_reminder(raw: dict, lang: Lang) -> Optional[Message]:
+    """'Rain today, take an umbrella': sent in the morning when rain below the warning level is
+    likely during the day."""
+    now = raw["current"]["time"]
+    today, hour = now[:10], int(now[11:13])
+    if not REMINDER_FROM <= hour < REMINDER_UNTIL:
+        return None
+    hourly = raw.get("hourly", {})
+    times = hourly.get("time", [])
+    rain = hourly.get("precipitation", [])
+    chance = hourly.get("precipitation_probability", [])
+    likely = [
+        (mm or 0, time)
+        for time, mm, pct in zip(times, rain, chance)
+        if time[:10] == today and max(hour, REMINDER_RAIN_FROM) <= int(time[11:13]) < REMINDER_RAIN_UNTIL
+        and (mm or 0) >= REMINDER_MM and (pct or 0) >= REMINDER_CHANCE
+    ]
+    if not likely:
+        return None
+    heaviest = max(likely)[1]
+    return Message(
+        id=f"rain-today-{today}",
+        title=t(lang, "reminder_title"),
+        body=f'{t(lang, "reminder_desc", time=heaviest[11:16])}\n{t(lang, "push_source", source="Open-Meteo")}',
+        severity="info",
+        kind="reminder",
+        day=today,
+    )
+
+
+def pushes_for(raw: dict, lang: Lang) -> list[Message]:
+    """The warnings, and the morning reminder unless a warning already covers today."""
+    found = rain_warnings(raw, lang)
+    reminder = rain_reminder(raw, lang)
+    if reminder and not any(m.day == reminder.day for m in found):
+        found.append(reminder)
+    return found
 
 
 def is_quiet(raw: dict) -> bool:
@@ -120,7 +170,7 @@ class FcmSender:
                 "message": {
                     "token": token,
                     "data": {"id": message.id, "title": message.title, "body": message.body,
-                             "severity": message.severity},
+                             "severity": message.severity, "kind": message.kind},
                     "android": {"priority": "HIGH", "ttl": f"{TTL_SECONDS}s"},
                 }
             },
@@ -158,12 +208,15 @@ class ApnsSender:
                 "authorization": f"bearer {self._auth()}",
                 "apns-topic": self.topic,
                 "apns-push-type": "alert",
-                "apns-priority": "10",
+                # A reminder isn't urgent: Apple may then wait a little to save battery.
+                "apns-priority": "5" if message.kind == "reminder" else "10",
                 "apns-expiration": str(int(time.time()) + TTL_SECONDS),
                 # The id the app's own notification for this warning uses (FSAlertScheduler.mm).
                 "apns-collapse-id": message.id[:64],
             },
-            json={"aps": {"alert": {"title": message.title, "body": message.body}, "sound": "default"},
+            json={"aps": {"alert": {"title": message.title, "body": message.body}, "sound": "default",
+                          # Reminders and warnings are grouped apart in the notification list.
+                          "thread-id": message.kind},
                   "id": message.id},
         )
         if r.status_code == 200:
@@ -241,7 +294,7 @@ async def send_rain_warnings(db: AsyncSession, forecasts: list[tuple[float, floa
         counts["phones"] += len(devices)
         try:
             quiet = is_quiet(raw)
-            warnings = {lang: rain_warnings(raw, lang) for lang in {d.language for d in devices}}
+            warnings = {lang: pushes_for(raw, lang) for lang in {d.language for d in devices}}
         except (KeyError, IndexError, TypeError, ValueError):
             counts["bad_forecasts"] += 1
             continue

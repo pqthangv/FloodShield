@@ -153,7 +153,7 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
      * Shows one alert. The notification id comes from the alert id, so the same warning from the
      * background check and from a push (PushService) is one notification, not two.
      */
-    fun notify(context: Context, alert: JSONObject, severity: String) {
+    fun notify(context: Context, alert: JSONObject, severity: String, reminder: Boolean = false) {
       if (
           Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
               ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -181,9 +181,14 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
           )
 
       val notification =
-          NotificationCompat.Builder(context, CHANNEL_ID)
+          NotificationCompat.Builder(context, if (reminder) REMINDER_CHANNEL_ID else CHANNEL_ID)
               .setSmallIcon(R.drawable.ic_stat_alert)
-              .setColor(if (severity == "moderate") 0xFFFFA500.toInt() else 0xFFE53935.toInt())
+              .setColor(
+                  when {
+                    reminder -> 0xFF2A78D6.toInt()
+                    severity == "moderate" -> 0xFFFFA500.toInt()
+                    else -> 0xFFE53935.toInt()
+                  })
               .setContentTitle(title)
               .setContentText(area.ifEmpty { description })
               .setStyle(
@@ -191,10 +196,12 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
                       .bigText(if (area.isEmpty()) description else "$area\n$description")
               )
               .setPriority(
-                  if (severity == "moderate") NotificationCompat.PRIORITY_DEFAULT
+                  if (reminder || severity == "moderate") NotificationCompat.PRIORITY_DEFAULT
                   else NotificationCompat.PRIORITY_HIGH
               )
-              .setCategory(NotificationCompat.CATEGORY_ALARM)
+              .setCategory(
+                  if (reminder) NotificationCompat.CATEGORY_REMINDER
+                  else NotificationCompat.CATEGORY_ALARM)
               .setContentIntent(pending)
               .setAutoCancel(true)
               .build()
@@ -202,6 +209,8 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     }
 
     const val CHANNEL_ID = "disaster_alerts"
+    // The morning rain reminder (backend/services/push.py), apart so it can be turned off alone.
+    const val REMINDER_CHANNEL_ID = "rain_reminders"
     private val NOTIFY_SEVERITIES = setOf("moderate", "high", "severe")
 
     // Keep equal to services/openMeteo.ts and backend/services/weather.py (a backend test checks).
@@ -241,6 +250,15 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
               )
               .apply { description = context.getString(R.string.alert_channel_description) }
       manager.createNotificationChannel(channel)
+      // Shown in the list without popping up over the screen.
+      val reminders =
+          NotificationChannel(
+                  REMINDER_CHANNEL_ID,
+                  context.getString(R.string.reminder_channel_name),
+                  NotificationManager.IMPORTANCE_DEFAULT,
+              )
+              .apply { description = context.getString(R.string.reminder_channel_description) }
+      manager.createNotificationChannel(reminders)
     }
   }
 }

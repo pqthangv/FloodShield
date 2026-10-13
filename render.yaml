@@ -29,3 +29,13 @@ services:
         sync: false
       - key: ADMIN_TOKEN
         generateValue: true
+      # Push notifications for rain warnings (backend/config.py). Paste the Firebase service
+      # account JSON, and the APNs .p8 key's contents with its Key ID and the Apple team ID.
+      - key: FCM_SERVICE_ACCOUNT
+        sync: false
+      - key: APNS_KEY
+        sync: false
+      - key: APNS_KEY_ID
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false

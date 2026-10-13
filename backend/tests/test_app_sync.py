@@ -2,15 +2,17 @@
 reads them (see weather.py, osm.py). The app (TypeScript) and the background worker (Kotlin)
 must ask for the same data the server expects."""
 
+import inspect
 import json
 import re
 from pathlib import Path
 
 import pytest
 
-from services import flood, osm, weather
+from services import alerts, flood, osm, weather
 
 MOBILE = Path(__file__).resolve().parents[2] / "mobile"
+RAIN_JOB = Path(__file__).resolve().parents[2] / "scripts" / "rain_push.py"
 COPIES = [
     MOBILE / "services" / "openMeteo.ts",
     MOBILE / "android/app/src/main/java/com/floodshield/app/alerts/AlertWorker.kt",
@@ -119,3 +121,17 @@ def test_server_gives_the_answers_the_app_tests_expect():
     assert flood.pick_river_cell(sample["cells"], *sample["snapped"]) == sample["expected_cell"]
     history = sample["history"]
     assert flood.annual_maxima(history["time"], history["river_discharge"]) == sample["expected_maxima"]
+
+
+def test_rain_job_downloads_what_the_rain_rules_read():
+    """The hourly push job (scripts/rain_push.py) asks Open-Meteo only for what rain_alerts and
+    intense_rain_alert read; a new value read there must be added to the job too."""
+    job = RAIN_JOB.read_text(encoding="utf-8")
+    asks = lambda name: set(re.search(rf'^{name} = "([^"]*)"', job, re.M).group(1).split(","))
+    rules = inspect.getsource(alerts.rain_alerts) + inspect.getsource(alerts.intense_rain_alert)
+    reads = lambda part: set(re.findall(rf'{part}\.get\("([^"]+)"', rules)) - {"time"}
+    assert reads("daily") <= asks("DAILY_VARS")
+    assert reads("hourly") <= asks("HOURLY_VARS")
+    # The same names as the phones' request, so the server reads both the same way.
+    for name in ("CURRENT_VARS", "HOURLY_VARS", "DAILY_VARS"):
+        assert asks(name) <= set(getattr(weather, name).split(","))

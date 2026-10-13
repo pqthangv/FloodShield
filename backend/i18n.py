@@ -125,6 +125,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "The river is expected to reach about {flow} m³/s on {date}, above its {years}-year flood level.",
     },
     # --- Alerts: rain ----------------------------------------------------------------------
+    # Last line of a rain warning sent as a push notification.
+    "push_source": {"vi": "Nguồn: {source}", "en": "Source: {source}"},
     "rain_extreme": {"vi": "Mưa đặc biệt to", "en": "Extremely heavy rain"},
     "rain_very_heavy": {"vi": "Mưa rất to", "en": "Very heavy rain"},
     "rain_heavy": {"vi": "Mưa to", "en": "Heavy rain"},

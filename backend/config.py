@@ -25,6 +25,18 @@ class Settings(BaseSettings):
     max_posts_per_hour: int = 5
     max_upload_mb: int = 8
 
+    # Push notifications for rain warnings; each platform is off while its settings are empty.
+    # Android: the Firebase service account's JSON key (Firebase console -> Project settings ->
+    # Service accounts -> Generate new private key), pasted whole.
+    fcm_service_account: str = ""
+    # iPhone: the APNs key (the .p8 file's contents), its Key ID and the Apple team ID.
+    apns_key: str = ""
+    apns_key_id: str = ""
+    apple_team_id: str = ""
+    apns_topic: str = "com.floodshield.app"
+    # Builds run from Xcode get sandbox tokens; TestFlight and App Store builds use production.
+    apns_sandbox: bool = False
+
 
 settings = Settings()
 

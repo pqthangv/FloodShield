@@ -15,6 +15,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// first thing in application(_:didFinishLaunchingWithOptions:).
 + (void)registerBackgroundTask;
 
+/// The push token iOS gave the app (AppDelegate's didRegisterForRemoteNotificationsWithDeviceToken):
+/// it is registered with the server, which then sends rain warnings to this iPhone.
++ (void)didRegisterForPushWithDeviceToken:(NSData *)deviceToken
+    NS_SWIFT_NAME(didRegisterForPush(deviceToken:));
+
 @end
 
 NS_ASSUME_NONNULL_END

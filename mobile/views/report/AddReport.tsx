@@ -68,7 +68,9 @@ const AddReport = () => {
 
   const handlePick = async (fromCamera: boolean) => {
     const result = fromCamera
-      ? await launchCamera(pickerOptions)
+      ? // iPhone: the camera full screen. The library's default is a sheet, which left a gap
+        // showing the app above it. (Android ignores this option.)
+        await launchCamera({...pickerOptions, presentationStyle: 'fullScreen'})
       : await launchImageLibrary({...pickerOptions, selectionLimit: 1});
     if (result.errorCode) {
       Alert.alert(t('cannotOpen'), result.errorMessage || t('pleaseRetry'));

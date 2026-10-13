@@ -279,7 +279,14 @@ async def test_post_validation_and_rate_limit(client):
     bad = await client.post("/api/v1/posts", data=base, headers=OTHER,
                             files={"image": ("x.jpg", b"not an image", "image/jpeg")})
     assert bad.status_code == 400
-    codes = [(await client.post("/api/v1/posts", data=base, headers=OTHER)).status_code for _ in range(6)]
+    # Tiny files that claim huge sizes: over the server's limit, and over Pillow's own.
+    for size in [(5000, 5000), (20000, 10000)]:
+        huge = io.BytesIO()
+        Image.new("1", size).save(huge, "PNG", optimize=True)
+        bad = await client.post("/api/v1/posts", data=base, headers=OTHER,
+                                files={"image": ("x.png", huge.getvalue(), "image/png")})
+        assert bad.status_code == 400
+    codes =[(await client.post("/api/v1/posts", data=base, headers=OTHER)).status_code for _ in range(6)]
     assert codes == [201] * 5 + [429]
     await client.delete("/api/v1/me", headers=OTHER)
 

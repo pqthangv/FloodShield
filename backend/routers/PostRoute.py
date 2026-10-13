@@ -30,6 +30,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MAX_IMAGE_SIDE = 1600
+# The app's picker sends photos of at most 1600 x 1600 (AddReport.tsx), so anything far bigger
+# didn't come from the app. It is refused before decoding: a 17 KB PNG can claim 12000 x 12000
+# pixels and take about 600 MB of memory to open, more than the whole Render free plan.
+MAX_IMAGE_PIXELS = 4096 * 4096
 
 
 def require_device(x_device_id: Optional[str], lang: Lang = "vi") -> str:
@@ -78,9 +82,15 @@ def encode_image(data: bytes, lang: Lang = "vi") -> bytes:
     """Re-encode the upload as JPEG: validates it is a real image, strips EXIF (which may
     contain the exact GPS position of the user's home) and limits the size."""
     try:
+        # Only reads the header; Pillow refuses truly huge sizes itself (DecompressionBombError).
         img = Image.open(io.BytesIO(data))
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        raise HTTPException(status_code=400, detail=t(lang, "err_bad_image"))
+    if img.width * img.height > MAX_IMAGE_PIXELS:
+        raise HTTPException(status_code=400, detail=t(lang, "err_bad_image"))
+    try:
         img = ImageOps.exif_transpose(img)
-    except (UnidentifiedImageError, OSError):
+    except OSError:
         raise HTTPException(status_code=400, detail=t(lang, "err_bad_image"))
     img = img.convert("RGB")
     img.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE))

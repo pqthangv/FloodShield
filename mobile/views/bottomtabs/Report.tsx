@@ -12,6 +12,7 @@ import {
 import React, {useState, useCallback, useRef} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomStatusBar from '../../components/CustomStatusBar';
+import PhotoViewer from '../../components/PhotoViewer';
 import {vh, vw} from '../../services/styleProps';
 import {NavigationProp, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {communityAPI} from '../../apis/disasterAPI';
@@ -65,6 +66,8 @@ const Report = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Photo shown full screen, if any.
+  const [photo, setPhoto] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -209,7 +212,14 @@ const Report = () => {
       <Text style={styles.postCardDescription}>{post.description}</Text>
       {post.address ? <Text style={styles.postAddress}>📍 {post.address}</Text> : null}
 
-      {post.image_url && <Image source={{uri: post.image_url}} style={styles.postImage} />}
+      {post.image_url && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setPhoto(post.image_url)}
+          accessibilityRole="imagebutton">
+          <Image source={{uri: post.image_url}} style={styles.postImage} />
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={[styles.confirmButton, post.confirmed_by_me && styles.confirmButtonActive]}
@@ -269,6 +279,7 @@ const Report = () => {
           )
         }
       />
+      <PhotoViewer uri={photo} onClose={() => setPhoto(null)} />
     </SafeAreaView>
   );
 };

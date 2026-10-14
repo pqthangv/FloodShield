@@ -30,8 +30,8 @@
 		</dict>
 	</array>
 	<!-- What FloodShield collects. Keep in step with App Store Connect > App Privacy and the privacy policy.
-	     Linked: kept on the server with the random device ID (community posts), or the ID itself.
-	     Not linked: the rounded location the phone sends to Open-Meteo and Overpass, with no ID. -->
+	     Linked: kept on the server with the random device ID (community posts, and the ~10 km area
+	     kept for rain-warning notifications), or the ID itself. -->
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
 		<dict>
@@ -50,7 +50,7 @@
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeCoarseLocation</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>

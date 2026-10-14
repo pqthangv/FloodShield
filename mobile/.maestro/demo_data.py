@@ -16,18 +16,20 @@ API = "http://localhost:8000/api/v1"
 ADMIN = {"X-Admin-Token": "ci-screenshots"}
 HUE = {"latitude": 16.4637, "longitude": 107.5909}
 
+# A heavy-rain warning for tonight and tomorrow: the screenshots show the real weather of the
+# moment (often sunny), so a warning about rain still to come fits, where an "ongoing flood" did not.
 WARNING = {
     "vi": {
-        "title": "Lũ trên sông Hương",
-        "description": "Mực nước sông Hương đang lên nhanh do mưa lớn kéo dài. Người dân vùng trũng thấp "
-        "chuẩn bị sơ tán theo hướng dẫn của chính quyền địa phương.",
+        "title": "Cảnh báo mưa rất to",
+        "description": "Từ đêm nay đến hết ngày mai có mưa rất to, nhiều nơi trên 120 mm. Đề phòng ngập úng "
+        "ở vùng trũng thấp và ven sông suối, hạn chế đi lại khi mưa lớn.",
         "area": "TP. Huế",
         "source": "FloodShield (ví dụ minh họa)",
     },
     "en": {
-        "title": "Flooding on the Perfume River",
-        "description": "The Perfume River is rising fast after days of heavy rain. People in low-lying "
-        "areas should prepare to evacuate as local authorities instruct.",
+        "title": "Very heavy rain warning",
+        "description": "From tonight until the end of tomorrow, very heavy rain, over 120 mm in places. Watch "
+        "for flooding in low-lying areas and near rivers and streams, and avoid travelling in heavy rain.",
         "area": "Hue City",
         "source": "FloodShield (sample)",
     },
@@ -61,7 +63,7 @@ def main(lang):
     for alert in call("GET", "/admin/alerts", ADMIN):
         call("DELETE", f"/admin/alerts/{alert['id']}", ADMIN)
     call("POST", "/admin/alerts", ADMIN, json_body={
-        **WARNING[lang], **HUE, "category": "flood", "severity": "severe", "radius_km": 30,
+        **WARNING[lang], **HUE, "category": "heavy_rain", "severity": "high", "radius_km": 30,
     })
     # The community posts, once.
     if not call("GET", "/posts")["posts"]:

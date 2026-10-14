@@ -78,3 +78,6 @@ yarn-error.log
 android/keystore.properties
 *.keystore
 !debug.keystore
+
+# Firebase config for push notifications: kept on the build machine only (the build works without it)
+android/app/google-services.json

@@ -1,6 +1,7 @@
 import {PermissionsAndroid, Platform} from 'react-native';
 import AlertScheduler from '../specs/NativeAlertScheduler';
 import {getApiBaseUrl} from './axiosClient';
+import storage from './storage';
 import type {FloodData} from './glofas';
 import {getLanguage, translate} from '../i18n';
 
@@ -25,13 +26,17 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return result === PermissionsAndroid.RESULTS.GRANTED;
 }
 
-/** Tells the background checker where to look, in which language, and whether it should run. */
-export function syncAlertScheduler(
+/**
+ * Tells the background checker where to look, in which language, and whether it should run. The
+ * native side also keeps this phone registered for rain-warning pushes (or removes it).
+ */
+export async function syncAlertScheduler(
   latitude: number,
   longitude: number,
   enabled: boolean,
 ) {
-  AlertScheduler?.configure(getApiBaseUrl(), latitude, longitude, enabled, getLanguage());
+  const deviceId = await storage.getDeviceId();
+  AlertScheduler?.configure(getApiBaseUrl(), latitude, longitude, enabled, getLanguage(), deviceId);
 }
 
 /**

@@ -1,4 +1,4 @@
-import {Severity, WeatherIcon} from './model';
+import {Severity, WeatherData} from './model';
 import {getLanguage, translate} from '../i18n';
 
 const WEEKDAYS = {
@@ -86,14 +86,12 @@ export const SEVERITY_LEVEL: Record<Severity, string> = {
   severe: '04',
 };
 
-const WEATHER_IMAGES: Record<WeatherIcon, any> = {
-  clear: require('../assets/predict/sunAndCloud.png'),
-  cloudy: require('../assets/predict/sunAndCloud.png'),
-  drizzle: require('../assets/predict/sunAndRain.png'),
-  rain: require('../assets/predict/rain.png'),
-  thunderstorm: require('../assets/predict/sunAndThunder.png'),
-  snow: require('../assets/predict/snow.png'),
-};
-
-export const weatherImage = (icon: WeatherIcon | undefined) =>
-  WEATHER_IMAGES[icon || 'cloudy'] ?? WEATHER_IMAGES.cloudy;
+/** Whether a local time ("2026-10-13T19:00") is before sunrise or after sunset of its day. */
+export function isNightAt(time: string, days: Pick<WeatherData['daily'][number], 'date' | 'sunrise' | 'sunset'>[]) {
+  const day = days.find(d => d.date === time.slice(0, 10));
+  if (!day?.sunrise || !day?.sunset) {
+    return false;
+  }
+  const at = time.slice(0, 16);
+  return at < day.sunrise.slice(0, 16) || at >= day.sunset.slice(0, 16);
+}

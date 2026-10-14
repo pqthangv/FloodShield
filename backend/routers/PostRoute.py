@@ -23,7 +23,7 @@ from models.post_model import (
     ReportRequest,
     WaterLevel,
 )
-from services import moderation, osm
+from services import moderation, osm, push
 from services.geo import bounding_box, haversine_km
 
 logger = logging.getLogger(__name__)
@@ -306,7 +306,8 @@ async def delete_my_data(
     db: AsyncSession = Depends(get_db),
     lang: Lang = Depends(get_lang),
 ):
-    """Deletes every post, photo and vote created from this device (Google Play data deletion)."""
+    """Deletes every post, photo and vote created from this device, and its push registration
+    (Google Play data deletion)."""
     device_id = require_device(x_device_id, lang)
     deleted = await delete_device_data(db, device_id)
     await db.commit()
@@ -329,4 +330,5 @@ async def delete_device_data(db: AsyncSession, device_id: str) -> int:
         if other is not None:
             other.confirm_count = max(0, other.confirm_count - 1)
     await db.execute(delete(PostVote).where(PostVote.device_id == device_id))
+    await push.forget(db, {device_id})
     return len(posts)

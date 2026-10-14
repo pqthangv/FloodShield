@@ -50,10 +50,12 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
       val id = alert.optString("id")
       val severity = alert.optString("severity")
       if (id.isEmpty() || id in seen || severity !in NOTIFY_SEVERITIES) continue
-      notify(alert, severity)
+      notify(applicationContext, alert, severity)
       seen.add(id)
     }
     prefs.saveSeenIds(seen)
+    // Keeps this phone known to the server for rain-warning pushes, even if the app isn't opened.
+    PushRegistration.sync(applicationContext)
     return Result.success()
   }
 
@@ -146,53 +148,69 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     return JSONObject(second).optJSONArray("alerts") ?: JSONArray()
   }
 
-  private fun notify(alert: JSONObject, severity: String) {
-    val context = applicationContext
-    if (
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-    ) {
-      return
-    }
-    createChannel(context)
-
-    val title = alert.optString("title")
-    val area = alert.optString("area")
-    val description = alert.optString("description")
-    val launch =
-        context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-          flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-          putExtra("alertId", alert.optString("id"))
-        }
-    val pending =
-        PendingIntent.getActivity(
-            context,
-            alert.optString("id").hashCode(),
-            launch,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-
-    val notification =
-        NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_alert)
-            .setColor(if (severity == "moderate") 0xFFFFA500.toInt() else 0xFFE53935.toInt())
-            .setContentTitle(title)
-            .setContentText(area)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$area\n$description"))
-            .setPriority(
-                if (severity == "moderate") NotificationCompat.PRIORITY_DEFAULT
-                else NotificationCompat.PRIORITY_HIGH
-            )
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .build()
-    NotificationManagerCompat.from(context).notify(alert.optString("id").hashCode(), notification)
-  }
-
   companion object {
+    /**
+     * Shows one alert. The notification id comes from the alert id, so the same warning from the
+     * background check and from a push (PushService) is one notification, not two.
+     */
+    fun notify(context: Context, alert: JSONObject, severity: String, reminder: Boolean = false) {
+      if (
+          Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+              ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                  PackageManager.PERMISSION_GRANTED
+      ) {
+        return
+      }
+      createChannel(context)
+
+      val title = alert.optString("title")
+      // Pushed warnings have no place name: their text comes first then.
+      val area = alert.optString("area")
+      val description = alert.optString("description")
+      val launch =
+          context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("alertId", alert.optString("id"))
+          }
+      val pending =
+          PendingIntent.getActivity(
+              context,
+              alert.optString("id").hashCode(),
+              launch,
+              PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+          )
+
+      val notification =
+          NotificationCompat.Builder(context, if (reminder) REMINDER_CHANNEL_ID else CHANNEL_ID)
+              .setSmallIcon(R.drawable.ic_stat_alert)
+              .setColor(
+                  when {
+                    reminder -> 0xFF2A78D6.toInt()
+                    severity == "moderate" -> 0xFFFFA500.toInt()
+                    else -> 0xFFE53935.toInt()
+                  })
+              .setContentTitle(title)
+              .setContentText(area.ifEmpty { description })
+              .setStyle(
+                  NotificationCompat.BigTextStyle()
+                      .bigText(if (area.isEmpty()) description else "$area\n$description")
+              )
+              .setPriority(
+                  if (reminder || severity == "moderate") NotificationCompat.PRIORITY_DEFAULT
+                  else NotificationCompat.PRIORITY_HIGH
+              )
+              .setCategory(
+                  if (reminder) NotificationCompat.CATEGORY_REMINDER
+                  else NotificationCompat.CATEGORY_ALARM)
+              .setContentIntent(pending)
+              .setAutoCancel(true)
+              .build()
+      NotificationManagerCompat.from(context).notify(alert.optString("id").hashCode(), notification)
+    }
+
     const val CHANNEL_ID = "disaster_alerts"
+    // The morning rain reminder (backend/services/push.py), apart so it can be turned off alone.
+    const val REMINDER_CHANNEL_ID = "rain_reminders"
     private val NOTIFY_SEVERITIES = setOf("moderate", "high", "severe")
 
     // Keep equal to services/openMeteo.ts and backend/services/weather.py (a backend test checks).
@@ -232,6 +250,15 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
               )
               .apply { description = context.getString(R.string.alert_channel_description) }
       manager.createNotificationChannel(channel)
+      // Shown in the list without popping up over the screen.
+      val reminders =
+          NotificationChannel(
+                  REMINDER_CHANNEL_ID,
+                  context.getString(R.string.reminder_channel_name),
+                  NotificationManager.IMPORTANCE_DEFAULT,
+              )
+              .apply { description = context.getString(R.string.reminder_channel_description) }
+      manager.createNotificationChannel(reminders)
     }
   }
 }
@@ -264,6 +291,25 @@ class AlertPrefs(context: Context) {
   var river: String?
     get() = prefs.getString("river", null)
     set(value) = prefs.edit().putString("river", value).apply()
+
+  /** The app's random id (X-Device-Id): the server files this phone's push token under it. */
+  var deviceId: String?
+    get() = prefs.getString("device_id", null)
+    set(value) = prefs.edit().putString("device_id", value).apply()
+
+  /** Firebase's push token for this install (PushService.onNewToken). */
+  var pushToken: String?
+    get() = prefs.getString("push_token", null)
+    set(value) = prefs.edit().putString("push_token", value).apply()
+
+  /** What was last registered with PUT /push, and when (PushRegistration); null: not registered. */
+  var pushRegistered: String?
+    get() = prefs.getString("push_registered", null)
+    set(value) = prefs.edit().putString("push_registered", value).apply()
+
+  var pushRegisteredAt: Long
+    get() = prefs.getLong("push_registered_at", 0)
+    set(value) = prefs.edit().putLong("push_registered_at", value).apply()
 
   /** Insertion-ordered so the oldest ids can be dropped. */
   fun seenIds(): LinkedHashSet<String> {

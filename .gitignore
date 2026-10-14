@@ -7,3 +7,11 @@ Thumbs.db
 .vscode/
 docs/screenshots/raw/
 deploy/.env
+
+# Personal notes, store listings and signing / push keys: never commit
+private/
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+*firebase-adminsdk*.json

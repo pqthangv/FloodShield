@@ -40,7 +40,7 @@ Start-Process powershell -WorkingDirectory $mobile -ArgumentList '-NoExit', '-Co
 $devices = & $adb devices | Select-String -Pattern "`tdevice$"
 if (-not $devices -and -not $NoEmulator) {
   Write-Host 'Starting the Android emulator...'
-  Start-Process (Join-Path $env:ANDROID_HOME 'emulator\emulator.exe') -ArgumentList '-avd', 'FloodShield_Pixel'
+  Start-Process (Join-Path $env:ANDROID_HOME 'emulator\emulator.exe') -ArgumentList '-avd', 'Android14'
   & $adb wait-for-device
   while ((& $adb shell getprop sys.boot_completed 2>$null) -notmatch '1') { Start-Sleep -Seconds 3 }
 }

@@ -1,6 +1,11 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Push notifications: Firebase reads its project settings from google-services.json, which is kept
+// out of git (mobile/.gitignore). Without the file the app still builds and works, without push.
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -138,6 +143,9 @@ dependencies {
     implementation("androidx.work:work-runtime:2.12.0")
     // enableEdgeToEdge() in MainActivity; the same version React Native already brings in.
     implementation("androidx.activity:activity:1.8.1")
+    // Rain warnings by push notification (alerts/PushService.kt).
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+    implementation("com.google.firebase:firebase-messaging")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

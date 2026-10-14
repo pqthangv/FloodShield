@@ -60,21 +60,27 @@ def supplied_forecast(request: Request, body: ForecastBody, lang: Lang) -> dict:
     # never cached or shown to another device, so a faked one can only fool its sender.
     raw = body.forecast
     try:
-        valid = (
-            int(request.headers.get("content-length") or 0) <= MAX_FORECAST_BYTES
-            and all(isinstance(raw.get(part), dict) for part in ("current", "hourly", "daily"))
+        small = int(request.headers.get("content-length") or 0) <= MAX_FORECAST_BYTES
+    except ValueError:
+        small = False
+    if not (small and forecast_is_valid(raw, body.latitude, body.longitude)):
+        raise HTTPException(status_code=422, detail=t(lang, "err_forecast_invalid"))
+    return raw
+
+
+def forecast_is_valid(raw: dict, lat: float, lon: float) -> bool:
+    """A raw Open-Meteo forecast has the parts the alerts read, and is for the given location."""
+    try:
+        return (
+            all(isinstance(raw.get(part), dict) for part in ("current", "hourly", "daily"))
             and isinstance(raw["hourly"].get("time"), list)
             and len(raw["hourly"]["time"]) <= 400
             and isinstance(raw["daily"].get("time"), list)
-            # The forecast must be for the location it is sent with.
-            and abs(float(raw.get("latitude")) - body.latitude) < 0.5
-            and abs(float(raw.get("longitude")) - body.longitude) < 0.5
+            and abs(float(raw.get("latitude")) - lat) < 0.5
+            and abs(float(raw.get("longitude")) - lon) < 0.5
         )
     except (TypeError, ValueError):
-        valid = False
-    if not valid:
-        raise HTTPException(status_code=422, detail=t(lang, "err_forecast_invalid"))
-    return raw
+        return False
 
 
 def _flows(values) -> bool:

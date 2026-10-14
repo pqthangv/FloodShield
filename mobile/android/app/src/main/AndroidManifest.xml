@@ -26,5 +26,13 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <!-- Rain warnings pushed by the server through Firebase (alerts/PushService.kt). -->
+      <service
+        android:name=".alerts.PushService"
+        android:exported="false">
+        <intent-filter>
+            <action android:name="com.google.firebase.MESSAGING_EVENT" />
+        </intent-filter>
+      </service>
     </application>
 </manifest>

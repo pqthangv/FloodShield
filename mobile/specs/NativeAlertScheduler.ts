@@ -16,6 +16,11 @@ export interface Spec extends TurboModule {
     enabled: boolean,
     /** 'vi' or 'en': language of the notification texts (sent as Accept-Language). */
     language: string,
+    /**
+     * The app's random id (X-Device-Id). The native side registers this phone for rain-warning
+     * pushes under it (PUT /push), or removes the registration when `enabled` is false.
+     */
+    deviceId: string,
   ): void;
   /**
    * The river the app found near a location (services/glofas.ts), as JSON:

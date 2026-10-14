@@ -1,6 +1,7 @@
 #import "FSAlertScheduler.h"
 
 #import <BackgroundTasks/BackgroundTasks.h>
+#import <UIKit/UIKit.h>
 #import <UserNotifications/UserNotifications.h>
 #import <FloodShieldSpecs/FloodShieldSpecs.h>
 
@@ -39,6 +40,13 @@ static NSString *const kKeyEnabled = @"fs_alerts_enabled";
 static NSString *const kKeyLanguage = @"fs_alerts_language";
 static NSString *const kKeySeen = @"fs_alerts_seen_ids";
 static NSString *const kKeyRiver = @"fs_alerts_river";
+// Rain-warning pushes (backend/routers/PushRoute.py), as PushRegistration.kt does on Android.
+static NSString *const kKeyDeviceId = @"fs_alerts_device_id";
+static NSString *const kKeyPushToken = @"fs_alerts_push_token";
+static NSString *const kKeyPushRegistered = @"fs_alerts_push_registered";
+static NSString *const kKeyPushRegisteredAt = @"fs_alerts_push_registered_at";
+/// The server forgets phones that don't check in for 60 days; refresh once a day.
+static const NSTimeInterval kPushRefresh = 24 * 60 * 60;
 
 static double Snap(double value)
 {
@@ -52,6 +60,10 @@ static NSString *StringOrEmpty(id value)
 
 typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 
+@interface FSAlertScheduler ()
++ (void)rememberSeen:(NSArray *)ids;
+@end
+
 /// iOS hides notifications while the app is open unless told otherwise. Show them like Android
 /// does (this is also what makes Settings > "Check now" visibly work).
 @interface FSNotificationPresenter : NSObject <UNUserNotificationCenterDelegate>
@@ -63,6 +75,7 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler
 {
+  [FSNotificationPresenter rememberShown:notification];
   completionHandler(UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionList |
                     UNNotificationPresentationOptionSound);
 }
@@ -72,7 +85,17 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
              withCompletionHandler:(void (^)(void))completionHandler
 {
   // Tapping the notification just opens the app, which shows the alert.
+  [FSNotificationPresenter rememberShown:response.notification];
   completionHandler();
+}
+
+/// A pushed warning (its id in "id") the user has seen: the background check won't repeat it.
++ (void)rememberShown:(UNNotification *)notification
+{
+  id alertId = notification.request.content.userInfo[@"id"];
+  if ([alertId isKindOfClass:NSString.class]) {
+    [FSAlertScheduler rememberSeen:@[ alertId ]];
+  }
 }
 
 @end
@@ -100,6 +123,7 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
         longitude:(double)longitude
           enabled:(BOOL)enabled
          language:(NSString *)language
+         deviceId:(NSString *)deviceId
 {
   NSString *base = apiBaseUrl;
   while ([base hasSuffix:@"/"]) {
@@ -111,18 +135,29 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
   [defaults setDouble:longitude forKey:kKeyLongitude];
   [defaults setBool:enabled forKey:kKeyEnabled];
   [defaults setObject:language forKey:kKeyLanguage];
+  [defaults setObject:deviceId forKey:kKeyDeviceId];
 
   if (!enabled) {
     [BGTaskScheduler.sharedScheduler cancelTaskRequestWithIdentifier:kTaskId];
+    // No more rain-warning pushes for this phone.
+    [FSAlertScheduler syncPushRegistration];
     return;
   }
   // iOS asks the user only once and then remembers the answer; calling this again is harmless.
   [UNUserNotificationCenter.currentNotificationCenter
       requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound |
                                        UNAuthorizationOptionBadge)
-                    completionHandler:^(BOOL granted, NSError *_Nullable error){
+                    completionHandler:^(BOOL granted, NSError *_Nullable error) {
+                      if (granted) {
+                        // The token comes back in didRegisterForPushWithDeviceToken.
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                          [UIApplication.sharedApplication registerForRemoteNotifications];
+                        });
+                      }
                     }];
   [FSAlertScheduler scheduleNextCheck];
+  // A new place or language goes to the server with the token iOS already gave.
+  [FSAlertScheduler syncPushRegistration];
 }
 
 - (void)setRiver:(NSString *)river
@@ -173,6 +208,8 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 {
   // Schedule the next check first: iOS never repeats a refresh task by itself.
   [self scheduleNextCheck];
+  // Keeps this phone known to the server for rain-warning pushes, even if the app isn't opened.
+  [self syncPushRegistration];
   __block void (^cancel)(void) = nil;
   task.expirationHandler = ^{
     // iOS gives a background task about 30 seconds; stop the network requests if time runs out.
@@ -186,6 +223,86 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
                   onExpiration:^(void (^cancelRequests)(void)) {
                     cancel = [cancelRequests copy];
                   }];
+}
+
+#pragma mark - Rain-warning pushes (same steps as PushRegistration.kt)
+
++ (void)didRegisterForPushWithDeviceToken:(NSData *)deviceToken
+{
+  const unsigned char *bytes = (const unsigned char *)deviceToken.bytes;
+  NSMutableString *token = [NSMutableString stringWithCapacity:deviceToken.length * 2];
+  for (NSUInteger i = 0; i < deviceToken.length; i++) {
+    [token appendFormat:@"%02x", bytes[i]];
+  }
+  [NSUserDefaults.standardUserDefaults setObject:token forKey:kKeyPushToken];
+  [self syncPushRegistration];
+}
+
+/// Registers this phone with the server (PUT /push) when something changed or once a day, or
+/// removes the registration (DELETE /push) when alerts were turned off.
++ (void)syncPushRegistration
+{
+  NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+  NSString *base = [defaults stringForKey:kKeyBaseUrl];
+  NSString *deviceId = [defaults stringForKey:kKeyDeviceId];
+  if (base.length == 0 || deviceId.length == 0) {
+    return;
+  }
+  NSString *token = [defaults stringForKey:kKeyPushToken];
+  NSString *language = [defaults stringForKey:kKeyLanguage] ?: @"vi";
+  BOOL hasPlace = [defaults objectForKey:kKeyLatitude] && [defaults objectForKey:kKeyLongitude];
+  NSMutableURLRequest *request =
+      [NSMutableURLRequest requestWithURL:[NSURL URLWithString:[base stringByAppendingString:@"/push"]]];
+  request.timeoutInterval = 30;
+  [request setValue:kUserAgent forHTTPHeaderField:@"User-Agent"];
+  [request setValue:deviceId forHTTPHeaderField:@"X-Device-Id"];
+  // Warnings are written in the language chosen in the app.
+  [request setValue:language forHTTPHeaderField:@"Accept-Language"];
+
+  if (![defaults boolForKey:kKeyEnabled] || token.length == 0 || !hasPlace) {
+    if (![defaults stringForKey:kKeyPushRegistered]) {
+      return;
+    }
+    request.HTTPMethod = @"DELETE";
+    [self send:request
+        session:NSURLSession.sharedSession
+           then:^(NSInteger status, NSData *body) {
+             if (status >= 200 && status < 500) {
+               [defaults removeObjectForKey:kKeyPushRegistered];
+             }
+           }];
+    return;
+  }
+  double latitude = [defaults doubleForKey:kKeyLatitude];
+  double longitude = [defaults doubleForKey:kKeyLongitude];
+  // The server rounds to the same ~10 km area, so moving inside it changes nothing.
+  NSString *registration =
+      [NSString stringWithFormat:@"%@|%@|%ld|%ld|%@", base, token, lround(latitude * 10),
+                                 lround(longitude * 10), language];
+  NSTimeInterval now = NSDate.date.timeIntervalSince1970;
+  if ([registration isEqualToString:[defaults stringForKey:kKeyPushRegistered]] &&
+      now - [defaults doubleForKey:kKeyPushRegisteredAt] < kPushRefresh) {
+    return;
+  }
+  request.HTTPMethod = @"PUT";
+  request.HTTPBody = [NSJSONSerialization dataWithJSONObject:@{
+    @"token" : token,
+    @"platform" : @"ios",
+    @"latitude" : @(latitude),
+    @"longitude" : @(longitude)
+  }
+                                                     options:0
+                                                       error:nil];
+  [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+  [self send:request
+      session:NSURLSession.sharedSession
+         then:^(NSInteger status, NSData *body) {
+           // Other answers (an older server without push, a refused value) are tried again later.
+           if (status >= 200 && status < 300) {
+             [defaults setObject:registration forKey:kKeyPushRegistered];
+             [defaults setDouble:now forKey:kKeyPushRegisteredAt];
+           }
+         }];
 }
 
 #pragma mark - The check (same steps as AlertWorker.kt)

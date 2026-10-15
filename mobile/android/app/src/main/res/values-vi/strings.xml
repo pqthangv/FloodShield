@@ -12,6 +12,9 @@
     <string name="widget_updated">Cập nhật %1$s</string>
     <string name="widget_open_app">Mở ứng dụng để cập nhật</string>
     <string name="widget_more">+%1$d</string>
+    <string name="widget_wind">Gió</string>
+    <string name="widget_feels_like">Cảm thấy</string>
+    <string name="widget_humidity">Độ ẩm</string>
     <string name="severity_info">Theo dõi</string>
     <string name="severity_moderate">Cảnh báo</string>
     <string name="severity_high">Nguy hiểm</string>

@@ -13,6 +13,9 @@
     <string name="widget_updated">Updated %1$s</string>
     <string name="widget_open_app">Open the app to update</string>
     <string name="widget_more">+%1$d</string>
+    <string name="widget_wind">Wind</string>
+    <string name="widget_feels_like">Feels like</string>
+    <string name="widget_humidity">Humidity</string>
     <string name="severity_info">Watch</string>
     <string name="severity_moderate">Warning</string>
     <string name="severity_high">Dangerous</string>

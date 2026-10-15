@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import com.floodshield.app.R
@@ -25,7 +26,12 @@ class SmallWidget : FloodShieldWidget(small = true)
 abstract class FloodShieldWidget(private val small: Boolean) : AppWidgetProvider() {
   // Also every 30 minutes (updatePeriodMillis), so an old check turns neutral by itself.
   override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-    manager.updateAppWidget(ids, WidgetRenderer.views(context, small))
+    for (id in ids) WidgetRenderer.update(context, manager, id, small)
+  }
+
+  // Its size on the home screen changed (e.g. another launcher grid): the details may (not) fit.
+  override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
+    manager.updateAppWidget(id, WidgetRenderer.views(context, small, options))
   }
 }
 
@@ -36,9 +42,13 @@ object WidgetRenderer {
   fun updateAll(context: Context) {
     val manager = AppWidgetManager.getInstance(context)
     for ((provider, small) in PROVIDERS) {
-      val ids = manager.getAppWidgetIds(ComponentName(context, provider))
-      if (ids.isNotEmpty()) manager.updateAppWidget(ids, views(context, small))
+      for (id in manager.getAppWidgetIds(ComponentName(context, provider))) update(context, manager, id, small)
     }
+  }
+
+  /** One widget, drawn for its own size on the home screen. */
+  fun update(context: Context, manager: AppWidgetManager, id: Int, small: Boolean) {
+    manager.updateAppWidget(id, views(context, small, manager.getAppWidgetOptions(id)))
   }
 
   /** Whether the user has put a widget on the home screen (the weather is only fetched for one). */
@@ -47,7 +57,7 @@ object WidgetRenderer {
     return PROVIDERS.any { (provider, _) -> manager.getAppWidgetIds(ComponentName(context, provider)).isNotEmpty() }
   }
 
-  fun views(context: Context, small: Boolean): RemoteViews {
+  fun views(context: Context, small: Boolean, options: Bundle?): RemoteViews {
     val snapshot = WidgetStore(context).load()
     // The app's language (Settings), not the phone's.
     val texts = inLanguage(context, AlertPrefs(context).language)
@@ -64,6 +74,23 @@ object WidgetRenderer {
           snapshot?.checkedAt?.takeIf { it > 0 }?.let {
             texts.getString(R.string.widget_updated, SimpleDateFormat("HH:mm", Locale.ROOT).format(Date(it)))
           } ?: "")
+    }
+
+    // Wind, feels like (and humidity on the 4 x 2), when there's room: the phone's height in
+    // portrait is the widget's largest height.
+    val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0) ?: 0
+    if (snapshot?.temperature != null && showDetails(small, height)) {
+      views.setViewVisibility(R.id.widget_details, View.VISIBLE)
+      views.setTextViewText(R.id.widget_wind_label, texts.getString(R.string.widget_wind))
+      views.setTextViewText(R.id.widget_wind, snapshot.windSpeed?.let { "${it.roundToInt()} km/h" } ?: "--")
+      views.setTextViewText(R.id.widget_feels_like_label, texts.getString(R.string.widget_feels_like))
+      views.setTextViewText(R.id.widget_feels_like, snapshot.feelsLike?.let { "${it.roundToInt()}°" } ?: "--")
+      if (!small) {
+        views.setTextViewText(R.id.widget_humidity_label, texts.getString(R.string.widget_humidity))
+        views.setTextViewText(R.id.widget_humidity, snapshot.humidity?.let { "${it.roundToInt()}%" } ?: "--")
+      }
+    } else {
+      views.setViewVisibility(R.id.widget_details, View.GONE)
     }
 
     when (val band = bandFor(snapshot, System.currentTimeMillis())) {

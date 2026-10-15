@@ -22,13 +22,18 @@ class WidgetStore(context: Context) {
     val update = parse(JSONObject(json))
     val old = load()
     val samePlace = old?.place == null || update.place == null || old.place == update.place
+    // The weather comes as a whole: without a temperature, nothing of it loaded.
+    val weather = if (update.temperature != null || old == null) update else old
     save(
         Snapshot(
             place = update.place ?: old?.place,
-            temperature = update.temperature ?: old?.temperature,
-            condition = if (update.temperature != null) update.condition else old?.condition,
-            icon = if (update.temperature != null) update.icon else old?.icon,
-            isDay = if (update.temperature != null) update.isDay else old?.isDay ?: true,
+            temperature = weather.temperature,
+            condition = weather.condition,
+            icon = weather.icon,
+            isDay = weather.isDay,
+            windSpeed = weather.windSpeed,
+            feelsLike = weather.feelsLike,
+            humidity = weather.humidity,
             alerts = update.alerts ?: old?.alerts?.takeIf { samePlace },
             checkedAt = if (update.alerts != null) update.checkedAt else if (samePlace) old?.checkedAt ?: 0 else 0,
         ))
@@ -48,10 +53,13 @@ class WidgetStore(context: Context) {
         old.copy(
             // The app's label (a city the user picked, in their language) wins over the server's.
             place = old.place ?: weather.optJSONObject("location")?.optString("name")?.ifEmpty { null },
-            temperature = current.optDouble("temperature").takeUnless { it.isNaN() } ?: old.temperature,
+            temperature = number(current, "temperature") ?: old.temperature,
             condition = current.optString("condition").ifEmpty { old.condition },
             icon = current.optString("icon").ifEmpty { old.icon },
             isDay = current.optBoolean("is_day", old.isDay),
+            windSpeed = number(current, "wind_speed") ?: old.windSpeed,
+            feelsLike = number(current, "apparent_temperature") ?: old.feelsLike,
+            humidity = number(current, "humidity") ?: old.humidity,
         ))
   }
 
@@ -63,6 +71,9 @@ class WidgetStore(context: Context) {
             .put("condition", snapshot.condition)
             .put("icon", snapshot.icon)
             .put("is_day", snapshot.isDay)
+            .put("wind_speed", snapshot.windSpeed)
+            .put("apparent_temperature", snapshot.feelsLike)
+            .put("humidity", snapshot.humidity)
             .put("checked_at", snapshot.checkedAt)
     snapshot.alerts?.let { list ->
       json.put(
@@ -75,13 +86,19 @@ class WidgetStore(context: Context) {
   private fun parse(json: JSONObject) =
       Snapshot(
           place = json.optString("place").ifEmpty { null }.takeUnless { json.isNull("place") },
-          temperature = if (json.isNull("temperature")) null else json.optDouble("temperature").takeUnless { it.isNaN() },
+          temperature = number(json, "temperature"),
           condition = json.optString("condition").ifEmpty { null }.takeUnless { json.isNull("condition") },
           icon = json.optString("icon").ifEmpty { null }.takeUnless { json.isNull("icon") },
           isDay = json.optBoolean("is_day", true),
+          windSpeed = number(json, "wind_speed"),
+          feelsLike = number(json, "apparent_temperature"),
+          humidity = number(json, "humidity"),
           alerts = if (json.isNull("alerts")) null else json.optJSONArray("alerts")?.let(::alertsOf),
           checkedAt = json.optLong("checked_at", 0),
       )
+
+  private fun number(json: JSONObject, key: String) =
+      if (json.isNull(key)) null else json.optDouble(key).takeUnless { it.isNaN() }
 
   private fun alertsOf(array: JSONArray) =
       (0 until array.length()).map { i ->

@@ -2,7 +2,10 @@ import {widgetSnapshot} from '../services/widget';
 import {Alert, WeatherData} from '../services/model';
 
 const weather = {
-  current: {temperature: 25.4, condition: 'Mưa vừa', icon: 'rain', is_day: true},
+  current: {
+    temperature: 25.4, condition: 'Mưa vừa', icon: 'rain', is_day: true,
+    wind_speed: 14, apparent_temperature: 28.1, humidity: 92,
+  },
 } as WeatherData;
 
 const alert = (severity: Alert['severity'], title: string) => ({id: title, severity, title}) as Alert;
@@ -16,6 +19,9 @@ test('the widget gets the weather and the alerts the app just loaded', () => {
     condition: 'Mưa vừa',
     icon: 'rain',
     is_day: true,
+    wind_speed: 14,
+    apparent_temperature: 28.1,
+    humidity: 92,
     alerts: [{title: 'Cảnh báo mưa rất to', severity: 'high'}, {title: 'Gió mạnh', severity: 'moderate'}],
     checked_at: 1000,
   });
@@ -34,6 +40,9 @@ test('a part that did not load stays empty, so the widget keeps what it had', ()
     condition: null,
     icon: null,
     is_day: true,
+    wind_speed: null,
+    apparent_temperature: null,
+    humidity: null,
     alerts: null,
     checked_at: 0,
   });

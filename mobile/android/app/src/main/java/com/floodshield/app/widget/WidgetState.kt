@@ -11,6 +11,11 @@ data class Snapshot(
     /** The app's weather icon key: clear, cloudy, drizzle, rain, thunderstorm or snow. */
     val icon: String? = null,
     val isDay: Boolean = true,
+    /** km/h */
+    val windSpeed: Double? = null,
+    val feelsLike: Double? = null,
+    /** % */
+    val humidity: Double? = null,
     /** null: no successful check yet for this place (or the last one failed). */
     val alerts: List<SnapshotAlert>? = null,
     /** When [alerts] were checked, in ms since 1970. */
@@ -43,6 +48,12 @@ fun bandFor(snapshot: Snapshot?, now: Long): Band {
   val top = alerts.maxByOrNull { SEVERITY_ORDER.indexOf(it.severity) } ?: return Band.Clear
   return Band.Warning(top.title, top.severity, alerts.size - 1)
 }
+
+/**
+ * The row with wind, "feels like" (and humidity on the 4 x 2) only fits when the launcher gives
+ * the widget this much height (dp); 0 means it didn't say.
+ */
+fun showDetails(small: Boolean, heightDp: Int) = heightDp >= if (small) 150 else 160
 
 /** The background check runs about every 30 minutes; a few missed runs are fine. */
 const val STALE_AFTER_MS = 3 * 60 * 60 * 1000L

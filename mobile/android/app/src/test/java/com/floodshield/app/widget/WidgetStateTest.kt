@@ -28,6 +28,15 @@ class WidgetStateTest {
   }
 
   @Test
+  fun `wind and feels-like only when there is room`() {
+    assertEquals(false, showDetails(small = false, heightDp = 0))
+    assertEquals(false, showDetails(small = false, heightDp = 110))
+    assertEquals(true, showDetails(small = false, heightDp = 200))
+    assertEquals(false, showDetails(small = true, heightDp = 110))
+    assertEquals(true, showDetails(small = true, heightDp = 160))
+  }
+
+  @Test
   fun `the most serious warning is shown, with how many others`() {
     val alerts =
         listOf(

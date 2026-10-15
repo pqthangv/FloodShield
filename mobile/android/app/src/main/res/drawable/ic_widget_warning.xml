@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A warning triangle with "!" cut out (white; tinted navy on the orange band). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2.5 L23,21.5 L1,21.5 Z M11,9 L13,9 L12.7,15.5 L11.3,15.5 Z M12,17 A1.2,1.2 0 1,1 11.999,17 Z" />
+</vector>

@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F5A1E70000000000000B001D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B001C /* PrivacyInfo.xcprivacy */; };
+		F5A1E70000000000000B000A /* FloodShieldWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0001 /* FloodShieldWidget.swift */; };
+		F5A1E70000000000000B000B /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0002 /* WidgetModel.swift */; };
+		F5A1E70000000000000B000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0003 /* Assets.xcassets */; };
+		F5A1E70000000000000B000D /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0007 /* WidgetKit.framework */; };
+		F5A1E70000000000000B000E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0008 /* SwiftUI.framework */; };
+		F5A1E70000000000000B000F /* FloodShieldWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0006 /* FloodShieldWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F5A1E70000000000000B0010 /* WidgetReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0009 /* WidgetReload.swift */; };
 		F5A1E7000000000000000A04 /* FSAlertScheduler.mm in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E7000000000000000A02 /* FSAlertScheduler.mm */; };
 		0C80B921A6F3F58F76C31292 /* libPods-FloodShield.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-FloodShield.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
@@ -15,7 +23,49 @@
 		13B07FC01A68108700A75B9A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXTargetDependency section */
+		F5A1E70000000000000B001A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F5A1E70000000000000B0015 /* FloodShieldWidgetExtension */;
+			targetProxy = F5A1E70000000000000B0019 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F5A1E70000000000000B0014 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F5A1E70000000000000B000F /* FloodShieldWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		F5A1E70000000000000B0019 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F5A1E70000000000000B0015;
+			remoteInfo = FloodShieldWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		F5A1E70000000000000B001C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		F5A1E70000000000000B0001 /* FloodShieldWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloodShieldWidget.swift; sourceTree = "<group>"; };
+		F5A1E70000000000000B0002 /* WidgetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetModel.swift; sourceTree = "<group>"; };
+		F5A1E70000000000000B0003 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F5A1E70000000000000B0004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F5A1E70000000000000B0005 /* FloodShieldWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FloodShieldWidget.entitlements; sourceTree = "<group>"; };
+		F5A1E70000000000000B0006 /* FloodShieldWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FloodShieldWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5A1E70000000000000B0007 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		F5A1E70000000000000B0008 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		F5A1E70000000000000B0009 /* WidgetReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetReload.swift; path = FloodShield/WidgetReload.swift; sourceTree = "<group>"; };
 		F5A1E7000000000000000A01 /* FSAlertScheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FSAlertScheduler.h; path = FloodShield/FSAlertScheduler.h; sourceTree = "<group>"; };
 		F5A1E7000000000000000A02 /* FSAlertScheduler.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = FSAlertScheduler.mm; path = FloodShield/FSAlertScheduler.mm; sourceTree = "<group>"; };
 		F5A1E7000000000000000A03 /* FloodShield-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "FloodShield-Bridging-Header.h"; path = "FloodShield/FloodShield-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -32,6 +82,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		F5A1E70000000000000B0012 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5A1E70000000000000B000E /* SwiftUI.framework in Frameworks */,
+				F5A1E70000000000000B000D /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		13B07F8C1A680F5B00A75B9A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -43,11 +102,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F5A1E70000000000000B001B /* FloodShieldWidget */ = {
+			isa = PBXGroup;
+			children = (
+				F5A1E70000000000000B0001 /* FloodShieldWidget.swift */,
+				F5A1E70000000000000B0002 /* WidgetModel.swift */,
+				F5A1E70000000000000B0003 /* Assets.xcassets */,
+				F5A1E70000000000000B0004 /* Info.plist */,
+				F5A1E70000000000000B0005 /* FloodShieldWidget.entitlements */,
+				F5A1E70000000000000B001C /* PrivacyInfo.xcprivacy */,
+			);
+			path = FloodShieldWidget;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* FloodShield */ = {
 			isa = PBXGroup;
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				F5A1E70000000000000B0009 /* WidgetReload.swift */,
 				F5A1E7000000000000000A01 /* FSAlertScheduler.h */,
 				F5A1E7000000000000000A02 /* FSAlertScheduler.mm */,
 				F5A1E7000000000000000A03 /* FloodShield-Bridging-Header.h */,
@@ -63,6 +136,8 @@
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				5DCACB8F33CDC322A6C60F78 /* libPods-FloodShield.a */,
+				F5A1E70000000000000B0007 /* WidgetKit.framework */,
+				F5A1E70000000000000B0008 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -78,6 +153,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07FAE1A68108700A75B9A /* FloodShield */,
+				F5A1E70000000000000B001B /* FloodShieldWidget */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -92,6 +168,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* FloodShield.app */,
+				F5A1E70000000000000B0006 /* FloodShieldWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,6 +185,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		F5A1E70000000000000B0015 /* FloodShieldWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F5A1E70000000000000B0016 /* Build configuration list for PBXNativeTarget "FloodShieldWidgetExtension" */;
+			buildPhases = (
+				F5A1E70000000000000B0011 /* Sources */,
+				F5A1E70000000000000B0012 /* Frameworks */,
+				F5A1E70000000000000B0013 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FloodShieldWidgetExtension;
+			productName = FloodShieldWidgetExtension;
+			productReference = F5A1E70000000000000B0006 /* FloodShieldWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		13B07F861A680F5B00A75B9A /* FloodShield */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "FloodShield" */;
@@ -116,6 +210,7 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				F5A1E70000000000000B0014 /* Embed Foundation Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
@@ -123,6 +218,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				F5A1E70000000000000B001A /* PBXTargetDependency */,
 			);
 			name = FloodShield;
 			productName = FloodShield;
@@ -140,6 +236,9 @@
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1120;
 					};
+					F5A1E70000000000000B0015 = {
+						CreatedOnToolsVersion = 15.0;
+					};
 				};
 			};
 			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "FloodShield" */;
@@ -156,11 +255,21 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* FloodShield */,
+				F5A1E70000000000000B0015 /* FloodShieldWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		F5A1E70000000000000B0013 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5A1E70000000000000B000C /* Assets.xcassets in Resources */,
+				F5A1E70000000000000B001D /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		13B07F8E1A680F5B00A75B9A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -249,11 +358,21 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		F5A1E70000000000000B0011 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5A1E70000000000000B000A /* FloodShieldWidget.swift in Sources */,
+				F5A1E70000000000000B000B /* WidgetModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		13B07F871A680F5B00A75B9A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				F5A1E70000000000000B0010 /* WidgetReload.swift in Sources */,
 				F5A1E7000000000000000A04 /* FSAlertScheduler.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -261,6 +380,57 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		F5A1E70000000000000B0017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = FloodShieldWidget/FloodShieldWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = FloodShieldWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.4;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.floodshield.app.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		F5A1E70000000000000B0018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = FloodShieldWidget/FloodShieldWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = FloodShieldWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.4;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.floodshield.app.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-FloodShield.debug.xcconfig */;
@@ -277,7 +447,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -313,7 +483,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.3;
+				MARKETING_VERSION = 1.0.4;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -475,6 +645,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		F5A1E70000000000000B0016 /* Build configuration list for PBXNativeTarget "FloodShieldWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F5A1E70000000000000B0017 /* Debug */,
+				F5A1E70000000000000B0018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "FloodShield" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

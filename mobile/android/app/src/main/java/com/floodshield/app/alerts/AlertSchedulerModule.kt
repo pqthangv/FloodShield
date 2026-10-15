@@ -9,6 +9,8 @@ import androidx.work.WorkManager
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableArray
 import com.floodshield.app.specs.NativeAlertSchedulerSpec
+import com.floodshield.app.widget.WidgetRenderer
+import com.floodshield.app.widget.WidgetStore
 import java.util.concurrent.TimeUnit
 
 /** JS entry point for the background alert checker (specs/NativeAlertScheduler.ts). */
@@ -35,6 +37,8 @@ class AlertSchedulerModule(reactContext: ReactApplicationContext) :
     AlertWorker.createChannel(reactApplicationContext)
     // Registers for rain-warning pushes, or removes the registration when alerts are off.
     PushRegistration.update(reactApplicationContext)
+    // The widget's own texts follow the language chosen in the app.
+    WidgetRenderer.updateAll(reactApplicationContext)
 
     if (!enabled) {
       workManager.cancelUniqueWork(PERIODIC_WORK)
@@ -50,6 +54,11 @@ class AlertSchedulerModule(reactContext: ReactApplicationContext) :
 
   override fun setRiver(river: String) {
     prefs.river = river
+  }
+
+  override fun setWidget(snapshot: String) {
+    WidgetStore(reactApplicationContext).saveFromApp(snapshot)
+    WidgetRenderer.updateAll(reactApplicationContext)
   }
 
   override fun markSeen(ids: ReadableArray) {

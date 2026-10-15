@@ -28,7 +28,7 @@ static const int FORECAST_DAYS = 16;
 
 /// Must match BGTaskSchedulerPermittedIdentifiers in Info.plist, or iOS refuses to register it.
 static NSString *const kTaskId = @"com.floodshield.app.alerts";
-static NSString *const kUserAgent = @"FloodShield/1.0.3 (iOS app; https://github.com/pqthangv/FloodShield)";
+static NSString *const kUserAgent = @"FloodShield/1.0.4 (iOS app; https://github.com/pqthangv/FloodShield)";
 /// iOS treats this as "not before": it decides when the check really runs.
 static const NSTimeInterval kInterval = 30 * 60;
 static const NSUInteger kMaxSeen = 300;
@@ -48,6 +48,17 @@ static NSString *const kKeyPushRegisteredAt = @"fs_alerts_push_registered_at";
 /// The server forgets phones that don't check in for 60 days; refresh once a day.
 static const NSTimeInterval kPushRefresh = 24 * 60 * 60;
 
+// The home-screen widget (FloodShieldWidget/), which reads what is saved in this App Group.
+static NSString *const kWidgetGroup = @"group.com.floodshield.app";
+static NSString *const kWidgetSnapshot = @"fs_widget_snapshot";
+static NSString *const kWidgetLanguage = @"fs_widget_language";
+/// The widget notes when it last drew (WidgetModel.swift); recently means it's on the home screen.
+static NSString *const kWidgetShownAt = @"fs_widget_seen_at";
+static const NSTimeInterval kWidgetActive = 24 * 60 * 60;
+
+/// WidgetReload.swift: WidgetKit can only be used from Swift.
+extern "C" void FSReloadWidgets(void);
+
 static double Snap(double value)
 {
   return round(round(value / SNAP_STEP) * SNAP_STEP * 10000) / 10000;
@@ -56,6 +67,17 @@ static double Snap(double value)
 static NSString *StringOrEmpty(id value)
 {
   return [value isKindOfClass:NSString.class] ? value : @"";
+}
+
+static NSString *_Nullable StringOrNil(id value)
+{
+  return [value isKindOfClass:NSString.class] && [(NSString *)value length] > 0 ? value : nil;
+}
+
+/// The widget snapshot's weather values, which come as a whole (as in WidgetStore.kt).
+static NSArray<NSString *> *WidgetWeatherKeys(void)
+{
+  return @[ @"temperature", @"condition", @"icon", @"is_day", @"wind_speed", @"apparent_temperature", @"humidity" ];
 }
 
 typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
@@ -136,6 +158,9 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
   [defaults setBool:enabled forKey:kKeyEnabled];
   [defaults setObject:language forKey:kKeyLanguage];
   [defaults setObject:deviceId forKey:kKeyDeviceId];
+  // The widget's own texts follow the language chosen in the app.
+  [[FSAlertScheduler widgetDefaults] setObject:language forKey:kWidgetLanguage];
+  FSReloadWidgets();
 
   if (!enabled) {
     [BGTaskScheduler.sharedScheduler cancelTaskRequestWithIdentifier:kTaskId];
@@ -163,6 +188,12 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 - (void)setRiver:(NSString *)river
 {
   [NSUserDefaults.standardUserDefaults setObject:river forKey:kKeyRiver];
+}
+
+/// What the home-screen widget shows, from the app (services/widget.ts).
+- (void)setWidget:(NSString *)snapshot
+{
+  [FSAlertScheduler saveWidgetFromApp:snapshot];
 }
 
 - (void)markSeen:(NSArray *)ids
@@ -419,8 +450,23 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
                                          // data: let it fetch.
                                          if (postStatus == 404 || postStatus == 405 || postStatus == 422) {
                                            serverFetches();
+                                           return;
+                                         }
+                                         BOOL ok = [self handleAlertsResponse:postStatus body:postBody];
+                                         // The widget, when there is one: the weather now, from the
+                                         // same forecast (one more request, so only then).
+                                         if (ok && !cancelled && [self widgetIsShown]) {
+                                           [self fetchWidgetWeather:forecast
+                                                           latitude:latitude
+                                                          longitude:longitude
+                                                               base:base
+                                                           language:language
+                                                            session:session
+                                                               then:^{
+                                                                 finish(ok);
+                                                               }];
                                          } else {
-                                           finish([self handleAlertsResponse:postStatus body:postBody]);
+                                           finish(ok);
                                          }
                                        }];
                               }];
@@ -503,6 +549,7 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
   if (![alerts isKindOfClass:NSArray.class]) {
     return NO;
   }
+  [self saveWidgetAlerts:alerts];
   NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
   NSMutableOrderedSet *seen =
       [NSMutableOrderedSet orderedSetWithArray:[defaults stringArrayForKey:kKeySeen] ?: @[]];
@@ -547,6 +594,149 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
     }
   }
   [self saveSeen:seen];
+}
+
+#pragma mark - Home-screen widget (same steps as widget/WidgetStore.kt on Android)
+
++ (NSUserDefaults *)widgetDefaults
+{
+  return [[NSUserDefaults alloc] initWithSuiteName:kWidgetGroup];
+}
+
++ (nullable NSMutableDictionary *)loadWidgetSnapshot
+{
+  NSData *data = [[[self widgetDefaults] stringForKey:kWidgetSnapshot] dataUsingEncoding:NSUTF8StringEncoding];
+  id json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  return [json isKindOfClass:NSDictionary.class] ? [json mutableCopy] : nil;
+}
+
+/// Saves the snapshot as JSON (what WidgetModel.swift reads) and redraws the widget.
++ (void)saveWidgetSnapshot:(NSDictionary *)snapshot
+{
+  NSData *data = [NSJSONSerialization dataWithJSONObject:snapshot options:0 error:nil];
+  if (!data) {
+    return;
+  }
+  [[self widgetDefaults] setObject:[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]
+                            forKey:kWidgetSnapshot];
+  FSReloadWidgets();
+}
+
+/// From the app: what it shows now. A part it couldn't load (null) keeps the saved one, except the
+/// alerts of another place.
++ (void)saveWidgetFromApp:(NSString *)json
+{
+  NSData *data = [json dataUsingEncoding:NSUTF8StringEncoding];
+  id update = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  if (![update isKindOfClass:NSDictionary.class]) {
+    return;
+  }
+  NSDictionary *old = [self loadWidgetSnapshot];
+  NSString *oldPlace = StringOrNil(old[@"place"]);
+  NSString *newPlace = StringOrNil(update[@"place"]);
+  BOOL samePlace = !oldPlace || !newPlace || [oldPlace isEqualToString:newPlace];
+  NSMutableDictionary *snapshot = [NSMutableDictionary new];
+  if (newPlace ?: oldPlace) {
+    snapshot[@"place"] = newPlace ?: oldPlace;
+  }
+  // The weather comes as a whole: without a temperature, nothing of it loaded.
+  NSDictionary *weather = ([update[@"temperature"] isKindOfClass:NSNumber.class] || !old) ? update : old;
+  for (NSString *key in WidgetWeatherKeys()) {
+    id value = weather[key];
+    if (value && value != NSNull.null) {
+      snapshot[key] = value;
+    }
+  }
+  id checkedAt = update[@"checked_at"];
+  if ([update[@"alerts"] isKindOfClass:NSArray.class]) {
+    snapshot[@"alerts"] = update[@"alerts"];
+    snapshot[@"checked_at"] = [checkedAt isKindOfClass:NSNumber.class] ? checkedAt : @0;
+  } else if (samePlace && [old[@"alerts"] isKindOfClass:NSArray.class]) {
+    snapshot[@"alerts"] = old[@"alerts"];
+    snapshot[@"checked_at"] = [old[@"checked_at"] isKindOfClass:NSNumber.class] ? old[@"checked_at"] : @0;
+  } else {
+    snapshot[@"checked_at"] = @0;
+  }
+  [self saveWidgetSnapshot:snapshot];
+}
+
+/// From the background check: the alerts it just got, now.
++ (void)saveWidgetAlerts:(NSArray *)alerts
+{
+  NSMutableDictionary *snapshot = [self loadWidgetSnapshot] ?: [NSMutableDictionary new];
+  NSMutableArray *list = [NSMutableArray new];
+  for (id alert in alerts) {
+    if ([alert isKindOfClass:NSDictionary.class]) {
+      [list addObject:@{
+        @"title" : StringOrEmpty(alert[@"title"]),
+        @"severity" : StringOrEmpty(alert[@"severity"])
+      }];
+    }
+  }
+  snapshot[@"alerts"] = list;
+  snapshot[@"checked_at"] = @(floor(NSDate.date.timeIntervalSince1970 * 1000));
+  [self saveWidgetSnapshot:snapshot];
+}
+
+/// From the background check: POST /weather's answer (the weather now and the place name).
++ (void)saveWidgetWeather:(NSDictionary *)weather
+{
+  NSDictionary *current = weather[@"current"];
+  if (![current isKindOfClass:NSDictionary.class]) {
+    return;
+  }
+  NSMutableDictionary *snapshot = [self loadWidgetSnapshot] ?: [NSMutableDictionary new];
+  // The app's label (a city the user picked, in their language) wins over the server's.
+  NSDictionary *location = weather[@"location"];
+  if (!StringOrNil(snapshot[@"place"]) && [location isKindOfClass:NSDictionary.class] &&
+      StringOrNil(location[@"name"])) {
+    snapshot[@"place"] = location[@"name"];
+  }
+  for (NSString *key in WidgetWeatherKeys()) {
+    id value = current[key];
+    if (value && value != NSNull.null) {
+      snapshot[key] = value;
+    }
+  }
+  [self saveWidgetSnapshot:snapshot];
+}
+
+/// Whether a widget drew lately, i.e. one is on the home screen.
++ (BOOL)widgetIsShown
+{
+  double shownAt = [[self widgetDefaults] doubleForKey:kWidgetShownAt];
+  return shownAt > 0 && NSDate.date.timeIntervalSince1970 - shownAt < kWidgetActive;
+}
+
+/// The weather for the widget (POST /weather, from the forecast just downloaded); then() always.
++ (void)fetchWidgetWeather:(NSDictionary *)forecast
+                  latitude:(double)latitude
+                 longitude:(double)longitude
+                      base:(NSString *)base
+                  language:(NSString *)language
+                   session:(NSURLSession *)session
+                      then:(void (^)(void))then
+{
+  NSMutableURLRequest *post =
+      [NSMutableURLRequest requestWithURL:[NSURL URLWithString:[base stringByAppendingString:@"/weather"]]];
+  post.HTTPMethod = @"POST";
+  post.HTTPBody = [NSJSONSerialization
+      dataWithJSONObject:@{@"latitude" : @(latitude), @"longitude" : @(longitude), @"forecast" : forecast}
+                 options:0
+                   error:nil];
+  [post setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+  [post setValue:language forHTTPHeaderField:@"Accept-Language"];
+  [self send:post
+      session:session
+         then:^(NSInteger status, NSData *body) {
+           id json = (status >= 200 && status < 300 && body)
+               ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil]
+               : nil;
+           if ([json isKindOfClass:NSDictionary.class]) {
+             [self saveWidgetWeather:json];
+           }
+           then();
+         }];
 }
 
 /// Keeps the most recent ids, so the list can't grow forever.

@@ -27,6 +27,11 @@ export interface Spec extends TurboModule {
    * {latitude, longitude, cell, annual_maxima}. The worker downloads only that river's forecast.
    */
   setRiver(river: string): void;
+  /**
+   * What the home-screen widget shows, as JSON (services/widget.ts): what the app has just loaded.
+   * Android only for now; on iOS it does nothing until the iPhone widget exists.
+   */
+  setWidget(snapshot: string): void;
   /** Alerts already shown inside the app, so the worker does not notify them again. */
   markSeen(ids: string[]): void;
   /** Runs one check immediately (useful for testing). */

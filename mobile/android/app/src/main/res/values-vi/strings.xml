@@ -4,4 +4,19 @@
     <string name="alert_channel_description">Cảnh báo lũ lụt, mưa lớn, bão và thiên tai tại vị trí của bạn</string>
     <string name="reminder_channel_name">Nhắc trời mưa</string>
     <string name="reminder_channel_description">Buổi sáng nhắc mang ô khi trong ngày có thể có mưa</string>
+
+    <string name="widget_medium_description">Thời tiết và cảnh báo thiên tai nơi bạn ở</string>
+    <string name="widget_small_description">Cảnh báo nơi bạn ở, xem nhanh</string>
+    <string name="widget_no_alerts">Không có cảnh báo cho khu vực của bạn</string>
+    <string name="widget_no_alerts_short">Không có cảnh báo</string>
+    <string name="widget_updated">Cập nhật %1$s</string>
+    <string name="widget_open_app">Mở ứng dụng để cập nhật</string>
+    <string name="widget_more">+%1$d</string>
+    <string name="widget_wind">Gió</string>
+    <string name="widget_feels_like">Cảm thấy</string>
+    <string name="widget_humidity">Độ ẩm</string>
+    <string name="severity_info">Theo dõi</string>
+    <string name="severity_moderate">Cảnh báo</string>
+    <string name="severity_high">Nguy hiểm</string>
+    <string name="severity_severe">Rất nguy hiểm</string>
 </resources>

@@ -2,6 +2,7 @@ package com.floodshield.app
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -13,10 +14,20 @@ class MainActivity : ReactActivity() {
    * Edge-to-edge on every Android version, the way Google Play checks for it. Android 15+ forces
    * it anyway; React Native then sets the same up itself (edgeToEdgeEnabled in gradle.properties),
    * so the screens look the same either way.
+   *
+   * The splash screen (LaunchTheme) shows the logo while the app opens; afterwards the same logo
+   * stays in the window background (AppTheme) until React Native draws the first screen.
+   *
+   * null, not savedInstanceState: when Android closed the app in the background and the user comes
+   * back, it would rebuild react-native-screens' screens from the saved state, and they refuse to
+   * ("Unable to instantiate fragment ... ScreenStackFragment"): a crash on start. The screens come
+   * from JavaScript anyway, so the app simply opens fresh. (The library's RNScreensFragmentFactory
+   * spots its screens by class name, which R8 renames in release builds.)
    */
   override fun onCreate(savedInstanceState: Bundle?) {
+    installSplashScreen()
     enableEdgeToEdge()
-    super.onCreate(savedInstanceState)
+    super.onCreate(null)
   }
 
   /**

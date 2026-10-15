@@ -14,6 +14,8 @@ import androidx.core.content.ContextCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.floodshield.app.R
+import com.floodshield.app.widget.WidgetRenderer
+import com.floodshield.app.widget.WidgetStore
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -30,12 +32,12 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     val lat = prefs.latitude ?: return Result.success()
     val lon = prefs.longitude ?: return Result.success()
 
+    // The phone downloads the forecast and the river data itself (see services/openMeteo.ts and
+    // glofas.ts) and the server turns them into alerts. What the phone couldn't get, the server
+    // tries to fetch itself.
+    val forecast = fetchForecast(lat, lon)
     val alerts =
         try {
-          // The phone downloads the forecast and the river data itself (see services/openMeteo.ts
-          // and glofas.ts) and the server turns them into alerts. What the phone couldn't get,
-          // the server tries to fetch itself.
-          val forecast = fetchForecast(lat, lon)
           (forecast?.let { postAlerts(baseUrl, lat, lon, it, fetchRiver(prefs.river, lat, lon), prefs.language) })
               ?: request("$baseUrl/alerts?lat=$lat&lon=$lon", prefs.language).alerts()
         } catch (e: IOException) {
@@ -43,6 +45,16 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
         } catch (e: Exception) {
           return Result.failure()
         }
+
+    // The home-screen widget: these alerts, and the weather now when there is a widget to show it
+    // (one more request, so only then). With alerts turned off this check doesn't run, and the
+    // widget turns neutral after a few hours (WidgetState.kt) until the app is opened.
+    val widget = WidgetStore(applicationContext)
+    widget.saveAlerts(alerts, System.currentTimeMillis())
+    if (forecast != null && WidgetRenderer.hasWidgets(applicationContext)) {
+      postWeather(baseUrl, lat, lon, forecast, prefs.language)?.let(widget::saveWeather)
+    }
+    WidgetRenderer.updateAll(applicationContext)
 
     val seen = prefs.seenIds()
     for (i in 0 until alerts.length()) {
@@ -113,6 +125,16 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     val response = request("$baseUrl/alerts", language, body.toString())
     return if (response.first in setOf(404, 405, 422)) null else response.alerts()
   }
+
+  /** Current weather and place name for the widget (POST /weather, from the same forecast). */
+  private fun postWeather(baseUrl: String, lat: Double, lon: Double, forecast: JSONObject, language: String) =
+      try {
+        val body = JSONObject().put("latitude", lat).put("longitude", lon).put("forecast", forecast)
+        val (code, text) = request("$baseUrl/weather", language, body.toString())
+        if (code in 200..299) JSONObject(text) else null
+      } catch (e: Exception) {
+        null
+      }
 
   /** (HTTP status, body). Throws IOException when there is no connection. */
   private fun request(

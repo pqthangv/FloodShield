@@ -17,6 +17,7 @@ import {fetchFloodData, haversineKm} from '../services/glofas';
 import {fetchForecast} from '../services/openMeteo';
 import {prefetchShelters} from '../services/shelters';
 import storage, {SavedLocation} from '../services/storage';
+import {updateWidget, widgetSnapshot} from '../services/widget';
 import {
   markAlertsSeen,
   rememberRiver,
@@ -91,8 +92,12 @@ export const AppProvider = ({
     // waiting for the river data, which takes longer the first time (20 years of history).
     const flood = fetchFloodData(loc.latitude, loc.longitude);
     const forecast = await fetchForecast(loc.latitude, loc.longitude);
+    // For the home-screen widget: null when that part didn't load.
+    let loadedWeather: WeatherData | null = null;
+    let loadedAlerts: Alert[] | null = null;
     const weatherShown = disasterAPI.getWeather(loc.latitude, loc.longitude, forecast).then(
       value => {
+        loadedWeather = value;
         setWeather(value);
         setWeatherError(null);
       },
@@ -105,6 +110,7 @@ export const AppProvider = ({
       })
       .then(
         value => {
+          loadedAlerts = value.alerts;
           setAlerts(value.alerts);
           setAlertsError(null);
           setAlertsChecked(true);
@@ -116,6 +122,9 @@ export const AppProvider = ({
         },
       );
     await Promise.all([weatherShown, alertsShown]);
+    // Without the weather, a GPS place has no name yet ("Your location"): keep the widget's.
+    const place = loadedWeather || loc.mode === 'manual' ? locationLabel(loc, loadedWeather) : null;
+    updateWidget(widgetSnapshot(place, loadedWeather, loadedAlerts, Date.now()));
     // Then the shelters, which take longest: the shelters screen opens with them (shelters.ts).
     prefetchShelters(loc.latitude, loc.longitude, getLanguage());
     lastFetch.current = Date.now();

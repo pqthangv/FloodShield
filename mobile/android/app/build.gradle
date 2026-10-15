@@ -145,6 +145,8 @@ dependencies {
     implementation("androidx.activity:activity:1.8.1")
     // The logo while the app opens, the same on every Android version (MainActivity.kt).
     implementation("androidx.core:core-splashscreen:1.2.0")
+    // Unit tests of the widget's rules (src/test).
+    testImplementation("junit:junit:4.13.2")
     // Rain warnings by push notification (alerts/PushService.kt).
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")

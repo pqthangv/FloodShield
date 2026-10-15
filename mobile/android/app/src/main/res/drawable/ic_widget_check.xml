@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "All clear": a white circle with a green tick, like the app (components/CheckBadge.tsx). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M12,0 A12,12 0 1,1 11.999,0 Z" />
+    <path
+        android:strokeColor="#2E7D32"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M6.5,12.5 L10.5,16.5 L17.5,8.5" />
+</vector>

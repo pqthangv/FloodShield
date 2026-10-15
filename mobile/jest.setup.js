@@ -36,7 +36,7 @@ jest.mock('react-native-image-picker', () => ({
 
 jest.mock('./specs/NativeAlertScheduler', () => ({
   __esModule: true,
-  default: {configure: jest.fn(), setRiver: jest.fn(), markSeen: jest.fn(), checkNow: jest.fn()},
+  default: {configure: jest.fn(), setRiver: jest.fn(), setWidget: jest.fn(), markSeen: jest.fn(), checkNow: jest.fn()},
 }));
 
 jest.mock('react-native-safe-area-context', () => {

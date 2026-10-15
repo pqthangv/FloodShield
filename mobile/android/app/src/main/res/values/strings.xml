@@ -4,4 +4,17 @@
     <string name="alert_channel_description">Flood, heavy rain, storm and other disaster alerts for your location</string>
     <string name="reminder_channel_name">Rain reminders</string>
     <string name="reminder_channel_description">A morning reminder to take an umbrella when rain is likely during the day</string>
+
+    <!-- Home-screen widget (widget/). Shown in the app's language, not the phone's (WidgetRenderer). -->
+    <string name="widget_medium_description">Weather and disaster warnings where you are</string>
+    <string name="widget_small_description">Warnings where you are, at a glance</string>
+    <string name="widget_no_alerts">No alerts for your area</string>
+    <string name="widget_no_alerts_short">No alerts</string>
+    <string name="widget_updated">Updated %1$s</string>
+    <string name="widget_open_app">Open the app to update</string>
+    <string name="widget_more">+%1$d</string>
+    <string name="severity_info">Watch</string>
+    <string name="severity_moderate">Warning</string>
+    <string name="severity_high">Dangerous</string>
+    <string name="severity_severe">Very dangerous</string>
 </resources>

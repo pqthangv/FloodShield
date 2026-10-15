@@ -165,6 +165,12 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
   [NSUserDefaults.standardUserDefaults setObject:river forKey:kKeyRiver];
 }
 
+// The home-screen widget's data (specs/NativeAlertScheduler.ts). Android only for now: the iPhone
+// widget comes with feature/widget-ios.
+- (void)setWidget:(NSString *)snapshot
+{
+}
+
 - (void)markSeen:(NSArray *)ids
 {
   [FSAlertScheduler rememberSeen:ids];

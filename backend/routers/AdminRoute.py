@@ -3,15 +3,15 @@ header matching the ADMIN_TOKEN environment variable. Use them from http://<serv
 browser asks for a login: any username, the ADMIN_TOKEN as password)."""
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import settings
 from database import get_db
 from models.alert_model import ManualAlert, ManualAlertCreate
-from models.post_model import BannedDevice, Post
+from models.post_model import BannedDevice, Post, PostImage
 from models.shelter_model import Shelter, ShelterCreate
-from routers.PostRoute import delete_device_data, to_response
+from routers.PostRoute import delete_device_data, image_url, to_response
 from services import alerts
 
 
@@ -76,14 +76,29 @@ async def delete_shelter(shelter_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/posts/reported")
 async def reported_posts(request: Request, db: AsyncSession = Depends(get_db)):
-    """Posts that received at least one abuse report (hidden ones included)."""
+    """Posts that received at least one abuse report (hidden ones included). A hidden post's
+    photo only opens at admin_image_url."""
     rows = (
         await db.execute(select(Post).where(Post.report_count > 0).order_by(Post.report_count.desc()))
     ).scalars().all()
     return [
-        {**to_response(request, p, None, set()).model_dump(), "report_count": p.report_count, "hidden": p.hidden}
+        {
+            **to_response(request, p, None, set()).model_dump(),
+            "report_count": p.report_count,
+            "hidden": p.hidden,
+            "admin_image_url": image_url(request, p.image_path, admin=True),
+        }
         for p in rows
     ]
+
+
+@router.get("/images/{name}")
+async def post_photo(name: str, db: AsyncSession = Depends(get_db)):
+    """The photo of any post, hidden ones included, to decide whether to restore the post."""
+    image = await db.get(PostImage, name)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return Response(content=image.data, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/posts/{post_id}/restore")

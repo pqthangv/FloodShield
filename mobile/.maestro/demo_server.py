@@ -1,10 +1,13 @@
-"""The FloodShield server for the store screenshots, with a rainy sky.
+"""The FloodShield server for the store screenshots, with a clear sunny sky.
 
-The sample warning is about heavy rain (demo_data.py), but the weather on screen would be the real
-weather in Huế at that moment, often sunny. So this copy of the server shows moderate rain, in the
-daytime, as the current weather. Only that changes: the hourly and daily forecast, the river and
-the automatic warnings stay real. Only the screenshot runs start it (.github/workflows/ios.yml); the
-live server runs main:app and never loads this file.
+The weather on screen would be the real weather in Huế at that moment, which can be anything. So
+this copy of the server shows a sunny afternoon as the current weather (the smiling sun looks best
+in the store); the sample warning is about heavy rain from tonight (demo_data.py), which fits it.
+Only that changes: the hourly and daily forecast, the river and the automatic warnings stay real.
+Only the screenshot runs start it (.github/workflows/ios.yml); the live server runs main:app and
+never loads this file.
+
+The sun on the sunrise/sunset curve follows the phone's real clock: at night it isn't on the curve.
 
 Usage, from backend/: python -m uvicorn --app-dir ../mobile/.maestro demo_server:app --port 8000
 """
@@ -17,20 +20,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 from main import app  # noqa: E402,F401
 from services import weather  # noqa: E402
 
-RAIN = {
-    "weather_code": 63,  # "Mưa vừa" / "Moderate rain": the rain picture
-    "temperature_2m": 25.4,
-    "apparent_temperature": 28.1,
-    "relative_humidity_2m": 92,
-    "precipitation": 2.3,
+SUNNY = {
+    "weather_code": 0,  # "Trời quang" / "Clear sky": the smiling sun
+    "temperature_2m": 30.2,
+    "apparent_temperature": 34.1,
+    "relative_humidity_2m": 66,
+    "precipitation": 0,
     "is_day": 1,  # daytime, whatever the hour of the run
 }
 
 real_normalize_forecast = weather.normalize_forecast
 
 
-def rainy_normalize_forecast(raw: dict, *args, **kwargs) -> dict:
-    return real_normalize_forecast({**raw, "current": {**raw.get("current", {}), **RAIN}}, *args, **kwargs)
+def sunny_normalize_forecast(raw: dict, *args, **kwargs) -> dict:
+    return real_normalize_forecast({**raw, "current": {**raw.get("current", {}), **SUNNY}}, *args, **kwargs)
 
 
-weather.normalize_forecast = rainy_normalize_forecast
+weather.normalize_forecast = sunny_normalize_forecast

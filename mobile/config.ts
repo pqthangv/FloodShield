@@ -16,7 +16,7 @@ const PROD_API_URL = 'https://floodshield-api-ese8.onrender.com/api/v1';
 export const DEFAULT_API_URL = __DEV__ ? DEV_API_URL : PROD_API_URL;
 
 // Same as package.json, versionName (Android) and MARKETING_VERSION (Xcode); a backend test checks.
-export const APP_VERSION = '1.0.3';
+export const APP_VERSION = '1.0.4';
 
 /**
  * Sent when the phone calls Overpass and Open-Meteo itself. OpenStreetMap's usage policy asks apps

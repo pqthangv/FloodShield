@@ -8,6 +8,7 @@ import {SEVERITY_COLOR, severityLabel} from '../../services/format';
 import {useI18n} from '../../i18n';
 import SunPath from './SunPath';
 import {useTourTarget} from '../tour/Tour';
+import CheckBadge from '../CheckBadge';
 
 const AdditionalInfo = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -87,8 +88,8 @@ const AdditionalInfo = () => {
           </View>
         </TouchableOpacity>
       ) : (
-        // Green and ✅ only when the check was done and found nothing: before that, after an
-        // error or without a location, it must not look like "all clear".
+        // Green and the tick only when the check was done and found nothing: before that, after
+        // an error or without a location, it must not look like "all clear".
         <View
           ref={alertsTarget}
           collapsable={false}
@@ -96,8 +97,10 @@ const AdditionalInfo = () => {
           <View style={styles.warningHeader}>
             {checking ? (
               <ActivityIndicator color="white" style={styles.checkingIcon} />
+            ) : allClear ? (
+              <CheckBadge size={vw(5.5)} style={styles.checkBadge} />
             ) : (
-              <Text style={styles.warningIcon}>{allClear ? '✅' : '⚠️'}</Text>
+              <Text style={styles.warningIcon}>⚠️</Text>
             )}
             <Text style={styles.warningTitle}>
               {alertsError
@@ -188,6 +191,9 @@ const styles = StyleSheet.create({
   warningIcon: {
     fontSize: vw(5),
     color: 'white',
+    marginRight: vw(2),
+  },
+  checkBadge: {
     marginRight: vw(2),
   },
   checkingIcon: {

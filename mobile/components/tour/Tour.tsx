@@ -158,7 +158,13 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
   const root = useRef<ViewInstance>(null);
   const [size, setSize] = useState({width: 0, height: 0});
   const [step, setStep] = useState(0);
-  const [hole, setHole] = useState<Rect | null>(null);
+  // The last measured element and its step. On "Next" the box stays by the previous element until
+  // the new one is measured; clearing it first sent the box to the middle for a moment.
+  const [found, setFound] = useState<{step: number; rect: Rect | null} | null>(null);
+  const hole = found?.rect ?? null;
+  // Until then the spotlight, the ring and the pointer are hidden: after a scroll they'd be in the
+  // wrong place.
+  const located = found?.step === step;
   const bounce = useRef(new Animated.Value(0)).current;
   const atLocation = step >= STEPS.length;
 
@@ -176,7 +182,6 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
   // Find the element: scroll it into view if needed, then measure it relative to this overlay.
   // Without a measurement (not drawn yet, or in tests) the caption is shown in the middle.
   useEffect(() => {
-    setHole(null);
     if (atLocation || !size.height) {
       return;
     }
@@ -185,12 +190,17 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
     let scrolled = false;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const later = (fn: () => void, ms: number) => timers.push(setTimeout(fn, ms));
+    const retry = () => {
+      if (tries++ < 20) {
+        later(measure, 100);
+      } else {
+        setFound({step, rect: null});
+      }
+    };
     const measure = () => {
       const node = api.targets.current[STEPS[step].target];
       if (!node || !root.current) {
-        if (tries++ < 20) {
-          later(measure, 100);
-        }
+        retry();
         return;
       }
       root.current.measureInWindow((rootX, rootY) => {
@@ -199,9 +209,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
             return;
           }
           if (!width || !height) {
-            if (tries++ < 20) {
-              later(measure, 100);
-            }
+            retry();
             return;
           }
           const rect = {x: x - rootX, y: y - rootY, width, height};
@@ -215,7 +223,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
             later(measure, 150);
             return;
           }
-          setHole(rect);
+          setFound({step, rect});
         });
       });
     };
@@ -246,14 +254,14 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
       {size.width > 0 && (
         <Svg width={size.width} height={size.height} style={StyleSheet.absoluteFill}>
           <Path
-            d={dimPath(size.width, size.height, atLocation ? null : hole)}
+            d={dimPath(size.width, size.height, atLocation || !located ? null : hole)}
             fill="rgba(9,19,40,0.78)"
             fillRule="evenodd"
           />
         </Svg>
       )}
 
-      {!atLocation && hole && (
+      {!atLocation && hole && located && (
         <>
           <View
             pointerEvents="none"

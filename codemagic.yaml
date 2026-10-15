@@ -9,6 +9,10 @@
 #   3. Code signing identities: generate an Apple Distribution certificate, create an
 #      "App Store Connect" profile for com.floodshield.app at developer.apple.com, then
 #      Fetch profiles. ios_signing below only uses profiles already there; it creates none.
+#   4. The home-screen widget (ios/FloodShieldWidget) is a second bundle, com.floodshield.app.widget,
+#      with its own profile ("FloodShield Widget App Store"). Both IDs need the App Group
+#      group.com.floodshield.app. bundle_identifier below also picks up com.floodshield.app.*
+#      profiles, and use-profiles signs each target with its own.
 workflows:
   ios-testflight:
     name: iOS to TestFlight

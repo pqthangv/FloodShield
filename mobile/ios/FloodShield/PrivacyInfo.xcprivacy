@@ -18,6 +18,8 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
+				<!-- The App Group shared with the home-screen widget (FSAlertScheduler.mm). -->
+				<string>1C8F.1</string>
 			</array>
 		</dict>
 		<dict>

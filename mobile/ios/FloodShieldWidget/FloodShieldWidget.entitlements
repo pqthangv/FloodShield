@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The box shared with the app, where it saves what the widget shows (WidgetModel.swift). -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.floodshield.app</string>
+	</array>
+</dict>
+</plist>

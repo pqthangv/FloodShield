@@ -335,6 +335,38 @@ async def test_admin_bans_an_abusive_author(client):
 
 
 @pytest.mark.asyncio
+async def test_photo_of_a_hidden_post_is_hidden_too(client):
+    author = {"X-Device-Id": "device-ffff-6666"}
+    admin = {"X-Admin-Token": "test-admin"}
+    form = {"author_name": "Mai", "description": "Nước lên nhanh", "latitude": "16.46", "longitude": "107.59"}
+    post = (await client.post("/api/v1/posts", data=form, headers=author,
+                              files={"image": ("photo.jpg", jpeg_bytes(), "image/jpeg")})).json()
+    photo = post["image_url"]
+    name = photo.rsplit("/", 1)[1]
+    assert (await client.get(photo)).status_code == 200
+
+    # Three reports hide the post, and its photo with it, for anyone who still has the link.
+    for headers in (OTHER, THIRD, {"X-Device-Id": "device-dddd-4444"}):
+        await client.post(f"/api/v1/posts/{post['id']}/report", json={"reason": "sai"}, headers=headers)
+    assert (await client.get(photo)).status_code == 404
+
+    # The admin still sees it, from the list of reported posts.
+    assert (await client.get(f"/api/v1/admin/images/{name}")).status_code == 401
+    reported = (await client.get("/api/v1/admin/posts/reported", headers=admin)).json()
+    entry = next(p for p in reported if p["id"] == post["id"])
+    assert entry["hidden"] and entry["admin_image_url"] == f"http://test/api/v1/admin/images/{name}"
+    seen = await client.get(entry["admin_image_url"], headers=admin)
+    assert seen.status_code == 200 and seen.headers["content-type"] == "image/jpeg"
+    assert seen.headers["cache-control"] == "no-store"
+    assert Image.open(io.BytesIO(seen.content)).size == (1600, 800)
+
+    # Restoring the post brings the photo back.
+    await client.post(f"/api/v1/admin/posts/{post['id']}/restore", headers=admin)
+    assert (await client.get(photo)).status_code == 200
+    await client.delete("/api/v1/me", headers=author)
+
+
+@pytest.mark.asyncio
 async def test_contact_email_for_the_app(client, monkeypatch):
     monkeypatch.setattr(main.settings, "contact_email", "")
     assert (await client.get("/api/v1/contact")).json() == {"email": None}

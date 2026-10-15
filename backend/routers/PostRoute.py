@@ -46,11 +46,11 @@ def author_id(device_id: str) -> str:
     return hashlib.sha256(device_id.encode()).hexdigest()[:16]
 
 
-def image_url(request: Request, path: Optional[str]) -> Optional[str]:
+def image_url(request: Request, path: Optional[str], admin: bool = False) -> Optional[str]:
     if not path:
         return None
     base = public_base_url() or str(request.base_url).rstrip("/")
-    return f"{base}/api/v1/images/{path}"
+    return f"{base}/api/v1/{'admin/' if admin else ''}images/{path}"
 
 
 def to_response(request: Request, post: Post, device_id: Optional[str], confirmed: set[int],
@@ -160,7 +160,11 @@ async def list_posts(
 @router.get("/images/{name}", include_in_schema=False)
 async def get_image(name: str, db: AsyncSession = Depends(get_db), lang: Lang = Depends(get_lang)):
     image = await db.get(PostImage, name)
-    if image is None:
+    # The photo of a hidden post is hidden too: whoever saw the post before still has the link.
+    # It stays in the database so the admin can look at it before restoring the post
+    # (/admin/images/<name>).
+    hidden = await db.scalar(select(Post.id).where(Post.image_path == name, Post.hidden.is_(True)).limit(1))
+    if image is None or hidden is not None:
         raise HTTPException(status_code=404, detail=t(lang, "err_image_not_found"))
     # Names are random and never reused, so phones may cache them for good.
     return Response(

@@ -37,6 +37,15 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
+// The colour at the bottom of each tab's screen. It fills the square behind the tab bar's rounded
+// top corners: the bar sits below the screen, so the navigator's light grey showed there.
+const SCREEN_BOTTOM: Record<string, string> = {
+  Home: '#FFFFFF',
+  Predict: '#1F2D54',
+  Abilities: '#C9E5FF',
+  Report: '#FFFFFF',
+};
+
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
   const {t} = useI18n();
@@ -67,23 +76,22 @@ const TabNavigator = () => {
   return (
     <Tab.Navigator
       initialRouteName="Home"
-      screenOptions={{
+      screenOptions={({route}) => ({
         tabBarActiveTintColor: '#1F2D54',
         tabBarInactiveTintColor: '#FFFFFF',
         tabBarShowLabel: false,
         tabBarStyle: {
           borderTopWidth: 0,
-          backgroundColor: '#1F2D54',
+          backgroundColor: SCREEN_BOTTOM[route.name],
           // Leave room for the Android navigation bar (the app draws edge-to-edge).
           height: vh(7) + insets.bottom,
           paddingTop: vh(1),
           paddingBottom: insets.bottom,
-          borderTopLeftRadius: 10,
-          borderTopRightRadius: 10,
-          elevation: 20,
+          elevation: 0,
         },
+        tabBarBackground: () => <View style={styles.tabBar} />,
         headerShown: false,
-      }}>
+      })}>
       <Tab.Screen
         name="Home"
         component={Home}
@@ -158,6 +166,14 @@ const styles = StyleSheet.create({
   iconContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // The navy bar itself, drawn over the screen's colour (SCREEN_BOTTOM).
+  tabBar: {
+    flex: 1,
+    backgroundColor: '#1F2D54',
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    elevation: 20,
   },
 });
 

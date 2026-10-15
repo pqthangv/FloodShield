@@ -33,6 +33,7 @@ import {
   rainIconXml,
   directionIconXml,
 } from '../../assets/svgIcon';
+import CheckBadge from '../CheckBadge';
 
 function formatWhen(alert: Alert) {
   if (!alert.starts_at) {
@@ -71,7 +72,11 @@ const CanhBaoTab = () => {
   if (alerts.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyIcon}>{alertsError || !location ? '⚠️' : '✅'}</Text>
+        {alertsError || !location ? (
+          <Text style={styles.emptyIcon}>⚠️</Text>
+        ) : (
+          <CheckBadge size={vw(11)} style={styles.emptyBadge} />
+        )}
         <Text style={styles.emptyText}>
           {alertsError ||
             (location
@@ -242,6 +247,9 @@ const styles = StyleSheet.create({
   emptyIcon: {
     fontSize: vw(10),
     marginBottom: vh(1),
+  },
+  emptyBadge: {
+    marginBottom: vh(1.5),
   },
   emptyText: {
     color: 'white',

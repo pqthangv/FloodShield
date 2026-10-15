@@ -7,8 +7,7 @@ Only that changes: the hourly and daily forecast, the river and the automatic wa
 Only the screenshot runs start it (.github/workflows/ios.yml); the live server runs main:app and
 never loads this file.
 
-The sun on the sunrise/sunset curve follows the phone's real clock, so take the screenshots in the
-daytime in Vietnam (about 09:00-14:00, 02:00-07:00 UTC).
+The sun on the sunrise/sunset curve follows the phone's real clock: at night it isn't on the curve.
 
 Usage, from backend/: python -m uvicorn --app-dir ../mobile/.maestro demo_server:app --port 8000
 """

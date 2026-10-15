@@ -73,7 +73,8 @@ jobs:
       # ---- Screenshots (only when asked) ------------------------------------------------------
       # Maestro taps through the main screens (.maestro/screenshots.yaml). Places, shelters, river
       # data and the forecast are real; the warning and the posts are samples (.maestro/demo_data.py),
-      # and the current weather is rain to match the warning (.maestro/demo_server.py).
+      # and the current weather is a sunny sky (.maestro/demo_server.py). Run it in the daytime in
+      # Vietnam (about 02:00-07:00 UTC): the sun on the sunrise/sunset curve follows the real clock.
       - uses: actions/setup-python@v7
         if: env.SCREENSHOTS == 'true'
         with:

@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "weather_snow.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

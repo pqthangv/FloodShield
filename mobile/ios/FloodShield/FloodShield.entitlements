@@ -6,5 +6,11 @@
 	     for Debug builds, production for Release builds (TestFlight and the App Store). -->
 	<key>aps-environment</key>
 	<string>$(APS_ENVIRONMENT)</string>
+	<!-- The box shared with the home-screen widget (FloodShieldWidget/), where the app saves what
+	     it shows (FSAlertScheduler.mm). -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.floodshield.app</string>
+	</array>
 </dict>
 </plist>

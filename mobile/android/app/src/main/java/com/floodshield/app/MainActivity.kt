@@ -2,6 +2,7 @@ package com.floodshield.app
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -13,8 +14,12 @@ class MainActivity : ReactActivity() {
    * Edge-to-edge on every Android version, the way Google Play checks for it. Android 15+ forces
    * it anyway; React Native then sets the same up itself (edgeToEdgeEnabled in gradle.properties),
    * so the screens look the same either way.
+   *
+   * The splash screen (LaunchTheme) shows the logo while the app opens; afterwards the same logo
+   * stays in the window background (AppTheme) until React Native draws the first screen.
    */
   override fun onCreate(savedInstanceState: Bundle?) {
+    installSplashScreen()
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
   }

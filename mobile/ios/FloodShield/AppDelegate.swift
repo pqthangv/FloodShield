@@ -52,6 +52,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
+  // The logo of the launch screen stays until the first screen is drawn, on a slow phone too:
+  // without it iOS shows an empty screen (black in dark mode) while the app's JavaScript starts.
+  override func customize(_ rootView: RCTRootView) {
+    super.customize(rootView)
+    rootView.backgroundColor = .white
+    if let launch = UIStoryboard(name: "LaunchScreen", bundle: nil).instantiateInitialViewController()?.view {
+      rootView.loadingView = launch
+    }
+  }
+
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     self.bundleURL()
   }

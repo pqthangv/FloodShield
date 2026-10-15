@@ -17,11 +17,17 @@ class MainActivity : ReactActivity() {
    *
    * The splash screen (LaunchTheme) shows the logo while the app opens; afterwards the same logo
    * stays in the window background (AppTheme) until React Native draws the first screen.
+   *
+   * null, not savedInstanceState: when Android closed the app in the background and the user comes
+   * back, it would rebuild react-native-screens' screens from the saved state, and they refuse to
+   * ("Unable to instantiate fragment ... ScreenStackFragment"): a crash on start. The screens come
+   * from JavaScript anyway, so the app simply opens fresh. (The library's RNScreensFragmentFactory
+   * spots its screens by class name, which R8 renames in release builds.)
    */
   override fun onCreate(savedInstanceState: Bundle?) {
     installSplashScreen()
     enableEdgeToEdge()
-    super.onCreate(savedInstanceState)
+    super.onCreate(null)
   }
 
   /**

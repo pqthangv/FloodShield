@@ -13,6 +13,7 @@ Only the Python standard library, so the job installs nothing.
 import json
 import os
 import sys
+import time
 import urllib.parse
 import urllib.request
 
@@ -26,6 +27,8 @@ DAILY_VARS = "precipitation_sum"
 FORECAST_DAYS = 3
 # Places per Open-Meteo request, and per post to the server.
 BATCH = 100
+# Open-Meteo sometimes fails for a moment (503 twice on 2026-10-16): wait this long, then try once more.
+RETRY_WAIT_SECONDS = 60
 USER_AGENT = "FloodShield rain-push job (https://github.com/pqthangv/FloodShield)"
 
 
@@ -49,7 +52,13 @@ def forecasts_for(areas):
         "timezone": "auto",
         "forecast_days": FORECAST_DAYS,
     })
-    found = call(f"{FORECAST_URL}?{query}")
+    url = f"{FORECAST_URL}?{query}"
+    try:
+        found = call(url)
+    except OSError as error:  # HTTP errors, timeouts and lost connections
+        print(f"Open-Meteo failed ({error}), trying again in {RETRY_WAIT_SECONDS} s")
+        time.sleep(RETRY_WAIT_SECONDS)
+        found = call(url)
     # One place gives one object, several places a list in the same order.
     found = found if isinstance(found, list) else [found]
     if len(found) != len(areas):

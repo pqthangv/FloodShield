@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import {View} from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Geolocation from '@react-native-community/geolocation';
@@ -50,6 +51,27 @@ async function open() {
 
 const shown = (tree: ReactTestRenderer.ReactTestRenderer) => visibleText(tree.toJSON());
 
+/**
+ * Jest's views have no size and never answer a measurement, so the tour would wait (GIVE_UP_MS)
+ * before its first box. As on a phone: the tour's overlay gets the screen, every element a place in
+ * its top half, and the tour measures the alerts card.
+ */
+async function layOutTour(tree: ReactTestRenderer.ReactTestRenderer) {
+  const overlay = tree.root.find(node => node.type === View && node.props.accessibilityViewIsModal);
+  for (const node of tree.root.findAll(n => n.type === View && n.instance)) {
+    const rect = node === overlay ? [0, 0, 390, 844] : [20, 300, 350, 120];
+    node.instance.measureInWindow = (done: (...r: number[]) => void) => done(...rect);
+  }
+  await ReactTestRenderer.act(async () => {
+    overlay.props.onLayout({nativeEvent: {layout: {x: 0, y: 0, width: 390, height: 844}}});
+  });
+  await tourMeasured();
+}
+
+/** The tour shows a step once its button is measured, 50 ms after the step starts. */
+const tourMeasured = () =>
+  ReactTestRenderer.act(() => new Promise<void>(resolve => setTimeout(() => resolve(), 100)));
+
 /** Taps the button with this label. */
 async function tap(tree: ReactTestRenderer.ReactTestRenderer, label: string) {
   const [button] = tree.root.findAll(
@@ -69,10 +91,13 @@ beforeEach(async () => {
 
 test('first launch: a tour over the home screen, and the location only after it explains why', async () => {
   const tree = await open();
+  await layOutTour(tree);
   expect(shown(tree)).toContain('Cảnh báo mưa lớn, lũ và bão cho nơi bạn ở hiện ở đây.');
   await tap(tree, 'Tiếp');
+  await tourMeasured();
   expect(shown(tree)).toContain('Bấm vào đây để tìm nơi sơ tán gần nhất, kể cả khi mất mạng.');
   await tap(tree, 'Tiếp');
+  await tourMeasured();
   expect(shown(tree)).toContain('Bấm vào đây để gọi cấp cứu, cứu hỏa hoặc công an.');
   await tap(tree, 'Tiếp');
   expect(shown(tree)).toContain('Ứng dụng cần vị trí của bạn');
@@ -92,6 +117,7 @@ test('first launch: a tour over the home screen, and the location only after it 
 
 test('Skip still explains the location before it is asked for', async () => {
   const tree = await open();
+  await layOutTour(tree);
   await tap(tree, 'Bỏ qua');
   expect(shown(tree)).toContain('Ứng dụng cần vị trí của bạn');
   expect(gps).not.toHaveBeenCalled();

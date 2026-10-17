@@ -46,9 +46,16 @@ interface Rect {
   height: number;
 }
 
+interface ScrollState {
+  view: ScrollViewInstance | null;
+  offset: number;
+  // The overlay, told each new offset: the lit element moves with the screen.
+  listener: ((offset: number) => void) | null;
+}
+
 interface TourApi {
   targets: React.MutableRefObject<Partial<Record<TargetId, ViewInstance | null>>>;
-  scroll: React.MutableRefObject<{view: ScrollViewInstance | null; offset: number}>;
+  scroll: React.MutableRefObject<ScrollState>;
 }
 
 const TourContext = createContext<TourApi | null>(null);
@@ -81,6 +88,7 @@ export function useTourScroll() {
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       if (tour) {
         tour.scroll.current.offset = event.nativeEvent.contentOffset.y;
+        tour.scroll.current.listener?.(event.nativeEvent.contentOffset.y);
       }
     },
     [tour],
@@ -114,10 +122,7 @@ export const TourProvider = ({
   children: React.ReactNode;
 }) => {
   const targets = useRef<Partial<Record<TargetId, ViewInstance | null>>>({});
-  const scroll = useRef<{view: ScrollViewInstance | null; offset: number}>({
-    view: null,
-    offset: 0,
-  });
+  const scroll = useRef<ScrollState>({view: null, offset: 0, listener: null});
   const api = useMemo(() => ({targets, scroll}), []);
   return (
     <TourContext.Provider value={api}>
@@ -132,6 +137,10 @@ export const TourProvider = ({
 const PAD = vw(2);
 const RADIUS = vw(4);
 const POINTER = vw(12);
+// An element not found in this time (still loading, or a phone that never answers the
+// measurement) gets the box in the middle of the screen: never a dimmed screen without buttons.
+// The measuring itself gives up after 20 tries, about 2 s.
+export const GIVE_UP_MS = 2500;
 
 /** The whole screen, minus a rounded hole around `hole`. */
 function dimPath(width: number, height: number, hole: Rect | null) {
@@ -158,15 +167,35 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
   const root = useRef<ViewInstance>(null);
   const [size, setSize] = useState({width: 0, height: 0});
   const [step, setStep] = useState(0);
-  // The last measured element and its step. On "Next" the box stays by the previous element until
-  // the new one is measured; clearing it first sent the box to the middle for a moment.
-  const [found, setFound] = useState<{step: number; rect: Rect | null} | null>(null);
-  const hole = found?.rect ?? null;
-  // Until then the spotlight, the ring and the pointer are hidden: after a scroll they'd be in the
-  // wrong place.
-  const located = found?.step === step;
+  // The last measured element: its step, where it was, and the screen's scroll offset then. On
+  // "Next" the previous step stays as it was (sentence, lit element, ring, pointer) until the new
+  // element is measured, then all of it changes in one frame: changing the sentence and dimming the
+  // element first, and moving the box a moment later, looked like a flash.
+  const [found, setFound] = useState<{step: number; rect: Rect | null; offset: number} | null>(null);
+  // When the tour scrolls the screen to the next element, the lit one moves with the screen.
+  const [offset, setOffset] = useState(api.scroll.current.offset);
+  useEffect(() => {
+    api.scroll.current.listener = setOffset;
+    return () => {
+      api.scroll.current.listener = null;
+    };
+  }, [api]);
+  const hole = found?.rect ? {...found.rect, y: found.rect.y + found.offset - offset} : null;
+  // The step whose sentence is shown: the new one once its element is found, or at once when the
+  // previous one had none to light (its box was in the middle: nothing to keep).
+  const shownStep = found?.rect && found.step < step ? found.step : step;
   const bounce = useRef(new Animated.Value(0)).current;
   const atLocation = step >= STEPS.length;
+  // Nothing at all until the first element is found (or given up), then the dimming, the lit
+  // element and the box fade in together: dimming first and lighting the element a moment later
+  // looked like a flash.
+  const started = found !== null;
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (started) {
+      Animated.timing(fade, {toValue: 1, duration: 200, useNativeDriver: true}).start();
+    }
+  }, [started, fade]);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -180,7 +209,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
   }, [bounce]);
 
   // Find the element: scroll it into view if needed, then measure it relative to this overlay.
-  // Without a measurement (not drawn yet, or in tests) the caption is shown in the middle.
+  // When it can't be measured, the caption is shown in the middle.
   useEffect(() => {
     if (atLocation || !size.height) {
       return;
@@ -194,7 +223,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
       if (tries++ < 20) {
         later(measure, 100);
       } else {
-        setFound({step, rect: null});
+        setFound({step, rect: null, offset: api.scroll.current.offset});
       }
     };
     const measure = () => {
@@ -219,11 +248,14 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
           if (offScreen && !scrolled && scrollView) {
             scrolled = true;
             const target = api.scroll.current.offset + rect.y - size.height * 0.35;
-            scrollView.scrollTo({y: Math.max(0, target), animated: false});
-            later(measure, 150);
+            // Smoothly: the lit element follows the screen (onScroll) a frame late, which only
+            // shows when the screen jumps. Measured again once it has mostly moved; if it still
+            // moves after that, the new element follows it the same way.
+            scrollView.scrollTo({y: Math.max(0, target), animated: true});
+            later(measure, 350);
             return;
           }
-          setFound({step, rect});
+          setFound({step, rect, offset: api.scroll.current.offset});
         });
       });
     };
@@ -233,6 +265,18 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
       timers.forEach(clearTimeout);
     };
   }, [api, step, atLocation, size.height, insets.top]);
+
+  // Even without a layout or an answer to the measurement (see GIVE_UP_MS).
+  useEffect(() => {
+    if (atLocation) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const now = api.scroll.current.offset;
+      setFound(last => (last?.step === step ? last : {step, rect: null, offset: now}));
+    }, GIVE_UP_MS);
+    return () => clearTimeout(timer);
+  }, [api, step, atLocation]);
 
   const next = () => setStep(step + 1);
   // Skip still shows why the app needs the location: the permission request follows it.
@@ -251,67 +295,71 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
       style={StyleSheet.absoluteFill}
       onLayout={e => setSize(e.nativeEvent.layout)}
       accessibilityViewIsModal>
-      {size.width > 0 && (
-        <Svg width={size.width} height={size.height} style={StyleSheet.absoluteFill}>
-          <Path
-            d={dimPath(size.width, size.height, atLocation || !located ? null : hole)}
-            fill="rgba(9,19,40,0.78)"
-            fillRule="evenodd"
-          />
-        </Svg>
-      )}
+      {started && (
+        <Animated.View style={[StyleSheet.absoluteFill, {opacity: fade}]}>
+          {size.width > 0 && (
+            <Svg width={size.width} height={size.height} style={StyleSheet.absoluteFill}>
+              <Path
+                d={dimPath(size.width, size.height, atLocation ? null : hole)}
+                fill="rgba(9,19,40,0.78)"
+                fillRule="evenodd"
+              />
+            </Svg>
+          )}
 
-      {!atLocation && hole && located && (
-        <>
-          <View
-            pointerEvents="none"
-            style={[
-              styles.ring,
-              {
-                left: hole.x - PAD,
-                top: hole.y - PAD,
-                width: hole.width + 2 * PAD,
-                height: hole.height + 2 * PAD,
-              },
-            ]}
-          />
-          <Animated.Text
-            style={[
-              styles.pointer,
-              {left: hole.x + hole.width / 2 - POINTER / 2, transform: [{translateY: bounce}]},
-              captionBelow
-                ? {top: hole.y + hole.height + PAD}
-                : {top: hole.y - PAD - POINTER * 1.25},
-            ]}>
-            {captionBelow ? '👆' : '👇'}
-          </Animated.Text>
-        </>
-      )}
+          {!atLocation && hole && (
+            <>
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.ring,
+                  {
+                    left: hole.x - PAD,
+                    top: hole.y - PAD,
+                    width: hole.width + 2 * PAD,
+                    height: hole.height + 2 * PAD,
+                  },
+                ]}
+              />
+              <Animated.Text
+                style={[
+                  styles.pointer,
+                  {left: hole.x + hole.width / 2 - POINTER / 2, transform: [{translateY: bounce}]},
+                  captionBelow
+                    ? {top: hole.y + hole.height + PAD}
+                    : {top: hole.y - PAD - POINTER * 1.25},
+                ]}>
+                {captionBelow ? '👆' : '👇'}
+              </Animated.Text>
+            </>
+          )}
 
-      {!atLocation ? (
-        <View style={[styles.caption, captionPosition]}>
-          <Text style={styles.captionText}>{t(STEPS[step].text)}</Text>
-          <View style={styles.row}>
-            <TouchableOpacity onPress={skip} style={styles.skip} accessibilityRole="button">
-              <Text style={styles.skipText}>{t('tourSkip')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={next} style={styles.next} accessibilityRole="button">
-              <Text style={styles.nextText}>{t('tourNext')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <View style={[styles.caption, styles.locationCard, {top: insets.top + vh(6)}]}>
-          {/* Scrolls when the phone's text size is very large. */}
-          <ScrollView>
-            <Text style={styles.locationIcon}>📍</Text>
-            <Text style={styles.locationTitle}>{t('tourLocationTitle')}</Text>
-            <Text style={styles.locationText}>{t('tourLocationText')}</Text>
-          </ScrollView>
-          <TouchableOpacity onPress={onFinish} style={styles.continue} accessibilityRole="button">
-            <Text style={styles.nextText}>{t('tourContinue')}</Text>
-          </TouchableOpacity>
-        </View>
+          {!atLocation ? (
+            <View style={[styles.caption, captionPosition]}>
+              <Text style={styles.captionText}>{t(STEPS[shownStep].text)}</Text>
+              <View style={styles.row}>
+                <TouchableOpacity onPress={skip} style={styles.skip} accessibilityRole="button">
+                  <Text style={styles.skipText}>{t('tourSkip')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={next} style={styles.next} accessibilityRole="button">
+                  <Text style={styles.nextText}>{t('tourNext')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.caption, styles.locationCard, {top: insets.top + vh(6)}]}>
+              {/* Scrolls when the phone's text size is very large. */}
+              <ScrollView>
+                <Text style={styles.locationIcon}>📍</Text>
+                <Text style={styles.locationTitle}>{t('tourLocationTitle')}</Text>
+                <Text style={styles.locationText}>{t('tourLocationText')}</Text>
+              </ScrollView>
+              <TouchableOpacity onPress={onFinish} style={styles.continue} accessibilityRole="button">
+                <Text style={styles.nextText}>{t('tourContinue')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Animated.View>
       )}
     </View>
   );

@@ -27,6 +27,13 @@ test('the widget gets the weather and the alerts the app just loaded', () => {
   });
 });
 
+test("the widget shows the server's short words, or the long ones from an older server", () => {
+  const storm = {current: {...weather.current, condition: 'Thunderstorm', condition_short: 'Storm'}} as WeatherData;
+  expect(widgetSnapshot('Huế', storm, [], 1000).condition).toBe('Storm');
+  const older = {current: {...weather.current, condition: 'Thunderstorm'}} as WeatherData;
+  expect(widgetSnapshot('Huế', older, [], 1000).condition).toBe('Thunderstorm');
+});
+
 test('no alerts is "all clear", but a failed check is "not known"', () => {
   expect(widgetSnapshot('Huế', weather, [], 1000)).toMatchObject({alerts: [], checked_at: 1000});
   // The check failed: the widget must not turn green.

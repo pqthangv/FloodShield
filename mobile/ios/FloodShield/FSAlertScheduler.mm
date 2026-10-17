@@ -698,6 +698,11 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
       snapshot[key] = value;
     }
   }
+  // The widget's short words (servers before 1.0.5 only send the long ones), as in WidgetStore.kt.
+  NSString *shortWords = StringOrNil(current[@"condition_short"]);
+  if (shortWords) {
+    snapshot[@"condition"] = shortWords;
+  }
   [self saveWidgetSnapshot:snapshot];
 }
 

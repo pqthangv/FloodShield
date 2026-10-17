@@ -135,9 +135,26 @@ async def test_weather_is_normalized(client):
     data = (await client.get("/api/v1/weather", params={"lat": 10.77, "lon": 106.7})).json()
     assert data["location"]["name"] == "Phường Test"
     assert data["current"]["condition"] == "Mưa vừa"
+    assert data["current"]["condition_short"] == "Mưa vừa"
     assert data["current"]["icon"] == "rain"
     assert data["hourly"][0]["time"] == "2026-10-04T10:00"
     assert len(data["daily"]) == 3
+
+
+@pytest.mark.parametrize("lang", ["vi", "en"])
+def test_widget_words_are_short_and_keep_what_matters(lang):
+    """The widget's words fit (the long ones were cut to "Thu…"), and still tell light from heavy
+    rain, a downpour and hail."""
+    for code in [*weather.WMO_CODES, 12345, None]:
+        words = weather.widget_words(code, lang)
+        assert words and len(words) <= 12, (code, words)
+    pick = lambda vi, en: en if lang == "en" else vi
+    assert weather.widget_words(95, lang) == pick("Dông", "Storm")
+    assert weather.widget_words(99, lang) == pick("Dông, mưa đá", "Storm, hail")
+    assert weather.widget_words(61, lang) == pick("Mưa nhỏ", "Light rain")
+    assert weather.widget_words(65, lang) == pick("Mưa to", "Heavy rain")
+    assert weather.widget_words(82, lang) == pick("Mưa rào to", "Downpour")
+    assert weather.widget_words(3, lang) == weather.describe(3, lang)[0]
 
 
 @pytest.mark.asyncio

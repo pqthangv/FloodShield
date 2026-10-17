@@ -26,8 +26,8 @@
 
             <ImageView
                 android:id="@+id/widget_icon"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
                 android:importantForAccessibility="no"
                 android:src="@drawable/widget_weather_cloudy_day" />
 
@@ -38,9 +38,10 @@
                 android:layout_weight="1"
                 android:gravity="end"
                 android:includeFontPadding="false"
+                android:maxLines="1"
                 android:text="--°"
                 android:textColor="#1F2D54"
-                android:textSize="28sp"
+                android:textSize="26sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -50,7 +51,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:ellipsize="end"
-            android:maxLines="2"
+            android:maxLines="1"
             android:text="@string/app_name"
             android:textColor="#1F2D54"
             android:textSize="13sp" />
@@ -85,7 +86,7 @@
                     android:text="@string/widget_wind"
                     android:textAllCaps="true"
                     android:textColor="#5A6E8C"
-                    android:textSize="12sp" />
+                    android:textSize="11sp" />
 
                 <TextView
                     android:id="@+id/widget_wind"
@@ -95,7 +96,7 @@
                     android:maxLines="1"
                     android:text="--"
                     android:textColor="#1F2D54"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -114,7 +115,7 @@
                     android:text="@string/widget_feels_like"
                     android:textAllCaps="true"
                     android:textColor="#5A6E8C"
-                    android:textSize="12sp" />
+                    android:textSize="11sp" />
 
                 <TextView
                     android:id="@+id/widget_feels_like"
@@ -124,7 +125,7 @@
                     android:maxLines="1"
                     android:text="--"
                     android:textColor="#1F2D54"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
@@ -141,7 +142,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/widget_band_unknown"
         android:gravity="center_vertical"
-        android:minHeight="40dp"
+        android:minHeight="36dp"
         android:orientation="horizontal"
         android:paddingStart="10dp"
         android:paddingTop="4dp"
@@ -162,6 +163,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:ellipsize="end"
+            android:gravity="center_vertical"
             android:maxLines="2"
             android:text="@string/widget_open_app"
             android:textColor="#FFFFFF"

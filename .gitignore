@@ -5,6 +5,8 @@
 .DS_Store
 Thumbs.db
 .vscode/
+# Python's caches, anywhere (scripts/, mobile/.maestro/; backend/ has its own rule)
+__pycache__/
 docs/screenshots/raw/
 deploy/.env
 

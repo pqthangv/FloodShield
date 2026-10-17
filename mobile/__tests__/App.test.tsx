@@ -60,7 +60,7 @@ async function tap(tree: ReactTestRenderer.ReactTestRenderer, label: string) {
   await ReactTestRenderer.act(async () => button.props.onPress());
 }
 
-const gps = Geolocation.getCurrentPosition as jest.Mock;
+const gps = Geolocation.watchPosition as jest.Mock;
 
 beforeEach(async () => {
   await AsyncStorage.clear();

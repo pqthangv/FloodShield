@@ -1,6 +1,6 @@
 {
   "name": "floodshield",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
   "scripts": {
     "android": "adb reverse tcp:8000 tcp:8000 & react-native run-android",

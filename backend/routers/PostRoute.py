@@ -145,10 +145,6 @@ async def list_posts(
     """Recent community reports, newest first. Pass lat/lon to only get reports nearby."""
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
     query = select(Post).where(Post.hidden.is_(False), Post.created_at >= since)
-    if x_device_id:
-        # A post this phone reported stays gone for it, before the reports hide it for everyone.
-        reported = select(PostVote.post_id).where(PostVote.device_id == x_device_id, PostVote.kind == "report")
-        query = query.where(Post.id.not_in(reported))
     if before_id:
         query = query.where(Post.id < before_id)
     if lat is not None and lon is not None:

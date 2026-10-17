@@ -16,7 +16,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {launchCamera, launchImageLibrary, Asset} from 'react-native-image-picker';
 import CustomStatusBar from '../../components/CustomStatusBar';
-import PhotoViewer from '../../components/PhotoViewer';
 import {backIcon, cameraIcon, imageIcon} from '../../assets/svgIcon';
 import {vw} from '../../services/styleProps';
 import {communityAPI} from '../../apis/disasterAPI';
@@ -45,8 +44,6 @@ const AddReport = () => {
   const [waterLevel, setWaterLevel] = useState<WaterLevel | null>(null);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<Asset | null>(null);
-  // The chosen photo shown full screen.
-  const [viewing, setViewing] = useState(false);
   const [coords, setCoords] = useState(location);
   const [placeName, setPlaceName] = useState(locationLabel(location, weather));
   const [locating, setLocating] = useState(false);
@@ -222,23 +219,10 @@ const AddReport = () => {
 
           <Text style={styles.imageSectionTitle}>{t('addPhoto')}</Text>
           {image?.uri ? (
-            // Tapping the photo shows it full screen; only the ✕ label removes it.
-            <View style={styles.imagePickerBox}>
-              <TouchableOpacity
-                style={styles.previewImage}
-                activeOpacity={0.8}
-                onPress={() => setViewing(true)}
-                accessibilityRole="imagebutton">
-                <Image source={{uri: image.uri}} style={styles.previewImage} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => setImage(null)}
-                accessibilityRole="button"
-                hitSlop={12}>
-                <Text style={styles.removeImage}>{t('removePhoto')}</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.imagePickerBox} onPress={() => setImage(null)}>
+              <Image source={{uri: image.uri}} style={styles.previewImage} />
+              <Text style={styles.removeImage}>{t('removePhoto')}</Text>
+            </TouchableOpacity>
           ) : (
             <View style={styles.imageButtons}>
               <TouchableOpacity style={styles.imagePickerBox} onPress={() => handlePick(true)}>
@@ -266,7 +250,6 @@ const AddReport = () => {
           )}
         </TouchableOpacity>
       </View>
-      <PhotoViewer uri={viewing && image?.uri ? image.uri : null} onClose={() => setViewing(false)} />
     </SafeAreaView>
   );
 };
@@ -406,17 +389,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  removeButton: {
+  removeImage: {
     position: 'absolute',
     top: 8,
     right: 8,
+    color: 'white',
     backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-  },
-  removeImage: {
-    color: 'white',
+    overflow: 'hidden',
   },
   privacyNote: {
     fontSize: 12,

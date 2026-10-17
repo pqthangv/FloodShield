@@ -104,9 +104,12 @@ object WidgetRenderer {
       views.setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_DIP, sp * scale)
     }
     // The launcher reuses the drawn widget: after a change of font size, the band kept the
-    // height of an earlier two-line text, and "No alerts" sat above its tick. Setting the line limit
-    // again measures it anew.
-    views.setInt(R.id.widget_band_text, "setMaxLines", 2)
+    // height of an earlier two-line text, and "No alerts" sat above its tick. Setting the line limits
+    // again measures the texts anew (the same ones as in the layouts).
+    val lineLimits =
+        if (small) listOf(R.id.widget_place to 1, R.id.widget_band_text to 2)
+        else listOf(R.id.widget_condition to 2, R.id.widget_place to 2, R.id.widget_updated to 2, R.id.widget_band_text to 2)
+    for ((id, lines) in lineLimits) views.setInt(id, "setMaxLines", lines)
     views.setImageViewResource(R.id.widget_icon, iconFor(snapshot?.icon, snapshot?.isDay ?: true))
     views.setTextViewText(
         R.id.widget_temperature, snapshot?.temperature?.let { "${it.roundToInt()}°" } ?: "--°")

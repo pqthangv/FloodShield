@@ -88,7 +88,8 @@
                     android:id="@+id/widget_updated"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:maxLines="1"
+                    android:gravity="end"
+                    android:maxLines="2"
                     android:textColor="#5A6E8C"
                     android:textSize="13sp" />
             </LinearLayout>

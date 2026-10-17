@@ -50,10 +50,55 @@ fun bandFor(snapshot: Snapshot?, now: Long): Band {
 }
 
 /**
- * The row with wind, "feels like" (and humidity on the 4 x 2) only fits when the launcher gives
- * the widget this much height (dp); 0 means it didn't say.
+ * How a widget is drawn at its size on the home screen. [narrow]: the 4 x 2's smaller top row
+ * (widget_medium_narrow.xml); [details]: the row with wind, "feels like" (and humidity on the
+ * 4 x 2).
  */
-fun showDetails(small: Boolean, heightDp: Int) = heightDp >= if (small) 150 else 160
+data class WidgetLayout(val narrow: Boolean, val details: Boolean)
+
+/**
+ * How much the widget's text grows with the phone's font scale (Settings > Display > Font size):
+ * like the phone's, up to MAX_FONT_SCALE. Beyond it the text can't fit (seen at 200 %: "100"
+ * without its °, warnings cut off); the app's own screens keep growing.
+ */
+fun widgetScale(fontScale: Float) = fontScale.coerceAtMost(MAX_FONT_SCALE)
+
+/**
+ * The layout for a size in dp; in portrait, the launcher's smallest width and largest height (0:
+ * it didn't say). Larger text needs more room, so the limits grow with the widget's text scale.
+ */
+fun layoutFor(small: Boolean, widthDp: Float, heightDp: Float, fontScale: Float = 1f): WidgetLayout {
+  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+  val tallEnough = heightDp >= (if (small) SMALL_DETAILS_DP else MEDIUM_DETAILS_DP) * scale
+  // The 2 x 2's two columns also need the width ("12 km/h" was cut to "12" at 130 %).
+  val wideEnough = !small || widthDp <= 0 || widthDp >= SMALL_DETAILS_WIDTH_DP * scale
+  return WidgetLayout(
+      narrow = !small && widthDp > 0 && widthDp < NARROW_BELOW_DP * scale,
+      details = tallEnough && wideEnough,
+  )
+}
+
+/**
+ * Android 12+: the sizes (width to height, dp) where the layout changes. The launcher draws the
+ * largest one that fits, also after a resize or a change of grid, without asking the app.
+ */
+fun layoutSizes(small: Boolean, fontScale: Float = 1f): List<Pair<Float, Float>> {
+  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+  // The 2 x 2: without the details row, or with it once wide and tall enough.
+  if (small) return listOf(1f to 1f, SMALL_DETAILS_WIDTH_DP * scale to SMALL_DETAILS_DP * scale)
+  val widths = listOf(1f, NARROW_BELOW_DP * scale)
+  val heights = listOf(1f, MEDIUM_DETAILS_DP * scale)
+  return widths.flatMap { width -> heights.map { height -> width to height } }
+}
+
+/** Narrower than this (dp, at font scale 1), the 4 x 2's top row is too tight at its full size. */
+const val NARROW_BELOW_DP = 300f
+/** The details row fits from this height (dp, at font scale 1). */
+const val MEDIUM_DETAILS_DP = 160f
+const val SMALL_DETAILS_DP = 130f
+/** The 2 x 2's details row fits from this width (dp, at font scale 1). */
+const val SMALL_DETAILS_WIDTH_DP = 125f
+const val MAX_FONT_SCALE = 1.3f
 
 /** The background check runs about every 30 minutes; a few missed runs are fine. */
 const val STALE_AFTER_MS = 3 * 60 * 60 * 1000L

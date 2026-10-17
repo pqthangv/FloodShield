@@ -42,6 +42,8 @@ export interface WeatherData {
     wind_speed: number;
     wind_gusts: number;
     condition: string;
+    /** Shorter words for the home-screen widget; servers before 1.0.5 don't send it. */
+    condition_short?: string;
     icon: WeatherIcon;
     is_day: boolean;
   };

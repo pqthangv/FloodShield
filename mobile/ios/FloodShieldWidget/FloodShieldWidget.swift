@@ -106,19 +106,23 @@ private struct SmallTop: View {
 
   private var weatherRow: some View {
     HStack(spacing: 4) {
-      WeatherImage(snapshot: snapshot).frame(width: 44, height: 44)
+      WeatherImage(snapshot: snapshot).frame(width: 40, height: 40)
       Spacer(minLength: 4)
       Text(temperature(snapshot))
-        .font(.system(size: 28, weight: .bold))
+        .font(.system(size: 26, weight: .bold))
         .foregroundColor(Palette.navy)
+        .lineLimit(1)
+        .fixedSize()
     }
   }
 
+  // One line ("Phường An Đông, Ho…"): on two lines it left no room for wind / feels like.
   private var place: some View {
     Text(snapshot?.place ?? "FloodShield")
       .font(.system(size: 13))
       .foregroundColor(Palette.navy)
-      .lineLimit(2)
+      .lineLimit(1)
+      .truncationMode(.tail)
   }
 }
 
@@ -144,15 +148,19 @@ private struct MediumTop: View {
   private var mainRow: some View {
     HStack(alignment: .center, spacing: 10) {
       WeatherImage(snapshot: snapshot).frame(width: 60, height: 60)
+      // The temperature always gets its room; the place name takes what's left (as on Android).
       VStack(alignment: .leading, spacing: 0) {
         Text(temperature(snapshot))
           .font(.system(size: 32, weight: .bold))
           .foregroundColor(Palette.navy)
+          .lineLimit(1)
+          .fixedSize()
         Text(snapshot?.condition ?? "")
           .font(.system(size: 15))
           .foregroundColor(Palette.navy)
           .lineLimit(1)
       }
+      .layoutPriority(1)
       Spacer(minLength: 6)
       VStack(alignment: .trailing, spacing: 2) {
         Text(snapshot?.place ?? "FloodShield")

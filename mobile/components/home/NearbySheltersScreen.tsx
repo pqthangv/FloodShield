@@ -14,7 +14,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomStatusBar from '../CustomStatusBar';
 import {vh, vw} from '../../services/styleProps';
 import {backIcon, directionsIcon, phoneIcon} from '../../assets/svgIcon';
-import {loadShelters, savedShelters} from '../../services/shelters';
+import {keptShelters, loadShelters} from '../../services/shelters';
 import {Shelter} from '../../services/model';
 import {useApp} from '../../context/AppContext';
 import {errorMessage} from '../../services/axiosClient';
@@ -30,9 +30,10 @@ const NearbySheltersScreen = () => {
   const navigation = useNavigation();
   const {location} = useApp();
   const {t, lang} = useI18n();
-  // Usually found already, in the background since the app opened (services/shelters.ts).
+  // Usually found already, in the background since the app opened, or kept from an earlier day
+  // or a few km away: shown at once, and a new search replaces it (services/shelters.ts).
   const [initial] = useState(() =>
-    location ? savedShelters(location.latitude, location.longitude, lang) : null,
+    location ? keptShelters(location.latitude, location.longitude, lang) : null,
   );
   const [shelters, setShelters] = useState<Shelter[]>(initial ?? []);
   const [loading, setLoading] = useState(!initial);
@@ -47,9 +48,14 @@ const NearbySheltersScreen = () => {
         return;
       }
       setError(null);
+      const showOlder = (older: Shelter[]) => {
+        setShelters(older);
+        setLoading(false);
+      };
       try {
-        setShelters(await loadShelters(location.latitude, location.longitude, lang, refresh));
+        setShelters(await loadShelters(location.latitude, location.longitude, lang, refresh, showOlder));
       } catch (e) {
+        // With an older list on screen, it stays there (the error only shows on an empty list).
         setError(errorMessage(e));
       } finally {
         setLoading(false);

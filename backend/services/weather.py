@@ -62,6 +62,41 @@ def describe(code, lang: Lang = "vi") -> tuple[str, str]:
     return (en if lang == "en" else vi), icon
 
 
+# Shorter words for the home-screen widget, where the long ones were cut off ("Thu…" for
+# Thunderstorm): at most 12 letters (tests/test_api.py). What matters for floods stays (light /
+# heavy rain, downpour, hail). Codes not listed use their full words.
+WIDGET_WORDS: dict[int, tuple[str, str]] = {
+    0: ("Trời quang", "Clear"),
+    2: ("Có mây", "Some clouds"),
+    48: ("Sương mù", "Fog"),
+    51: ("Mưa phùn", "Drizzle"),
+    55: ("Mưa phùn", "Drizzle"),
+    56: ("Mưa phùn", "Drizzle"),
+    57: ("Mưa phùn", "Drizzle"),
+    63: ("Mưa vừa", "Rain"),
+    66: ("Mưa lạnh", "Cold rain"),
+    67: ("Mưa to", "Heavy rain"),
+    71: ("Tuyết", "Snow"),
+    75: ("Tuyết", "Snow"),
+    77: ("Tuyết", "Snow"),
+    80: ("Mưa rào", "Showers"),
+    82: ("Mưa rào to", "Downpour"),
+    85: ("Tuyết", "Snow"),
+    86: ("Tuyết", "Snow"),
+    95: ("Dông", "Storm"),
+    96: ("Dông, mưa đá", "Storm, hail"),
+    99: ("Dông, mưa đá", "Storm, hail"),
+}
+
+
+def widget_words(code, lang: Lang = "vi") -> str:
+    """The home-screen widget's words for a WMO weather code (see WIDGET_WORDS)."""
+    short = WIDGET_WORDS.get(int(code)) if code is not None else None
+    if short:
+        return short[1] if lang == "en" else short[0]
+    return describe(code, lang)[0]
+
+
 def _round(value, digits=0):
     if value is None:
         return None
@@ -105,6 +140,8 @@ def normalize_forecast(raw: dict, hours: int = 48, lang: Lang = "vi") -> dict:
         "wind_gusts": _round(cur.get("wind_gusts_10m")),
         "weather_code": cur.get("weather_code"),
         "condition": text,
+        # For the home-screen widget (the app's own screens use "condition").
+        "condition_short": widget_words(cur.get("weather_code"), lang),
         "icon": icon,
         "is_day": bool(cur.get("is_day", 1)),
     }

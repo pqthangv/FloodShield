@@ -54,7 +54,11 @@ class WidgetStore(context: Context) {
             // The app's label (a city the user picked, in their language) wins over the server's.
             place = old.place ?: weather.optJSONObject("location")?.optString("name")?.ifEmpty { null },
             temperature = number(current, "temperature") ?: old.temperature,
-            condition = current.optString("condition").ifEmpty { old.condition },
+            // The widget's short words (servers before 1.0.5 only send the long ones).
+            condition =
+                current.optString("condition_short").ifEmpty { current.optString("condition") }.ifEmpty {
+                  old.condition
+                },
             icon = current.optString("icon").ifEmpty { old.icon },
             isDay = current.optBoolean("is_day", old.isDay),
             windSpeed = number(current, "wind_speed") ?: old.windSpeed,

@@ -7,7 +7,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.util.SizeF
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import com.floodshield.app.R
@@ -29,7 +32,8 @@ abstract class FloodShieldWidget(private val small: Boolean) : AppWidgetProvider
     for (id in ids) WidgetRenderer.update(context, manager, id, small)
   }
 
-  // Its size on the home screen changed (e.g. another launcher grid): the details may (not) fit.
+  // Its size on the home screen changed (resized, or another launcher grid). On Android 12+ the
+  // launcher already picks the layout for the size; older ones need a new drawing.
   override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
     manager.updateAppWidget(id, WidgetRenderer.views(context, small, options))
   }
@@ -61,8 +65,51 @@ object WidgetRenderer {
     val snapshot = WidgetStore(context).load()
     // The app's language (Settings), not the phone's.
     val texts = inLanguage(context, AlertPrefs(context).language)
-    val views = RemoteViews(context.packageName, if (small) R.layout.widget_small else R.layout.widget_medium)
+    val fontScale = context.resources.configuration.fontScale
+    val scale = widgetScale(fontScale)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      // One layout per size: the launcher draws the one that fits, also after a resize.
+      return RemoteViews(
+          layoutSizes(small, fontScale).associate { (width, height) ->
+            SizeF(width, height) to
+                draw(context, texts, snapshot, small, layoutFor(small, width, height, fontScale), scale)
+          })
+    }
+    // Older Android: the size the launcher reports (in portrait: its smallest width and largest
+    // height); onAppWidgetOptionsChanged redraws when it changes.
+    val width = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
+    val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0) ?: 0
+    return draw(
+        context, texts, snapshot, small, layoutFor(small, width.toFloat(), height.toFloat(), fontScale), scale)
+  }
 
+  private fun draw(
+      context: Context,
+      texts: Context,
+      snapshot: Snapshot?,
+      small: Boolean,
+      layout: WidgetLayout,
+      scale: Float,
+  ): RemoteViews {
+    val views =
+        RemoteViews(
+            context.packageName,
+            when {
+              small -> R.layout.widget_small
+              layout.narrow -> R.layout.widget_medium_narrow
+              else -> R.layout.widget_medium
+            })
+
+    for ((id, sp) in textSizes(small, layout.narrow)) {
+      views.setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_DIP, sp * scale)
+    }
+    // The launcher reuses the drawn widget: after a change of font size, the band kept the
+    // height of an earlier two-line text, and "No alerts" sat above its tick. Setting the line limits
+    // again measures the texts anew (the same ones as in the layouts).
+    val lineLimits =
+        if (small) listOf(R.id.widget_place to 1, R.id.widget_band_text to 2)
+        else listOf(R.id.widget_condition to 2, R.id.widget_place to 2, R.id.widget_updated to 2, R.id.widget_band_text to 2)
+    for ((id, lines) in lineLimits) views.setInt(id, "setMaxLines", lines)
     views.setImageViewResource(R.id.widget_icon, iconFor(snapshot?.icon, snapshot?.isDay ?: true))
     views.setTextViewText(
         R.id.widget_temperature, snapshot?.temperature?.let { "${it.roundToInt()}°" } ?: "--°")
@@ -76,10 +123,8 @@ object WidgetRenderer {
           } ?: "")
     }
 
-    // Wind, feels like (and humidity on the 4 x 2), when there's room: the phone's height in
-    // portrait is the widget's largest height.
-    val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0) ?: 0
-    if (snapshot?.temperature != null && showDetails(small, height)) {
+    // Wind, feels like (and humidity on the 4 x 2), when there's room.
+    if (snapshot?.temperature != null && layout.details) {
       views.setViewVisibility(R.id.widget_details, View.VISIBLE)
       views.setTextViewText(R.id.widget_wind_label, texts.getString(R.string.widget_wind))
       views.setTextViewText(R.id.widget_wind, snapshot.windSpeed?.let { "${it.roundToInt()} km/h" } ?: "--")
@@ -105,9 +150,10 @@ object WidgetRenderer {
         views.setViewVisibility(R.id.widget_band_icon, View.VISIBLE)
         views.setImageViewResource(R.id.widget_band_icon, R.drawable.ic_widget_check)
         views.setInt(R.id.widget_band_icon, "setColorFilter", 0)
+        // The short words where the sentence would need two lines anyway.
         views.setTextViewText(
             R.id.widget_band_text,
-            texts.getString(if (small) R.string.widget_no_alerts_short else R.string.widget_no_alerts))
+            texts.getString(if (small || layout.narrow) R.string.widget_no_alerts_short else R.string.widget_no_alerts))
         views.setTextColor(R.id.widget_band_text, WHITE)
       }
       is Band.Warning -> {
@@ -138,6 +184,32 @@ object WidgetRenderer {
               context, 0, launch, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
     }
     return views
+  }
+
+  /**
+   * The layouts' text sizes (sp at font scale 1, the same as in the XML files), set here in dp so
+   * they grow with the phone's font scale only up to MAX_FONT_SCALE (widgetScale).
+   */
+  private fun textSizes(small: Boolean, narrow: Boolean): List<Pair<Int, Float>> {
+    val label = if (small) 11f else 12f
+    val value = if (small) 15f else 16f
+    val details =
+        listOf(
+            R.id.widget_wind_label to label,
+            R.id.widget_wind to value,
+            R.id.widget_feels_like_label to label,
+            R.id.widget_feels_like to value)
+    if (small) {
+      return details + listOf(R.id.widget_temperature to 26f, R.id.widget_place to 13f, R.id.widget_band_text to 13f)
+    }
+    val top =
+        if (narrow) {
+          listOf(R.id.widget_temperature to 28f, R.id.widget_condition to 13f, R.id.widget_place to 13f, R.id.widget_updated to 12f)
+        } else {
+          listOf(R.id.widget_temperature to 34f, R.id.widget_condition to 15f, R.id.widget_place to 15f, R.id.widget_updated to 13f)
+        }
+    return details + top +
+        listOf(R.id.widget_humidity_label to label, R.id.widget_humidity to value, R.id.widget_band_text to 16f)
   }
 
   private fun inLanguage(context: Context, language: String): Context {

@@ -20,14 +20,21 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   };
 });
 
-jest.mock('@react-native-community/geolocation', () => ({
-  getCurrentPosition: jest.fn((success, error) =>
-    error({code: 2, message: 'No GPS in tests'}),
-  ),
-  watchPosition: jest.fn(),
-  clearWatch: jest.fn(),
-  setRNConfiguration: jest.fn(),
-}));
+// No GPS in tests: location is turned off (the library's own message for that).
+jest.mock('@react-native-community/geolocation', () => {
+  const off = {code: 2, message: 'No location provider available.'};
+  return {
+    getCurrentPosition: jest.fn((success, error) => {
+      Promise.resolve().then(() => error(off));
+    }),
+    watchPosition: jest.fn((success, error) => {
+      Promise.resolve().then(() => error(off));
+      return 1;
+    }),
+    clearWatch: jest.fn(),
+    setRNConfiguration: jest.fn(),
+  };
+});
 
 jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn(async () => ({didCancel: true})),

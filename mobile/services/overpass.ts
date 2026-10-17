@@ -9,14 +9,19 @@
  */
 import {APP_USER_AGENT} from '../config';
 
+// Asked all at once: the first good answer is used and the others are cancelled. Three different
+// machines, so each gets a single request from the phone (Overpass limits each internet address
+// per machine, about 2 at a time on overpass-api.de). The main address overpass-api.de is one of
+// its two machines (z, on 2026-10-17), so it isn't asked as well.
 export const OVERPASS_URLS = [
-  'https://overpass-api.de/api/interpreter',
-  // The two servers behind the main address, for when it sends us to the busy one.
   'https://lz4.overpass-api.de/api/interpreter',
   'https://z.overpass-api.de/api/interpreter',
-  // A separate server (VK), often slow.
+  // A separate server (VK).
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
+// The query may run 25 s ([timeout:25] below); queueing and the download come on top (lz4 needed
+// 24.9 s on 2026-10-17).
+export const LIMIT_MS = 30 * 1000;
 
 // The only tags the server reads; dropping the rest keeps the upload small.
 export const KEEP_TAGS = [
@@ -67,32 +72,56 @@ function trim(el: OverpassElement): OverpassElement {
   return {type: el.type, id: el.id, lat: el.lat, lon: el.lon, center: el.center, tags};
 }
 
-/** Places within radiusKm, or null when no Overpass server answers the phone. */
+/** The first of the promises to succeed; rejects only when they all failed. */
+function firstOf<T>(promises: Promise<T>[]): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let failed = 0;
+    for (const promise of promises) {
+      promise.then(resolve, () => {
+        failed += 1;
+        if (failed === promises.length) {
+          reject(new Error('No Overpass server answered'));
+        }
+      });
+    }
+  });
+}
+
+/** Places within radiusKm, or null when no Overpass server answers the phone in time. */
 export async function fetchPlaces(lat: number, lon: number, radiusKm: number): Promise<OverpassElement[] | null> {
   const body = `data=${encodeURIComponent(overpassQuery(lat, lon, radiusKm))}`;
-  for (const url of OVERPASS_URLS) {
-    const controller = new AbortController();
-    // The query itself gives up after 25 s ([timeout:25]); several servers to try, so don't wait longer.
-    const timer = setTimeout(() => controller.abort(), 25000);
-    try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': APP_USER_AGENT},
-        body,
-        signal: controller.signal,
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        // The server skips places without a name, so don't upload them.
-        return (data.elements ?? [])
-          .filter((el: OverpassElement) => el.tags?.name || el.tags?.['name:vi'])
-          .map(trim);
-      }
-    } catch {
-      // No answer in time: try the next server.
-    } finally {
-      clearTimeout(timer);
+  const asks = OVERPASS_URLS.map(url => ({url, controller: new AbortController()}));
+  const stopAll = () => asks.forEach(ask => ask.controller.abort());
+  const timer = setTimeout(stopAll, LIMIT_MS);
+  const ask = async ({url, controller}: (typeof asks)[number]): Promise<OverpassElement[]> => {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': APP_USER_AGENT},
+      body,
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      throw new Error(`Overpass ${resp.status}`);
     }
+    const data = await resp.json();
+    // Only a real answer may win over a slower good one: it has a list of places, and no
+    // "runtime error" remark (a query that ran out of time or memory still answers 200, with
+    // what it found so far, often nothing).
+    if (!Array.isArray(data?.elements) || /runtime error/i.test(data.remark ?? '')) {
+      throw new Error(`Overpass: ${data?.remark ?? 'not an answer'}`);
+    }
+    // The server skips places without a name, so don't upload them.
+    return data.elements
+      .filter((el: OverpassElement) => el.tags?.name || el.tags?.['name:vi'])
+      .map(trim);
+  };
+  try {
+    return await firstOf(asks.map(ask));
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    // The others are no longer needed.
+    stopAll();
   }
-  return null;
 }

@@ -31,7 +31,8 @@ export function widgetSnapshot(
   return {
     place,
     temperature: weather?.current.temperature ?? null,
-    condition: weather?.current.condition ?? null,
+    // The widget's short words ("Storm", not "Thunderstorm"): the long ones were cut off there.
+    condition: weather?.current.condition_short ?? weather?.current.condition ?? null,
     icon: weather?.current.icon ?? null,
     is_day: weather?.current.is_day ?? true,
     wind_speed: weather?.current.wind_speed ?? null,

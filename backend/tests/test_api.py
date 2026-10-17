@@ -335,6 +335,24 @@ async def test_admin_bans_an_abusive_author(client):
 
 
 @pytest.mark.asyncio
+async def test_a_reported_post_stays_gone_for_the_reporter(client):
+    author = {"X-Device-Id": "device-gggg-7777"}
+    form = {"author_name": "Lan", "description": "Đường ngập sâu", "latitude": "16.46", "longitude": "107.59"}
+    post = (await client.post("/api/v1/posts", data=form, headers=author)).json()
+    ids = lambda r: [p["id"] for p in r.json()["posts"]]
+
+    # One report is not enough to hide the post for everyone...
+    await client.post(f"/api/v1/posts/{post['id']}/report", json={"reason": "sai"}, headers=OTHER)
+    assert post["id"] in ids(await client.get("/api/v1/posts", headers=THIRD))
+    assert post["id"] in ids(await client.get("/api/v1/posts", headers=author))
+    # ...but the phone that reported it doesn't get it back on the next reload.
+    assert post["id"] not in ids(await client.get("/api/v1/posts", headers=OTHER))
+    assert post["id"] not in ids(await client.get("/api/v1/posts", params={"lat": 16.46, "lon": 107.59},
+                                                  headers=OTHER))
+    await client.delete("/api/v1/me", headers=author)
+
+
+@pytest.mark.asyncio
 async def test_photo_of_a_hidden_post_is_hidden_too(client):
     author = {"X-Device-Id": "device-ffff-6666"}
     admin = {"X-Admin-Token": "test-admin"}

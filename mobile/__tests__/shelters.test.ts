@@ -81,6 +81,61 @@ test('without network, an older list from here is shown; elsewhere the error is'
   await expect(app.loadShelters(HUE.lat + 0.1, HUE.lon, 'vi')).rejects.toThrow('offline');
 });
 
+test('an older list, or one from a few km away, is shown at once while the new search runs', async () => {
+  const now = Date.now();
+  const old = JSON.stringify({at: now - 30 * DAY, latitude: HUE.lat, longitude: HUE.lon, lang: 'vi', shelters: LIST});
+  const app = openApp({shelters: old});
+  const NEW = [shelter('new school', 16.49, 107.6)];
+  let answer: (value: {shelters: Shelter[]}) => void = () => {};
+  app.getShelters.mockReturnValue(new Promise(resolve => (answer = resolve)));
+
+  // 3 km north of where the list was found.
+  const shownFirst: Shelter[][] = [];
+  const result = app.loadShelters(HUE.lat + 0.027, HUE.lon, 'vi', false, (s: Shelter[]) => shownFirst.push(s));
+  await new Promise<void>(resolve => setImmediate(() => resolve()));
+  expect(shownFirst).toHaveLength(1);
+  expect(shownFirst[0].map(s => s.id)).toEqual(['official', 'school']);
+  expect(shownFirst[0][1].distance_km).toBeCloseTo(2.9, 1);
+  expect(app.getShelters).toHaveBeenCalledTimes(1);
+
+  answer({shelters: NEW});
+  expect((await result).map((s: Shelter) => s.id)).toEqual(['new school']);
+  expect(app.keptShelters(HUE.lat + 0.027, HUE.lon, 'vi').map((s: Shelter) => s.id)).toEqual(['new school']);
+});
+
+test('not shown first: a list from more than 5 km away, in the other language, or on pull to refresh', async () => {
+  const now = Date.now();
+  const old = JSON.stringify({at: now - 30 * DAY, latitude: HUE.lat, longitude: HUE.lon, lang: 'vi', shelters: LIST});
+  const app = openApp({shelters: old});
+  // Searches fail, so the kept list stays the same for each case.
+  app.getShelters.mockRejectedValue(new Error('offline'));
+  const shownFirst = jest.fn();
+  await expect(app.loadShelters(HUE.lat + 0.06, HUE.lon, 'vi', false, shownFirst)).rejects.toThrow(); // ~6.7 km
+  expect(app.keptShelters(HUE.lat + 0.06, HUE.lon, 'vi')).toBeNull();
+  expect(app.keptShelters(HUE.lat + 0.027, HUE.lon, 'vi')).toHaveLength(2);
+  await app.loadShelters(HUE.lat, HUE.lon, 'en', false, shownFirst);
+  await app.loadShelters(HUE.lat, HUE.lon, 'vi', true, shownFirst);
+  expect(shownFirst).not.toHaveBeenCalled();
+});
+
+test('a recent list from here needs no new search, so nothing is shown first', async () => {
+  const app = openApp();
+  await app.loadShelters(HUE.lat, HUE.lon, 'vi');
+  const shownFirst = jest.fn();
+  expect(await app.loadShelters(HUE.lat, HUE.lon, 'vi', false, shownFirst)).toHaveLength(2);
+  expect(shownFirst).not.toHaveBeenCalled();
+  expect(app.getShelters).toHaveBeenCalledTimes(1);
+});
+
+test('without network, a list from 3 km away beats the error', async () => {
+  const now = Date.now();
+  const old = JSON.stringify({at: now - 30 * DAY, latitude: HUE.lat, longitude: HUE.lon, lang: 'vi', shelters: LIST});
+  const app = openApp({shelters: old});
+  app.getShelters.mockRejectedValue(new Error('offline'));
+  const shown: Shelter[] = await app.loadShelters(HUE.lat + 0.027, HUE.lon, 'vi');
+  expect(shown.map(s => s.id)).toEqual(['official', 'school']);
+});
+
 test('distances are from where the user is now, official shelters first', async () => {
   const app = openApp();
   await app.loadShelters(HUE.lat, HUE.lon, 'vi');

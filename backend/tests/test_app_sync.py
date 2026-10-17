@@ -57,7 +57,10 @@ def test_app_asks_overpass_for_what_the_server_would():
     assert selectors(source) == selectors(server)
     for part in ("[out:json][timeout:25]", "out center tags;"):
         assert part in source and part in server
-    assert re.findall(r"'(https://[^']+/interpreter)'", source) == osm.OVERPASS_URLS
+    # The app asks only Overpass servers this server knows (and the privacy page names); it skips
+    # the main address, the same machine as z, because it asks all of them at once.
+    app_urls = re.findall(r"'(https://[^']+/interpreter)'", source)
+    assert app_urls and set(app_urls) <= set(osm.OVERPASS_URLS)
 
 
 def test_app_keeps_every_tag_the_server_reads():

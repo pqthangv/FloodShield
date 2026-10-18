@@ -193,6 +193,40 @@ fun layoutSizes(small: Boolean, fontScale: Float = 1f, needs: Needs = defaultNee
   return sizes.distinct()
 }
 
+/**
+ * The widget's size as the launcher reports it (dp), or null if it doesn't say: on Android 12+ the
+ * smallest of its sizes (portrait and landscape, so never more than the widget has), else its
+ * smallest width and largest height (the portrait size, as Android documents it).
+ */
+fun reportedSize(sizes: List<Pair<Float, Float>>, minWidth: Int, maxHeight: Int): Pair<Float, Float>? =
+    when {
+      sizes.isNotEmpty() -> sizes.minOf { it.first } to sizes.minOf { it.second }
+      minWidth > 0 && maxHeight > 0 -> minWidth.toFloat() to maxHeight.toFloat()
+      else -> null
+    }
+
+/**
+ * Android 12+: the layout for each of [layoutSizes]. The smallest size gets the layout for the
+ * size the launcher reports ([reported]): some launchers always draw the smallest one, however
+ * much room the widget has (seen on a POCO, with Xiaomi's launcher, whose guide tells apps to pick
+ * the layout from the reported size). A launcher that picks properly only draws the smallest size
+ * when the widget is smaller than every other one, and then so is the reported size: nothing
+ * changes there.
+ */
+fun layoutsBySize(
+    small: Boolean,
+    fontScale: Float,
+    needs: Needs,
+    reported: Pair<Float, Float>?,
+): List<Pair<Pair<Float, Float>, WidgetLayout>> =
+    layoutSizes(small, fontScale, needs).map { size ->
+      val (width, height) = if (size == SMALLEST && reported != null) reported else size
+      size to layoutFor(small, width, height, fontScale, needs)
+    }
+
+/** The first of [layoutSizes]: what a launcher draws when no other size fits. */
+private val SMALLEST = 1f to 1f
+
 /** Where the row ever fits: an infinite height means it doesn't fit across at that width. */
 private fun List<Need>.sizes() = filter { it.heightDp.isFinite() }.map { it.widthDp to it.heightDp }
 

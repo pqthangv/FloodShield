@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.RemoteViews
 import android.widget.TextView
+import androidx.annotation.RequiresApi
 import com.floodshield.app.R
 import com.floodshield.app.alerts.AlertPrefs
 import java.text.SimpleDateFormat
@@ -72,18 +73,20 @@ object WidgetRenderer {
     val fontScale = context.resources.configuration.fontScale
     val scale = widgetScale(fontScale)
     val needs = measuredNeeds(context, texts, snapshot, small, fontScale, scale)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      // One layout per size: the launcher draws the one that fits, also after a resize.
-      return RemoteViews(
-          layoutSizes(small, fontScale, needs).associate { (width, height) ->
-            SizeF(width, height) to
-                draw(context, texts, snapshot, small, layoutFor(small, width, height, fontScale, needs), scale)
-          })
-    }
-    // Older Android: the size the launcher reports (in portrait: its smallest width and largest
-    // height); onAppWidgetOptionsChanged redraws when it changes.
+    // The size the launcher reports (in portrait: its smallest width and largest height);
+    // onAppWidgetOptionsChanged redraws when it changes.
     val width = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
     val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0) ?: 0
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      // One layout per size: the launcher draws the one that fits, also after a resize; the
+      // smallest follows the reported size, for launchers that always draw that one.
+      val reported = reportedSize(launcherSizes(options), width, height)
+      return RemoteViews(
+          layoutsBySize(small, fontScale, needs, reported).associate { (size, layout) ->
+            SizeF(size.first, size.second) to draw(context, texts, snapshot, small, layout, scale)
+          })
+    }
+    // Older Android: only the reported size.
     return draw(
         context,
         texts,
@@ -91,6 +94,18 @@ object WidgetRenderer {
         small,
         layoutFor(small, width.toFloat(), height.toFloat(), fontScale, needs),
         scale)
+  }
+
+  /** Android 12+: the sizes (dp) the launcher says the widget has; empty when it doesn't say. */
+  @RequiresApi(Build.VERSION_CODES.S)
+  private fun launcherSizes(options: Bundle?): List<Pair<Float, Float>> {
+    val sizes =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          options?.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java)
+        } else {
+          @Suppress("DEPRECATION") options?.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+        }
+    return sizes.orEmpty().filter { it.width > 0 && it.height > 0 }.map { it.width to it.height }
   }
 
   /**

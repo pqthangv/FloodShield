@@ -304,6 +304,57 @@ class WidgetStateTest {
   }
 
   @Test
+  fun `the reported size is the launcher's smallest, so never more than the widget has`() {
+    // Pixel Launcher (Android 14, measured): the portrait size first, then others.
+    val pixel = listOf(344.4f to 157.7f, 345.9f to 152.8f, 374.9f to 150.9f)
+    assertEquals(344.4f to 150.9f, reportedSize(pixel, minWidth = 344, maxHeight = 157))
+    // No list (older launchers): the portrait size, as Android documents it.
+    assertEquals(328f to 163f, reportedSize(emptyList(), minWidth = 328, maxHeight = 163))
+    // Nothing said.
+    assertEquals(null, reportedSize(emptyList(), minWidth = 0, maxHeight = 0))
+    assertEquals(null, reportedSize(emptyList(), minWidth = 328, maxHeight = 0))
+  }
+
+  @Test
+  fun `a launcher that always draws the smallest size gets the layout for the size it reports`() {
+    // The POCO's 4 x 2 and 2 x 2 (Xiaomi's launcher) have room for the row; it drew the
+    // smallest size, which was always without it.
+    val poco4x2 = layoutsBySize(small = false, fontScale = 1f, needs = needs, reported = 328f to 163f)
+    assertEquals(1f to 1f, poco4x2.first().first)
+    assertEquals(WidgetLayout(narrow = false, details = true, short = true), poco4x2.first().second)
+    val poco2x2 = layoutsBySize(small = true, fontScale = 1f, needs = needs, reported = 145f to 160f)
+    assertEquals(WidgetLayout(narrow = false, details = true), poco2x2.first().second)
+    // The other sizes keep their own layouts.
+    for ((size, layout) in poco4x2.drop(1)) {
+      assertEquals(layoutFor(false, size.first, size.second, 1f, needs), layout)
+    }
+    // No reported size: the smallest stays the smallest layout.
+    assertEquals(
+        layoutFor(false, 1f, 1f, 1f, needs), layoutsBySize(false, 1f, needs, reported = null).first().second)
+  }
+
+  @Test
+  fun `on a launcher that picks the size properly, the reported size changes nothing`() {
+    // The reported size is never more than the widget has (reportedSize): the real size, or less.
+    for (n in listOf(needs, defaultNeeds())) {
+      for (small in listOf(false, true)) {
+        val widths = if (small) listOf(110f, 124f, 125f, 137f, 140f, 166f, 400f) else listOf(220f, 259f, 290f, 299f, 300f, 335f, 600f)
+        for (w in widths) {
+          for (h in listOf(110f, 143f, 144f, 149f, 157f, 158f, 165f, 173f, 231f, 900f)) {
+            for (reported in listOf(w to h, w - 20f to h - 10f, w to h - 25f)) {
+              val sizes = layoutsBySize(small, 1f, n, reported)
+              val fitting = sizes.filter { (size, _) -> size.first <= w && size.second <= h }
+              val drawn =
+                  fitting.minBy { (size, _) -> (w - size.first) * (w - size.first) + (h - size.second) * (h - size.second) }
+              assertEquals("$small $w x $h, reported $reported", look(layoutFor(small, w, h, 1f, n)), look(drawn.second))
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Test
   fun `if the big top row ever needs no more than the small one, it's used from there`() {
     val odd =
         Needs(

@@ -146,8 +146,8 @@ object WidgetRenderer {
                 })
       } else {
         Needs(
-            smallTop = needs(measureWidths(SMALL_TOP_WIDTHS, fontScale), WidgetLayout(narrow = true, details = true)),
-            bigTop = needs(measureWidths(BIG_TOP_WIDTHS, fontScale), WidgetLayout(narrow = false, details = true)),
+            smallTop = needs(smallTopWidths(fontScale), WidgetLayout(narrow = true, details = true)),
+            bigTop = needs(bigTopWidths(fontScale), WidgetLayout(narrow = false, details = true)),
             small = emptyList())
       }
     } catch (e: Exception) {

@@ -109,18 +109,29 @@ fun defaultNeeds(fontScale: Float = 1f): Needs {
 }
 
 /**
- * The widths (dp) the renderer measures the 4 x 2's looks at: where each starts to be used, and
- * wider ones where it may need less. Like the big top row's limit (NARROW_BELOW_DP), they grow
- * with the widget's text scale, but the 4 x 2 can't be narrower than MEDIUM_MIN_WIDTH_DP.
+ * The widths (dp) the renderer measures the 4 x 2's big top row at: where it starts to be used
+ * (NARROW_BELOW_DP, growing with the widget's text scale like that limit) and a wider one.
  */
-fun measureWidths(look: List<Float>, fontScale: Float): List<Float> {
+fun bigTopWidths(fontScale: Float): List<Float> {
   val scale = widgetScale(fontScale).coerceAtLeast(1f)
-  return look.map { if (it == MEDIUM_MIN_WIDTH_DP) it else it * scale }.distinct().sorted()
+  return BIG_TOP_WIDTHS.map { it * scale }
 }
 
-// A 4 x 2 on a 5-column home screen is about 290 dp wide.
-val SMALL_TOP_WIDTHS = listOf(MEDIUM_MIN_WIDTH_DP, 260f, 280f, NARROW_BELOW_DP, 340f)
-val BIG_TOP_WIDTHS = listOf(NARROW_BELOW_DP, 340f)
+/**
+ * The widths (dp) the renderer measures the 4 x 2's small top row at: fixed narrow ones, the same
+ * at every text size (the measuring finds where a text would be cut), and from where the big top
+ * row starts, the big top row's own widths (layoutSizes relies on both rows sharing those). At
+ * 130 % text the narrow ones were 220 and 338 dp, and a 292 dp widget (5 columns) got the 220 dp
+ * answer: no row, though it fitted.
+ */
+fun smallTopWidths(fontScale: Float): List<Float> {
+  val wide = NARROW_BELOW_DP * widgetScale(fontScale).coerceAtLeast(1f)
+  return (NARROW_WIDTHS.filter { it < wide } + bigTopWidths(fontScale)).distinct().sorted()
+}
+
+// A 4 x 2 on a 5-column home screen is about 290 dp wide; it can't be narrower than 220.
+private val NARROW_WIDTHS = listOf(MEDIUM_MIN_WIDTH_DP, 240f, 260f, 280f, 300f, 340f)
+private val BIG_TOP_WIDTHS = listOf(NARROW_BELOW_DP, 340f)
 /**
  * The 2 x 2's widths (dp), the same at every text size: the measuring tells where a text would
  * be cut. Real 2 x 2s are 135-170 dp wide; Vietnamese "Không có cảnh báo" wraps around 140-150.

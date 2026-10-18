@@ -93,16 +93,26 @@ class WidgetStateTest {
   }
 
   @Test
-  fun `the 4 x 2's measured widths grow with the text, except its smallest`() {
-    assertEquals(listOf(220f, 260f, 280f, 300f, 340f), measureWidths(SMALL_TOP_WIDTHS, 1f))
-    assertEquals(listOf(220f, 260f, 280f, 300f, 340f), measureWidths(SMALL_TOP_WIDTHS, 0.85f))
-    assertEquals(
-        listOf(220f, 260f * 1.3f, 280f * 1.3f, 300f * 1.3f, 340f * 1.3f), measureWidths(SMALL_TOP_WIDTHS, 1.3f))
-    assertEquals(measureWidths(SMALL_TOP_WIDTHS, 1.3f), measureWidths(SMALL_TOP_WIDTHS, 2f))
+  fun `the 4 x 2's narrow widths stay put at every text size, the big top row's grow with it`() {
+    assertEquals(listOf(220f, 240f, 260f, 280f, 300f, 340f), smallTopWidths(1f))
+    assertEquals(listOf(220f, 240f, 260f, 280f, 300f, 340f), smallTopWidths(0.85f))
+    assertEquals(listOf(300f, 340f), bigTopWidths(1f))
+    assertEquals(listOf(300f * 1.3f, 340f * 1.3f), bigTopWidths(1.3f))
+    assertEquals(listOf(220f, 240f, 260f, 280f, 300f, 340f, 300f * 1.3f, 340f * 1.3f), smallTopWidths(1.3f))
+    assertEquals(smallTopWidths(1.3f), smallTopWidths(2f))
     // Both top rows are measured at the same wide widths (layoutSizes relies on it).
-    for (scale in listOf(1f, 1.3f)) {
-      val wide = measureWidths(SMALL_TOP_WIDTHS, scale).filter { it >= NARROW_BELOW_DP * widgetScale(scale) }
-      assertEquals(measureWidths(BIG_TOP_WIDTHS, scale), wide)
+    for (scale in listOf(0.85f, 1f, 1.15f, 1.3f, 2f)) {
+      val wide = smallTopWidths(scale).filter { it >= NARROW_BELOW_DP * widgetScale(scale).coerceAtLeast(1f) }
+      assertEquals(bigTopWidths(scale), wide)
+    }
+  }
+
+  @Test
+  fun `at large text a 5-column 4 x 2 is measured close to its own width`() {
+    // 292 dp wide: at 130 % it was measured at 220 dp only (where the row is cut), so no row.
+    for (scale in listOf(1f, 1.15f, 1.3f, 2f)) {
+      val below = smallTopWidths(scale).filter { it <= 292f }
+      assertEquals("font $scale", 280f, below.max())
     }
   }
 

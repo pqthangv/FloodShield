@@ -50,11 +50,64 @@ fun bandFor(snapshot: Snapshot?, now: Long): Band {
 }
 
 /**
- * How a widget is drawn at its size on the home screen. [narrow]: the 4 x 2's smaller top row
- * (widget_medium_narrow.xml); [details]: the row with wind, "feels like" (and humidity on the
- * 4 x 2).
+ * How a widget is drawn at its size on the home screen. [narrow]: too narrow for the 4 x 2's big
+ * top row; [details]: the row with wind, "feels like" (and humidity on the 4 x 2); [short]: the
+ * 4 x 2 is wide enough for its big top row but only tall enough for that row with the small one.
  */
-data class WidgetLayout(val narrow: Boolean, val details: Boolean)
+data class WidgetLayout(val narrow: Boolean, val details: Boolean, val short: Boolean = false) {
+  /** The 4 x 2's smaller top row, thinner band and short "No alerts" (widget_medium_narrow.xml). */
+  val smallTop: Boolean
+    get() = narrow || short
+}
+
+/**
+ * From [widthDp] wide on, the row with wind and feels like fits whole from [heightDp] tall
+ * (infinite: it doesn't fit across, a text would be cut).
+ */
+data class Need(val widthDp: Float, val heightDp: Float)
+
+/**
+ * Where the row with wind and feels like fits whole, narrowest width first (a narrower widget may
+ * need more: a place or a warning on two lines): the 4 x 2 with its small top row ([smallTop]) and
+ * with its big one ([bigTop]), and the 2 x 2 ([small]). WidgetRenderer measures them on the phone,
+ * with its fonts, text size and the texts to show; [defaultNeeds] when it can't.
+ */
+data class Needs(val smallTop: List<Need>, val bigTop: List<Need>, val small: List<Need>)
+
+/**
+ * The needs measured on the Android14 emulator with one-line texts at font scale 1. Larger text
+ * needs more, here a little too much: the pictures and paddings don't grow with it.
+ */
+fun defaultNeeds(fontScale: Float = 1f): Needs {
+  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+  val wide = NARROW_BELOW_DP * scale
+  return Needs(
+      // Also at the first wide width, where the big top row starts: layoutSizes relies on it.
+      smallTop = listOf(Need(MEDIUM_MIN_WIDTH_DP, SMALL_TOP_DETAILS_DP * scale), Need(wide, SMALL_TOP_DETAILS_DP * scale)),
+      bigTop = listOf(Need(wide, BIG_TOP_DETAILS_DP * scale)),
+      small = listOf(Need(SMALL_DETAILS_WIDTH_DP * scale, SMALL_DETAILS_DP * scale)),
+  )
+}
+
+/**
+ * The widths (dp) the renderer measures each look at: where it starts to be used, and wider ones
+ * where it may need less. Like the limits, they grow with the widget's text scale (but the 4 x 2
+ * can't be narrower than MEDIUM_MIN_WIDTH_DP).
+ */
+fun measureWidths(look: List<Float>, fontScale: Float): List<Float> {
+  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+  return look.map { if (it == MEDIUM_MIN_WIDTH_DP) it else it * scale }.distinct().sorted()
+}
+
+// A 4 x 2 on a 5-column home screen is about 290 dp wide.
+val SMALL_TOP_WIDTHS = listOf(MEDIUM_MIN_WIDTH_DP, 260f, 280f, NARROW_BELOW_DP, 340f)
+val BIG_TOP_WIDTHS = listOf(NARROW_BELOW_DP, 340f)
+// Real 2 x 2s are 135-170 dp wide, and Vietnamese "Không có cảnh báo" wraps around 140-150.
+val SMALL_WIDTHS = listOf(SMALL_DETAILS_WIDTH_DP, 135f, 145f, 155f, 165f)
+
+/** The height the row needs at [widthDp] (0: the launcher didn't say), or null where it's never shown. */
+private fun List<Need>.heightAt(widthDp: Float): Float? =
+    if (widthDp <= 0) firstOrNull()?.heightDp else lastOrNull { it.widthDp <= widthDp }?.heightDp
 
 /**
  * How much the widget's text grows with the phone's font scale (Settings > Display > Font size):
@@ -65,37 +118,65 @@ fun widgetScale(fontScale: Float) = fontScale.coerceAtMost(MAX_FONT_SCALE)
 
 /**
  * The layout for a size in dp; in portrait, the launcher's smallest width and largest height (0:
- * it didn't say). Larger text needs more room, so the limits grow with the widget's text scale.
+ * it didn't say). Larger text needs more room, so the widths grow with the widget's text scale; the
+ * heights come measured with it ([needs]). The row with wind and feels like shows whenever it fits
+ * whole, on the 4 x 2 with the small top row if the big one leaves no room for it.
  */
-fun layoutFor(small: Boolean, widthDp: Float, heightDp: Float, fontScale: Float = 1f): WidgetLayout {
+fun layoutFor(
+    small: Boolean,
+    widthDp: Float,
+    heightDp: Float,
+    fontScale: Float = 1f,
+    needs: Needs = defaultNeeds(fontScale),
+): WidgetLayout {
   val scale = widgetScale(fontScale).coerceAtLeast(1f)
-  val tallEnough = heightDp >= (if (small) SMALL_DETAILS_DP else MEDIUM_DETAILS_DP) * scale
-  // The 2 x 2's two columns also need the width ("12 km/h" was cut to "12" at 130 %).
-  val wideEnough = !small || widthDp <= 0 || widthDp >= SMALL_DETAILS_WIDTH_DP * scale
-  return WidgetLayout(
-      narrow = !small && widthDp > 0 && widthDp < NARROW_BELOW_DP * scale,
-      details = tallEnough && wideEnough,
-  )
+  if (small) {
+    // The 2 x 2's two columns also need the width ("12 km/h" was cut to "12" at 130 %): its
+    // needs start at SMALL_DETAILS_WIDTH_DP.
+    val need = needs.small.heightAt(widthDp)
+    return WidgetLayout(narrow = false, details = need != null && heightDp >= need)
+  }
+  val narrow = widthDp > 0 && widthDp < NARROW_BELOW_DP * scale
+  val bigTop = if (narrow) null else needs.bigTop.heightAt(widthDp)
+  val smallTop = needs.smallTop.heightAt(widthDp)
+  return when {
+    bigTop != null && heightDp >= bigTop -> WidgetLayout(narrow = false, details = true)
+    smallTop != null && heightDp >= smallTop -> WidgetLayout(narrow, details = true, short = !narrow)
+    else -> WidgetLayout(narrow, details = false)
+  }
 }
 
 /**
- * Android 12+: the sizes (width to height, dp) where the layout changes. The launcher draws the
- * largest one that fits, also after a resize or a change of grid, without asking the app.
+ * Android 12+: the sizes (width to height, dp) where the layout changes. Of those that fit, the
+ * launcher draws the one closest to the widget's size, also after a resize or a change of grid,
+ * without asking the app. That is always one that looks right for the widget's own size: a size
+ * with the row is closer than any size without it, and both top rows have a size at the same wide
+ * widths, so the big one wins wherever it fits (short of widgets over a thousand dp tall).
  */
-fun layoutSizes(small: Boolean, fontScale: Float = 1f): List<Pair<Float, Float>> {
-  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+fun layoutSizes(small: Boolean, fontScale: Float = 1f, needs: Needs = defaultNeeds(fontScale)): List<Pair<Float, Float>> {
+  val sizes = mutableListOf(1f to 1f)
   // The 2 x 2: without the details row, or with it once wide and tall enough.
-  if (small) return listOf(1f to 1f, SMALL_DETAILS_WIDTH_DP * scale to SMALL_DETAILS_DP * scale)
-  val widths = listOf(1f, NARROW_BELOW_DP * scale)
-  val heights = listOf(1f, MEDIUM_DETAILS_DP * scale)
-  return widths.flatMap { width -> heights.map { height -> width to height } }
+  if (small) {
+    sizes += needs.small.sizes()
+    return sizes.distinct()
+  }
+  sizes += NARROW_BELOW_DP * widgetScale(fontScale).coerceAtLeast(1f) to 1f
+  sizes += needs.smallTop.sizes()
+  sizes += needs.bigTop.sizes()
+  return sizes.distinct()
 }
+
+/** Where the row ever fits: an infinite height means it doesn't fit across at that width. */
+private fun List<Need>.sizes() = filter { it.heightDp.isFinite() }.map { it.widthDp to it.heightDp }
 
 /** Narrower than this (dp, at font scale 1), the 4 x 2's top row is too tight at its full size. */
 const val NARROW_BELOW_DP = 300f
-/** The details row fits from this height (dp, at font scale 1). */
-const val MEDIUM_DETAILS_DP = 160f
-const val SMALL_DETAILS_DP = 130f
+/** The 4 x 2 can't be made narrower (minResizeWidth in widget_medium_info.xml). */
+const val MEDIUM_MIN_WIDTH_DP = 220f
+/** [defaultNeeds] at font scale 1 (dp). */
+const val SMALL_TOP_DETAILS_DP = 144f
+const val BIG_TOP_DETAILS_DP = 165f
+const val SMALL_DETAILS_DP = 144f
 /** The 2 x 2's details row fits from this width (dp, at font scale 1). */
 const val SMALL_DETAILS_WIDTH_DP = 125f
 const val MAX_FONT_SCALE = 1.3f

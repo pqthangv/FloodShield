@@ -20,6 +20,14 @@
         android:paddingEnd="14dp"
         android:paddingBottom="6dp">
 
+        <!-- The spare height goes evenly above, between and below the two rows, so they don't
+             sit packed together (the last space only with the wind row: without it the top row is
+             centred). Empty FrameLayouts: a widget can't use a plain View. -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
         <!-- The picture and the temperature always get their room; the place name takes what's
              left (2 lines, then "…"). Measured the other way round, a long place name pushed the
              "°" onto a new line. -->
@@ -95,7 +103,19 @@
             </LinearLayout>
         </LinearLayout>
 
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
         <include layout="@layout/widget_medium_details" />
+
+        <FrameLayout
+            android:id="@+id/widget_details_space"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone" />
     </LinearLayout>
 
     <include layout="@layout/widget_medium_band" />

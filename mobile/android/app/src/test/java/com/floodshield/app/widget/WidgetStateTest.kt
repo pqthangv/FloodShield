@@ -365,6 +365,55 @@ class WidgetStateTest {
   }
 
   @Test
+  fun `the widget test says which size the launcher drew and what it reported`() {
+    // Pixel Launcher (Android 14) sends its landscape size twice: listed once.
+    val pixel = LauncherInfo(listOf(344.4f to 157.7f, 374.9f to 150.9f, 374.9f to 150.9f), 344, 133, 582, 157)
+    val text =
+        testText(
+            "15:42:07", small = false, drawn = 300f to 144f,
+            layout = WidgetLayout(narrow = false, details = true, short = true),
+            reported = 344.4f to 150.9f, info = pixel, needs = needs, sdk = 34, density = 2.625f, fontScale = 1.3f)
+    assertEquals(
+        listOf(
+            "FloodShield test 15:42:07",
+            "drew 300x144: small top + row",
+            "reported 344x151",
+            "sizes 344x158 375x151",
+            "min 344x133 max 582x157",
+            "need at 344: small 144, big 165",
+            "Android 34, density 2.63, font 1.30"),
+        text.lines())
+  }
+
+  @Test
+  fun `the widget test shows when a launcher drew the smallest size, and the 2 x 2's needs`() {
+    val poco = LauncherInfo(emptyList(), 145, 120, 290, 160)
+    val text =
+        testText(
+            "08:37:00", small = true, drawn = 1f to 1f, layout = WidgetLayout(narrow = false, details = true),
+            reported = 145f to 160f, info = poco, needs = needs, sdk = 35, density = 2.75f, fontScale = 1f)
+    assertEquals("drew smallest (as 145x160): 2x2 + row", text.lines()[1])
+    assertEquals("sizes none", text.lines()[3])
+    assertEquals("need at 145: row 144, 1 value -", text.lines()[5])
+  }
+
+  @Test
+  fun `the widget test on old Android, a launcher that says nothing, and a row that never fits`() {
+    val nothing = LauncherInfo(emptyList(), 0, 0, 0, 0)
+    val inf = Float.POSITIVE_INFINITY
+    val text =
+        testText(
+            "09:00:00", small = true, drawn = null, layout = WidgetLayout(narrow = false, details = false, oneValue = true),
+            reported = null, info = nothing,
+            needs = Needs(emptyList(), emptyList(), small = listOf(Need(125f, inf)), smallOne = listOf(Need(125f, 141f))),
+            sdk = 30, density = 2.625f, fontScale = 1.3f)
+    assertEquals("drew one layout: 2x2 + 1 value", text.lines()[1])
+    assertEquals("reported nothing", text.lines()[2])
+    assertEquals("min 0x0 max 0x0", text.lines()[4])
+    assertEquals("need at 0: row never, 1 value 141", text.lines()[5])
+  }
+
+  @Test
   fun `if the big top row ever needs no more than the small one, it's used from there`() {
     val odd =
         Needs(

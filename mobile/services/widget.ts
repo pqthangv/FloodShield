@@ -1,5 +1,6 @@
 import AlertScheduler from '../specs/NativeAlertScheduler';
 import type {Alert, Severity, WeatherData, WeatherIcon} from './model';
+import storage from './storage';
 
 /**
  * What the home-screen widget shows (Android: android/.../widget/WidgetStore.kt reads this JSON).
@@ -46,4 +47,15 @@ export function widgetSnapshot(
 /** Hands what the app just loaded to the widget, which then redraws. */
 export function updateWidget(snapshot: WidgetSnapshot) {
   AlertScheduler?.setWidget(JSON.stringify(snapshot));
+}
+
+/**
+ * The hidden widget test (long press on Settings > Version) on or off; returns the new state. The
+ * widgets then show how the launcher drew them, for testers' screenshots.
+ */
+export async function toggleWidgetTest(): Promise<boolean> {
+  const on = !(await storage.getWidgetTest());
+  await storage.setWidgetTest(on);
+  AlertScheduler?.setWidgetTest(on);
+  return on;
 }

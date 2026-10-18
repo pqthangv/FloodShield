@@ -52,6 +52,7 @@ static const NSTimeInterval kPushRefresh = 24 * 60 * 60;
 static NSString *const kWidgetGroup = @"group.com.floodshield.app";
 static NSString *const kWidgetSnapshot = @"fs_widget_snapshot";
 static NSString *const kWidgetLanguage = @"fs_widget_language";
+static NSString *const kWidgetTest = @"fs_widget_test";
 /// The widget notes when it last drew (WidgetModel.swift); recently means it's on the home screen.
 static NSString *const kWidgetShownAt = @"fs_widget_seen_at";
 static const NSTimeInterval kWidgetActive = 24 * 60 * 60;
@@ -191,6 +192,13 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 }
 
 /// What the home-screen widget shows, from the app (services/widget.ts).
+/// The hidden widget test (Settings > Version, long press), kept for the iPhone widget.
+- (void)setWidgetTest:(BOOL)on
+{
+  [[FSAlertScheduler widgetDefaults] setBool:on forKey:kWidgetTest];
+  FSReloadWidgets();
+}
+
 - (void)setWidget:(NSString *)snapshot
 {
   [FSAlertScheduler saveWidgetFromApp:snapshot];

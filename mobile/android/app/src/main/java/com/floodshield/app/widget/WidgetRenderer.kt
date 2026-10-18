@@ -85,23 +85,38 @@ object WidgetRenderer {
     // onAppWidgetOptionsChanged redraws when it changes.
     val width = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
     val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0) ?: 0
+    val sizes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) launcherSizes(options) else emptyList()
+    val reported = reportedSize(sizes, width, height)
+    // The hidden widget test: what each drawing is and what the launcher said.
+    val test =
+        if (WidgetStore(context).test) {
+          val info =
+              LauncherInfo(
+                  sizes,
+                  width,
+                  options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0,
+                  options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0) ?: 0,
+                  height)
+          val time = SimpleDateFormat("HH:mm:ss", Locale.ROOT).format(Date())
+          val density = context.resources.displayMetrics.density
+          { drawn: Pair<Float, Float>?, layout: WidgetLayout ->
+            testText(time, small, drawn, layout, reported, info, needs, Build.VERSION.SDK_INT, density, fontScale)
+          }
+        } else {
+          null
+        }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
       // One layout per size: the launcher draws the one that fits, also after a resize; the
       // smallest follows the reported size, for launchers that always draw that one.
-      val reported = reportedSize(launcherSizes(options), width, height)
       return RemoteViews(
           layoutsBySize(small, fontScale, needs, reported).associate { (size, layout) ->
-            SizeF(size.first, size.second) to draw(context, texts, snapshot, small, layout, scale)
+            SizeF(size.first, size.second) to
+                draw(context, texts, snapshot, small, layout, scale, test?.invoke(size, layout))
           })
     }
     // Older Android: only the reported size.
-    return draw(
-        context,
-        texts,
-        snapshot,
-        small,
-        layoutFor(small, width.toFloat(), height.toFloat(), fontScale, needs),
-        scale)
+    val layout = layoutFor(small, width.toFloat(), height.toFloat(), fontScale, needs)
+    return draw(context, texts, snapshot, small, layout, scale, test?.invoke(null, layout))
   }
 
   /** Android 12+: the sizes (dp) the launcher says the widget has; empty when it doesn't say. */
@@ -189,6 +204,7 @@ object WidgetRenderer {
         else -> false
       }
 
+  /** One drawing; [test]: the hidden widget test's text over it (null: not shown). */
   private fun draw(
       context: Context,
       texts: Context,
@@ -196,6 +212,7 @@ object WidgetRenderer {
       small: Boolean,
       layout: WidgetLayout,
       scale: Float,
+      test: String? = null,
   ): RemoteViews {
     val views =
         RemoteViews(
@@ -292,6 +309,9 @@ object WidgetRenderer {
         views.setTextColor(R.id.widget_band_text, ink)
       }
     }
+
+    views.setViewVisibility(R.id.widget_test, if (test != null) View.VISIBLE else View.GONE)
+    if (test != null) views.setTextViewText(R.id.widget_test, test)
 
     // A tap opens the app.
     val launch =

@@ -1,5 +1,8 @@
 package com.floodshield.app.widget
 
+import java.util.Locale
+import kotlin.math.roundToInt
+
 /**
  * What the home-screen widget knows: saved by the app when it's open (setWidget) and by the
  * background check (AlertWorker). Texts are already in the app's language.
@@ -237,6 +240,71 @@ fun layoutsBySize(
 
 /** The first of [layoutSizes]: what a launcher draws when no other size fits. */
 private val SMALLEST = 1f to 1f
+
+/** What the launcher told the widget about its size (dp; 0 or empty when it didn't say). */
+data class LauncherInfo(
+    val sizes: List<Pair<Float, Float>>,
+    val minWidth: Int,
+    val minHeight: Int,
+    val maxWidth: Int,
+    val maxHeight: Int,
+)
+
+/**
+ * The hidden widget test's text (Settings > Version, long press), in English for the developer:
+ * which of [layoutSizes] the launcher drew ([drawn]; null on Android 11 and older, which draw one
+ * layout for the reported size), the layout it got, what the launcher reported, and the rows'
+ * needs at the reported width. One screenshot from a tester's phone then tells how its launcher
+ * sizes and picks.
+ */
+fun testText(
+    time: String,
+    small: Boolean,
+    drawn: Pair<Float, Float>?,
+    layout: WidgetLayout,
+    reported: Pair<Float, Float>?,
+    info: LauncherInfo,
+    needs: Needs,
+    sdk: Int,
+    density: Float,
+    fontScale: Float,
+): String {
+  fun dp(v: Float) = if (v.isInfinite()) "never" else v.roundToInt().toString()
+  fun size(s: Pair<Float, Float>) = "${dp(s.first)}x${dp(s.second)}"
+  val look =
+      listOf(
+              if (small) "2x2" else if (layout.smallTop) "small top" else "big top",
+              when {
+                layout.details -> "row"
+                layout.oneValue -> "1 value"
+                else -> "no row"
+              })
+          .joinToString(" + ")
+  val drew =
+      when (drawn) {
+        null -> "one layout"
+        SMALLEST -> "smallest" + (reported?.let { " (as ${size(it)})" } ?: "")
+        else -> size(drawn)
+      }
+  val width = reported?.first ?: 0f
+  val need =
+      if (small) {
+        "row ${needs.small.heightAt(width)?.let(::dp) ?: "-"}, 1 value ${needs.smallOne.heightAt(width)?.let(::dp) ?: "-"}"
+      } else {
+        "small ${needs.smallTop.heightAt(width)?.let(::dp) ?: "-"}, big ${needs.bigTop.heightAt(width)?.let(::dp) ?: "-"}"
+      }
+  return listOf(
+          "FloodShield test $time",
+          "drew $drew: $look",
+          "reported ${reported?.let(::size) ?: "nothing"}",
+          // Pixel Launcher sends its landscape size twice.
+          "sizes ${info.sizes.map(::size).distinct().joinToString(" ").ifEmpty { "none" }}",
+          "min ${info.minWidth}x${info.minHeight} max ${info.maxWidth}x${info.maxHeight}",
+          "need at ${dp(width)}: $need",
+          "Android $sdk, density ${"%.2f".format(Locale.ROOT, density)}, font ${"%.2f".format(Locale.ROOT, fontScale)}",
+      )
+      .joinToString("\n")
+}
 
 /** Where the row ever fits: an infinite height means it doesn't fit across at that width. */
 private fun List<Need>.sizes() = filter { it.heightDp.isFinite() }.map { it.widthDp to it.heightDp }

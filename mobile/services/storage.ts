@@ -9,6 +9,7 @@ const KEYS = {
   rulesAccepted: 'communityRulesAccepted',
   apiUrl: 'apiUrlOverride',
   welcomeSeen: 'welcomeSeen',
+  widgetTest: 'widgetTest',
   checklist: (typeId: number) => `checklist:${typeId}`,
 };
 
@@ -88,6 +89,9 @@ const storage = {
     );
   },
   setWelcomeSeen: () => setJSON(KEYS.welcomeSeen, true),
+
+  getWidgetTest: () => getJSON<boolean>(KEYS.widgetTest, false),
+  setWidgetTest: (on: boolean) => setJSON(KEYS.widgetTest, on),
 
   getChecklist: (typeId: number) =>
     getJSON<number[]>(KEYS.checklist(typeId), []),

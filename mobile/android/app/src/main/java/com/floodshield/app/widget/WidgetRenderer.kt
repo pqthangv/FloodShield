@@ -35,12 +35,20 @@ abstract class FloodShieldWidget(private val small: Boolean) : AppWidgetProvider
   // Also every 30 minutes (updatePeriodMillis), so an old check turns neutral by itself.
   override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
     for (id in ids) WidgetRenderer.update(context, manager, id, small)
+    // A new widget, or the watch lost (app force-stopped, phone restarted): redraw after a
+    // change of Font size.
+    FontScaleJob.watch(context)
   }
 
   // Its size on the home screen changed (resized, or another launcher grid). On Android 12+ the
   // launcher already picks the layout for the size; older ones need a new drawing.
   override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
     manager.updateAppWidget(id, WidgetRenderer.views(context, small, options))
+  }
+
+  // The last widget of this size is gone; the other size may still be on the home screen.
+  override fun onDisabled(context: Context) {
+    if (!WidgetRenderer.hasWidgets(context)) FontScaleJob.stop(context)
   }
 }
 

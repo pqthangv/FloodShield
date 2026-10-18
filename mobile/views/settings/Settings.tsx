@@ -19,6 +19,7 @@ import {communityAPI} from '../../apis/disasterAPI';
 import {errorMessage, getApiBaseUrl, setApiBaseUrl} from '../../services/axiosClient';
 import {checkAlertsNow} from '../../services/alertNotifications';
 import storage from '../../services/storage';
+import {toggleWidgetTest} from '../../services/widget';
 import {APP_VERSION, DEFAULT_API_URL} from '../../config';
 import {vh, vw} from '../../services/styleProps';
 import {Language, useI18n} from '../../i18n';
@@ -32,16 +33,24 @@ const Row = ({
   title,
   subtitle,
   onPress,
+  onLongPress,
   right,
   danger,
 }: {
   title: string;
   subtitle?: string;
   onPress?: () => void;
+  /** Hidden: the row doesn't look pressable for it. */
+  onLongPress?: () => void;
   right?: React.ReactNode;
   danger?: boolean;
 }) => (
-  <TouchableOpacity style={styles.row} onPress={onPress} disabled={!onPress}>
+  <TouchableOpacity
+    style={styles.row}
+    onPress={onPress}
+    onLongPress={onLongPress}
+    activeOpacity={onPress ? 0.2 : 1}
+    disabled={!onPress && !onLongPress}>
     <View style={styles.rowText}>
       <Text style={[styles.rowTitle, danger && styles.danger]}>{title}</Text>
       {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
@@ -199,10 +208,15 @@ const SettingsScreen = () => {
         <Row title={t('dataSources')} subtitle={t('dataSourcesList')} />
         <Row title={t('note')} subtitle={t('disclaimer')} />
         {/* Choosing another API server is for development only, never in store builds. */}
+        {/* A long press turns the hidden widget test on or off (for testers' screenshots). */}
         <Row
           title={t('version', {version: APP_VERSION})}
           subtitle={__DEV__ && !showAdvanced ? t('showAdvanced') : undefined}
           onPress={__DEV__ ? () => setShowAdvanced(!showAdvanced) : undefined}
+          onLongPress={async () => {
+            const on = await toggleWidgetTest();
+            Alert.alert(t(on ? 'widgetTestOn' : 'widgetTestOff'));
+          }}
         />
         {__DEV__ && showAdvanced && (
           <View style={styles.advanced}>

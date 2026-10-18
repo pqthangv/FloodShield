@@ -12,12 +12,17 @@ import android.os.Bundle
 import android.util.SizeF
 import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.RemoteViews
+import android.widget.TextView
+import androidx.annotation.RequiresApi
 import com.floodshield.app.R
 import com.floodshield.app.alerts.AlertPrefs
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /** The 4 x 2 widget: weather, place, update time and the warning band. */
@@ -30,12 +35,20 @@ abstract class FloodShieldWidget(private val small: Boolean) : AppWidgetProvider
   // Also every 30 minutes (updatePeriodMillis), so an old check turns neutral by itself.
   override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
     for (id in ids) WidgetRenderer.update(context, manager, id, small)
+    // A new widget, or the watch lost (app force-stopped, phone restarted): redraw after a
+    // change of Font size.
+    FontScaleJob.watch(context)
   }
 
   // Its size on the home screen changed (resized, or another launcher grid). On Android 12+ the
   // launcher already picks the layout for the size; older ones need a new drawing.
   override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
     manager.updateAppWidget(id, WidgetRenderer.views(context, small, options))
+  }
+
+  // The last widget of this size is gone; the other size may still be on the home screen.
+  override fun onDisabled(context: Context) {
+    if (!WidgetRenderer.hasWidgets(context)) FontScaleJob.stop(context)
   }
 }
 
@@ -67,22 +80,131 @@ object WidgetRenderer {
     val texts = inLanguage(context, AlertPrefs(context).language)
     val fontScale = context.resources.configuration.fontScale
     val scale = widgetScale(fontScale)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      // One layout per size: the launcher draws the one that fits, also after a resize.
-      return RemoteViews(
-          layoutSizes(small, fontScale).associate { (width, height) ->
-            SizeF(width, height) to
-                draw(context, texts, snapshot, small, layoutFor(small, width, height, fontScale), scale)
-          })
-    }
-    // Older Android: the size the launcher reports (in portrait: its smallest width and largest
-    // height); onAppWidgetOptionsChanged redraws when it changes.
+    val needs = measuredNeeds(context, texts, snapshot, small, fontScale, scale)
+    // The size the launcher reports (in portrait: its smallest width and largest height);
+    // onAppWidgetOptionsChanged redraws when it changes.
     val width = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
     val height = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0) ?: 0
-    return draw(
-        context, texts, snapshot, small, layoutFor(small, width.toFloat(), height.toFloat(), fontScale), scale)
+    val sizes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) launcherSizes(options) else emptyList()
+    val reported = reportedSize(sizes, width, height)
+    // The hidden widget test: what each drawing is and what the launcher said.
+    val test =
+        if (WidgetStore(context).test) {
+          val info =
+              LauncherInfo(
+                  sizes,
+                  width,
+                  options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0,
+                  options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0) ?: 0,
+                  height)
+          val time = SimpleDateFormat("HH:mm:ss", Locale.ROOT).format(Date())
+          val density = context.resources.displayMetrics.density
+          { drawn: Pair<Float, Float>?, layout: WidgetLayout ->
+            testText(time, small, drawn, layout, reported, info, needs, Build.VERSION.SDK_INT, density, fontScale)
+          }
+        } else {
+          null
+        }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      // One layout per size: the launcher draws the one that fits, also after a resize; the
+      // smallest follows the reported size, for launchers that always draw that one.
+      return RemoteViews(
+          layoutsBySize(small, fontScale, needs, reported).associate { (size, layout) ->
+            SizeF(size.first, size.second) to
+                draw(context, texts, snapshot, small, layout, scale, test?.invoke(size, layout))
+          })
+    }
+    // Older Android: only the reported size.
+    val layout = layoutFor(small, width.toFloat(), height.toFloat(), fontScale, needs)
+    return draw(context, texts, snapshot, small, layout, scale, test?.invoke(null, layout))
   }
 
+  /** Android 12+: the sizes (dp) the launcher says the widget has; empty when it doesn't say. */
+  @RequiresApi(Build.VERSION_CODES.S)
+  private fun launcherSizes(options: Bundle?): List<Pair<Float, Float>> {
+    val sizes =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          options?.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java)
+        } else {
+          @Suppress("DEPRECATION") options?.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+        }
+    return sizes.orEmpty().filter { it.width > 0 && it.height > 0 }.map { it.width to it.height }
+  }
+
+  /**
+   * Where the row with wind and feels like fits whole, measured here as the launcher will draw it
+   * (the same phone, fonts and text size) with the texts to show, at a few widths (WidgetState.kt).
+   */
+  private fun measuredNeeds(
+      context: Context,
+      texts: Context,
+      snapshot: Snapshot?,
+      small: Boolean,
+      fontScale: Float,
+      scale: Float,
+  ): Needs {
+    fun needs(widths: List<Float>, layout: WidgetLayout): List<Need> {
+      val views = draw(context, texts, snapshot, small, layout, scale)
+      return widths.map { width -> Need(width, heightDp(context, views, width)) }
+    }
+    return try {
+      if (small) {
+        Needs(
+            smallTop = emptyList(),
+            bigTop = emptyList(),
+            small = needs(SMALL_WIDTHS, WidgetLayout(narrow = false, details = true)),
+            smallOne =
+                if (oneValueAllowed(fontScale)) {
+                  needs(SMALL_WIDTHS, WidgetLayout(narrow = false, details = false, oneValue = true))
+                } else {
+                  emptyList()
+                })
+      } else {
+        Needs(
+            smallTop = needs(smallTopWidths(fontScale), WidgetLayout(narrow = true, details = true)),
+            bigTop = needs(bigTopWidths(fontScale), WidgetLayout(narrow = false, details = true)),
+            small = emptyList())
+      }
+    } catch (e: Exception) {
+      defaultNeeds(fontScale)
+    }
+  }
+
+  /**
+   * The height [views] takes at [widthDp] wide, drawn here in the app; infinite when the row with
+   * wind and feels like (or the one-line "feels like") doesn't fit across (at large text "12 km/h"
+   * was cut to "12 km/").
+   */
+  private fun heightDp(context: Context, views: RemoteViews, widthDp: Float): Float {
+    val density = context.resources.displayMetrics.density
+    val view = views.apply(context, FrameLayout(context))
+    view.measure(
+        View.MeasureSpec.makeMeasureSpec((widthDp * density).roundToInt(), View.MeasureSpec.EXACTLY),
+        View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+    val cut =
+        listOf(R.id.widget_details, R.id.widget_one_value).any { id ->
+          view.findViewById<View>(id)?.let { it.visibility == View.VISIBLE && it.hasCutText() } == true
+        }
+    if (cut) return Float.POSITIVE_INFINITY
+    // Whole dp, never less than needed: the launcher compares whole dp.
+    return ceil(view.measuredHeight / density)
+  }
+
+  /** Whether a text in here is cut off, wraps past its line limit or ends in "…". */
+  private fun View.hasCutText(): Boolean =
+      when (this) {
+        is TextView -> {
+          val lines = layout
+          val room = measuredWidth - totalPaddingLeft - totalPaddingRight + 0.5f
+          lines != null &&
+              (lines.lineCount > maxLines ||
+                  (0 until lines.lineCount).any { lines.getEllipsisCount(it) > 0 || lines.getLineWidth(it) > room })
+        }
+        is ViewGroup -> (0 until childCount).any { getChildAt(it).hasCutText() }
+        else -> false
+      }
+
+  /** One drawing; [test]: the hidden widget test's text over it (null: not shown). */
   private fun draw(
       context: Context,
       texts: Context,
@@ -90,25 +212,29 @@ object WidgetRenderer {
       small: Boolean,
       layout: WidgetLayout,
       scale: Float,
+      test: String? = null,
   ): RemoteViews {
     val views =
         RemoteViews(
             context.packageName,
             when {
               small -> R.layout.widget_small
-              layout.narrow -> R.layout.widget_medium_narrow
+              layout.smallTop -> R.layout.widget_medium_narrow
               else -> R.layout.widget_medium
             })
 
-    for ((id, sp) in textSizes(small, layout.narrow)) {
+    for ((id, sp) in textSizes(small, layout.smallTop)) {
       views.setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_DIP, sp * scale)
     }
     // The launcher reuses the drawn widget: after a change of font size, the band kept the
     // height of an earlier two-line text, and "No alerts" sat above its tick. Setting the line limits
     // again measures the texts anew (the same ones as in the layouts).
     val lineLimits =
-        if (small) listOf(R.id.widget_place to 1, R.id.widget_band_text to 2)
-        else listOf(R.id.widget_condition to 2, R.id.widget_place to 2, R.id.widget_updated to 2, R.id.widget_band_text to 2)
+        if (small) {
+          listOf(R.id.widget_place to 1, R.id.widget_band_text to 2, R.id.widget_one_label to 1, R.id.widget_one_text to 1)
+        } else {
+          listOf(R.id.widget_condition to 2, R.id.widget_place to 2, R.id.widget_updated to 2, R.id.widget_band_text to 2)
+        }
     for ((id, lines) in lineLimits) views.setInt(id, "setMaxLines", lines)
     views.setImageViewResource(R.id.widget_icon, iconFor(snapshot?.icon, snapshot?.isDay ?: true))
     views.setTextViewText(
@@ -123,9 +249,11 @@ object WidgetRenderer {
           } ?: "")
     }
 
-    // Wind, feels like (and humidity on the 4 x 2), when there's room.
+    // Wind, feels like (and humidity on the 4 x 2), when there's room. On the 4 x 2 the space
+    // below it comes and goes with it, so the top row alone stays centred.
     if (snapshot?.temperature != null && layout.details) {
       views.setViewVisibility(R.id.widget_details, View.VISIBLE)
+      if (!small) views.setViewVisibility(R.id.widget_details_space, View.VISIBLE)
       views.setTextViewText(R.id.widget_wind_label, texts.getString(R.string.widget_wind))
       views.setTextViewText(R.id.widget_wind, snapshot.windSpeed?.let { "${it.roundToInt()} km/h" } ?: "--")
       views.setTextViewText(R.id.widget_feels_like_label, texts.getString(R.string.widget_feels_like))
@@ -136,6 +264,16 @@ object WidgetRenderer {
       }
     } else {
       views.setViewVisibility(R.id.widget_details, View.GONE)
+      if (!small) views.setViewVisibility(R.id.widget_details_space, View.GONE)
+    }
+    // The 2 x 2 at large text, where the two columns don't fit: "feels like" alone, on one line.
+    if (small) {
+      val feels = snapshot?.takeIf { it.temperature != null && layout.oneValue }
+      views.setViewVisibility(R.id.widget_one_value, if (feels != null) View.VISIBLE else View.GONE)
+      if (feels != null) {
+        views.setTextViewText(R.id.widget_one_label, texts.getString(R.string.widget_feels_like))
+        views.setTextViewText(R.id.widget_one_text, feels.feelsLike?.let { "${it.roundToInt()}°" } ?: "--")
+      }
     }
 
     when (val band = bandFor(snapshot, System.currentTimeMillis())) {
@@ -153,7 +291,7 @@ object WidgetRenderer {
         // The short words where the sentence would need two lines anyway.
         views.setTextViewText(
             R.id.widget_band_text,
-            texts.getString(if (small || layout.narrow) R.string.widget_no_alerts_short else R.string.widget_no_alerts))
+            texts.getString(if (small || layout.smallTop) R.string.widget_no_alerts_short else R.string.widget_no_alerts))
         views.setTextColor(R.id.widget_band_text, WHITE)
       }
       is Band.Warning -> {
@@ -171,6 +309,9 @@ object WidgetRenderer {
         views.setTextColor(R.id.widget_band_text, ink)
       }
     }
+
+    views.setViewVisibility(R.id.widget_test, if (test != null) View.VISIBLE else View.GONE)
+    if (test != null) views.setTextViewText(R.id.widget_test, test)
 
     // A tap opens the app.
     val launch =
@@ -190,7 +331,7 @@ object WidgetRenderer {
    * The layouts' text sizes (sp at font scale 1, the same as in the XML files), set here in dp so
    * they grow with the phone's font scale only up to MAX_FONT_SCALE (widgetScale).
    */
-  private fun textSizes(small: Boolean, narrow: Boolean): List<Pair<Int, Float>> {
+  private fun textSizes(small: Boolean, smallTop: Boolean): List<Pair<Int, Float>> {
     val label = if (small) 11f else 12f
     val value = if (small) 15f else 16f
     val details =
@@ -200,10 +341,16 @@ object WidgetRenderer {
             R.id.widget_feels_like_label to label,
             R.id.widget_feels_like to value)
     if (small) {
-      return details + listOf(R.id.widget_temperature to 26f, R.id.widget_place to 13f, R.id.widget_band_text to 13f)
+      return details +
+          listOf(
+              R.id.widget_one_label to label,
+              R.id.widget_one_text to value,
+              R.id.widget_temperature to 26f,
+              R.id.widget_place to 13f,
+              R.id.widget_band_text to 13f)
     }
     val top =
-        if (narrow) {
+        if (smallTop) {
           listOf(R.id.widget_temperature to 28f, R.id.widget_condition to 13f, R.id.widget_place to 13f, R.id.widget_updated to 12f)
         } else {
           listOf(R.id.widget_temperature to 34f, R.id.widget_condition to 15f, R.id.widget_place to 15f, R.id.widget_updated to 13f)

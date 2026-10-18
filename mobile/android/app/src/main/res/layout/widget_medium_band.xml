@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The 4 x 2 widget's warning band, in widget_medium.xml and widget_medium_narrow.xml. The
-     default is neutral on purpose: never "all clear" before a real check. Two lines rather than
-     cutting a warning (or Vietnamese's long "all clear") off mid-word. -->
+<!-- The 4 x 2 widget's warning band, in widget_medium.xml (widget_medium_band_compact.xml is the
+     thinner one). The default is neutral on purpose: never "all clear" before a real check. Two
+     lines rather than cutting a warning (or Vietnamese's long "all clear") off mid-word. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_band"
     android:layout_width="match_parent"

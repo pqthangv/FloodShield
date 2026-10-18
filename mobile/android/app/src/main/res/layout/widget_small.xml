@@ -130,6 +130,38 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- At large text, where the two columns don't fit: only "feels like", on one line
+             (WidgetState.kt, oneValue). -->
+        <LinearLayout
+            android:id="@+id/widget_one_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/widget_one_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:text="@string/widget_feels_like"
+                android:textAllCaps="true"
+                android:textColor="#5A6E8C"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/widget_one_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:maxLines="1"
+                android:text="--"
+                android:textColor="#1F2D54"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"

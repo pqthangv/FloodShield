@@ -93,12 +93,12 @@ class WidgetStateTest {
   }
 
   @Test
-  fun `the measured widths grow with the text, except the 4 x 2's smallest`() {
+  fun `the 4 x 2's measured widths grow with the text, except its smallest`() {
     assertEquals(listOf(220f, 260f, 280f, 300f, 340f), measureWidths(SMALL_TOP_WIDTHS, 1f))
     assertEquals(listOf(220f, 260f, 280f, 300f, 340f), measureWidths(SMALL_TOP_WIDTHS, 0.85f))
     assertEquals(
         listOf(220f, 260f * 1.3f, 280f * 1.3f, 300f * 1.3f, 340f * 1.3f), measureWidths(SMALL_TOP_WIDTHS, 1.3f))
-    assertEquals(measureWidths(SMALL_WIDTHS, 1.3f), measureWidths(SMALL_WIDTHS, 2f))
+    assertEquals(measureWidths(SMALL_TOP_WIDTHS, 1.3f), measureWidths(SMALL_TOP_WIDTHS, 2f))
     // Both top rows are measured at the same wide widths (layoutSizes relies on it).
     for (scale in listOf(1f, 1.3f)) {
       val wide = measureWidths(SMALL_TOP_WIDTHS, scale).filter { it >= NARROW_BELOW_DP * widgetScale(scale) }
@@ -191,8 +191,71 @@ class WidgetStateTest {
     }
   }
 
-  /** What the widget looks like: which top row, and the row with wind and feels like or not. */
-  private fun look(layout: WidgetLayout) = layout.smallTop to layout.details
+  /**
+   * What the widget looks like: which top row, the row with wind and feels like or not, and the
+   * 2 x 2's one-line "feels like" or not.
+   */
+  private fun look(layout: WidgetLayout) = Triple(layout.smallTop, layout.details, layout.oneValue)
+
+  /**
+   * Like measured at 130 % text: the 2 x 2's two columns only fit from 180 dp wide, the one-line
+   * "feels like" from 125 dp (narrower, "CẢM THẤY" is cut).
+   */
+  private val large =
+      Needs(
+          smallTop = emptyList(),
+          bigTop = emptyList(),
+          small = listOf(110f, 125f, 135f, 145f, 155f, 165f).map { Need(it, Float.POSITIVE_INFINITY) } +
+              listOf(Need(180f, 178f), Need(200f, 163f)),
+          smallOne =
+              listOf(Need(110f, Float.POSITIVE_INFINITY), Need(125f, 146f), Need(135f, 146f), Need(145f, 141f)) +
+                  listOf(155f, 165f, 180f, 200f).map { Need(it, 141f) },
+      )
+
+  @Test
+  fun `at large text a 2 x 2 without room for the row shows feels like alone, on one line`() {
+    // The first friend's 2 x 2 (147 x 147 dp) at 130 %.
+    assertEquals(
+        WidgetLayout(narrow = false, details = false, oneValue = true),
+        layoutFor(small = true, widthDp = 147f, heightDp = 147f, fontScale = 1.3f, needs = large))
+    // Too short even for that line: nothing, as before.
+    assertEquals(false, layoutFor(small = true, widthDp = 147f, heightDp = 140f, fontScale = 1.3f, needs = large).oneValue)
+    // Too narrow for "CẢM THẤY 33°" on one line.
+    assertEquals(false, layoutFor(small = true, widthDp = 115f, heightDp = 300f, fontScale = 1.3f, needs = large).oneValue)
+    // Room for the two columns after all (a wide 2 x 2): the full row, not the one line.
+    assertEquals(
+        WidgetLayout(narrow = false, details = true),
+        layoutFor(small = true, widthDp = 190f, heightDp = 180f, fontScale = 1.3f, needs = large))
+  }
+
+  @Test
+  fun `at normal text the one line never shows, a 2 x 2 without room for the row stays as it was`() {
+    for (scale in listOf(0.85f, 1f)) {
+      assertEquals(false, layoutFor(small = true, widthDp = 147f, heightDp = 147f, fontScale = scale, needs = large).oneValue)
+      assertEquals(listOf(1f to 1f, 180f to 178f, 200f to 163f), layoutSizes(small = true, fontScale = scale, needs = large))
+    }
+    assertEquals(true, oneValueAllowed(1.15f))
+    assertEquals(false, oneValueAllowed(1f))
+  }
+
+  @Test
+  fun `at large text the launcher's closest fitting size also looks right`() {
+    fun drawn(w: Float, h: Float): WidgetLayout {
+      val fitting = layoutSizes(true, 1.3f, large).filter { (lw, lh) -> lw <= w && lh <= h }
+      val (bw, bh) = fitting.minBy { (lw, lh) -> (w - lw) * (w - lw) + (h - lh) * (h - lh) }
+      return layoutFor(true, bw, bh, 1.3f, large)
+    }
+    val looks = mutableSetOf<Triple<Boolean, Boolean, Boolean>>()
+    for (w in listOf(110f, 124f, 125f, 137f, 145f, 166f, 179f, 180f, 199f, 200f, 400f)) {
+      for (h in listOf(110f, 140f, 141f, 146f, 150f, 162f, 163f, 177f, 178f, 231f, 900f)) {
+        val expected = look(layoutFor(true, w, h, 1.3f, large))
+        assertEquals("2 x 2 at $w x $h", expected, look(drawn(w, h)))
+        looks += expected
+      }
+    }
+    // Nothing, the one line, and the full row all happen.
+    assertEquals(3, looks.size)
+  }
 
   @Test
   fun `the launcher's closest fitting size always looks right for the widget's size`() {
@@ -220,24 +283,24 @@ class WidgetStateTest {
   fun `where the row doesn't fit across, it's never shown, however tall`() {
     // At 130 % text the 2 x 2's "12 km/h" was cut to "12 km/" at 165 dp wide.
     val inf = Float.POSITIVE_INFINITY
-    val large =
+    val cut =
         Needs(
             smallTop = listOf(Need(220f, inf), Need(338f, 190f), Need(390f, 170f)),
             bigTop = listOf(Need(390f, inf)),
             small = listOf(Need(162.5f, inf), Need(175.5f, inf), Need(188.5f, 190f)))
-    assertEquals(false, layoutFor(small = true, widthDp = 170f, heightDp = 900f, fontScale = 1.3f, needs = large).details)
-    assertEquals(true, layoutFor(small = true, widthDp = 190f, heightDp = 190f, fontScale = 1.3f, needs = large).details)
-    assertEquals(false, layoutFor(small = false, widthDp = 300f, heightDp = 900f, fontScale = 1.3f, needs = large).details)
+    assertEquals(false, layoutFor(small = true, widthDp = 170f, heightDp = 900f, fontScale = 1.3f, needs = cut).details)
+    assertEquals(true, layoutFor(small = true, widthDp = 190f, heightDp = 190f, fontScale = 1.3f, needs = cut).details)
+    assertEquals(false, layoutFor(small = false, widthDp = 300f, heightDp = 900f, fontScale = 1.3f, needs = cut).details)
     // Wide, the big top row never gets the row there: the small one does.
     assertEquals(
         WidgetLayout(narrow = false, details = true, short = true),
-        layoutFor(small = false, widthDp = 400f, heightDp = 900f, fontScale = 1.3f, needs = large))
+        layoutFor(small = false, widthDp = 400f, heightDp = 900f, fontScale = 1.3f, needs = cut))
     // The launcher only gets sizes that can be drawn.
     for (small in listOf(true, false)) {
-      val sizes = layoutSizes(small, 1.3f, large)
+      val sizes = layoutSizes(small, 1.3f, cut) + layoutSizes(small, 1.3f, large)
       assertEquals(true, sizes.all { (w, h) -> w.isFinite() && h.isFinite() })
     }
-    assertEquals(listOf(1f to 1f, 188.5f to 190f), layoutSizes(small = true, fontScale = 1.3f, needs = large))
+    assertEquals(listOf(1f to 1f, 188.5f to 190f), layoutSizes(small = true, fontScale = 1.3f, needs = cut))
   }
 
   @Test

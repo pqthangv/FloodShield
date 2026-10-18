@@ -52,9 +52,15 @@ fun bandFor(snapshot: Snapshot?, now: Long): Band {
 /**
  * How a widget is drawn at its size on the home screen. [narrow]: too narrow for the 4 x 2's big
  * top row; [details]: the row with wind, "feels like" (and humidity on the 4 x 2); [short]: the
- * 4 x 2 is wide enough for its big top row but only tall enough for that row with the small one.
+ * 4 x 2 is wide enough for its big top row but only tall enough for that row with the small one;
+ * [oneValue]: the 2 x 2 at large text shows "feels like" alone, on one line, instead of the row.
  */
-data class WidgetLayout(val narrow: Boolean, val details: Boolean, val short: Boolean = false) {
+data class WidgetLayout(
+    val narrow: Boolean,
+    val details: Boolean,
+    val short: Boolean = false,
+    val oneValue: Boolean = false,
+) {
   /** The 4 x 2's smaller top row, thinner band and short "No alerts" (widget_medium_narrow.xml). */
   val smallTop: Boolean
     get() = narrow || short
@@ -69,10 +75,23 @@ data class Need(val widthDp: Float, val heightDp: Float)
 /**
  * Where the row with wind and feels like fits whole, narrowest width first (a narrower widget may
  * need more: a place or a warning on two lines): the 4 x 2 with its small top row ([smallTop]) and
- * with its big one ([bigTop]), and the 2 x 2 ([small]). WidgetRenderer measures them on the phone,
- * with its fonts, text size and the texts to show; [defaultNeeds] when it can't.
+ * with its big one ([bigTop]), the 2 x 2 ([small]) and the 2 x 2's one-line "feels like"
+ * ([smallOne], only at large text). WidgetRenderer measures them on the phone, with its fonts, text
+ * size and the texts to show; [defaultNeeds] when it can't.
  */
-data class Needs(val smallTop: List<Need>, val bigTop: List<Need>, val small: List<Need>)
+data class Needs(
+    val smallTop: List<Need>,
+    val bigTop: List<Need>,
+    val small: List<Need>,
+    val smallOne: List<Need> = emptyList(),
+)
+
+/**
+ * The 2 x 2's one-line "feels like" is only for text larger than normal (Settings > Display > Font
+ * size): there the two columns rarely fit (the user's choice, 2026-10-18). At normal text a 2 x 2
+ * without room for the row stays as it is.
+ */
+fun oneValueAllowed(fontScale: Float) = fontScale > 1f
 
 /**
  * The needs measured on the Android14 emulator with one-line texts at font scale 1. Larger text
@@ -90,9 +109,9 @@ fun defaultNeeds(fontScale: Float = 1f): Needs {
 }
 
 /**
- * The widths (dp) the renderer measures each look at: where it starts to be used, and wider ones
- * where it may need less. Like the limits, they grow with the widget's text scale (but the 4 x 2
- * can't be narrower than MEDIUM_MIN_WIDTH_DP).
+ * The widths (dp) the renderer measures the 4 x 2's looks at: where each starts to be used, and
+ * wider ones where it may need less. Like the big top row's limit (NARROW_BELOW_DP), they grow
+ * with the widget's text scale, but the 4 x 2 can't be narrower than MEDIUM_MIN_WIDTH_DP.
  */
 fun measureWidths(look: List<Float>, fontScale: Float): List<Float> {
   val scale = widgetScale(fontScale).coerceAtLeast(1f)
@@ -102,8 +121,11 @@ fun measureWidths(look: List<Float>, fontScale: Float): List<Float> {
 // A 4 x 2 on a 5-column home screen is about 290 dp wide.
 val SMALL_TOP_WIDTHS = listOf(MEDIUM_MIN_WIDTH_DP, 260f, 280f, NARROW_BELOW_DP, 340f)
 val BIG_TOP_WIDTHS = listOf(NARROW_BELOW_DP, 340f)
-// Real 2 x 2s are 135-170 dp wide, and Vietnamese "Không có cảnh báo" wraps around 140-150.
-val SMALL_WIDTHS = listOf(SMALL_DETAILS_WIDTH_DP, 135f, 145f, 155f, 165f)
+/**
+ * The 2 x 2's widths (dp), the same at every text size: the measuring tells where a text would
+ * be cut. Real 2 x 2s are 135-170 dp wide; Vietnamese "Không có cảnh báo" wraps around 140-150.
+ */
+val SMALL_WIDTHS = listOf(110f, SMALL_DETAILS_WIDTH_DP, 135f, 145f, 155f, 165f, 180f, 200f)
 
 /** The height the row needs at [widthDp] (0: the launcher didn't say), or null where it's never shown. */
 private fun List<Need>.heightAt(widthDp: Float): Float? =
@@ -131,10 +153,13 @@ fun layoutFor(
 ): WidgetLayout {
   val scale = widgetScale(fontScale).coerceAtLeast(1f)
   if (small) {
-    // The 2 x 2's two columns also need the width ("12 km/h" was cut to "12" at 130 %): its
-    // needs start at SMALL_DETAILS_WIDTH_DP.
+    // The 2 x 2's two columns also need the width ("12 km/h" was cut to "12" at 130 %): measured
+    // as an infinite need where they don't fit across.
     val need = needs.small.heightAt(widthDp)
-    return WidgetLayout(narrow = false, details = need != null && heightDp >= need)
+    if (need != null && heightDp >= need) return WidgetLayout(narrow = false, details = true)
+    val one = needs.smallOne.heightAt(widthDp)
+    return WidgetLayout(
+        narrow = false, details = false, oneValue = oneValueAllowed(fontScale) && one != null && heightDp >= one)
   }
   val narrow = widthDp > 0 && widthDp < NARROW_BELOW_DP * scale
   val bigTop = if (narrow) null else needs.bigTop.heightAt(widthDp)
@@ -158,6 +183,8 @@ fun layoutSizes(small: Boolean, fontScale: Float = 1f, needs: Needs = defaultNee
   // The 2 x 2: without the details row, or with it once wide and tall enough.
   if (small) {
     sizes += needs.small.sizes()
+    // Measured at the same widths as the row, so the row wins wherever it fits.
+    if (oneValueAllowed(fontScale)) sizes += needs.smallOne.sizes()
     return sizes.distinct()
   }
   sizes += NARROW_BELOW_DP * widgetScale(fontScale).coerceAtLeast(1f) to 1f

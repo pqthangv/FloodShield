@@ -105,17 +105,26 @@ object WidgetRenderer {
       fontScale: Float,
       scale: Float,
   ): Needs {
-    fun needs(look: List<Float>, layout: WidgetLayout): List<Need> {
+    fun needs(widths: List<Float>, layout: WidgetLayout): List<Need> {
       val views = draw(context, texts, snapshot, small, layout, scale)
-      return measureWidths(look, fontScale).map { width -> Need(width, heightDp(context, views, width)) }
+      return widths.map { width -> Need(width, heightDp(context, views, width)) }
     }
     return try {
       if (small) {
-        Needs(emptyList(), emptyList(), needs(SMALL_WIDTHS, WidgetLayout(narrow = false, details = true)))
+        Needs(
+            smallTop = emptyList(),
+            bigTop = emptyList(),
+            small = needs(SMALL_WIDTHS, WidgetLayout(narrow = false, details = true)),
+            smallOne =
+                if (oneValueAllowed(fontScale)) {
+                  needs(SMALL_WIDTHS, WidgetLayout(narrow = false, details = false, oneValue = true))
+                } else {
+                  emptyList()
+                })
       } else {
         Needs(
-            smallTop = needs(SMALL_TOP_WIDTHS, WidgetLayout(narrow = true, details = true)),
-            bigTop = needs(BIG_TOP_WIDTHS, WidgetLayout(narrow = false, details = true)),
+            smallTop = needs(measureWidths(SMALL_TOP_WIDTHS, fontScale), WidgetLayout(narrow = true, details = true)),
+            bigTop = needs(measureWidths(BIG_TOP_WIDTHS, fontScale), WidgetLayout(narrow = false, details = true)),
             small = emptyList())
       }
     } catch (e: Exception) {
@@ -125,7 +134,8 @@ object WidgetRenderer {
 
   /**
    * The height [views] takes at [widthDp] wide, drawn here in the app; infinite when the row with
-   * wind and feels like doesn't fit across (at large text "12 km/h" was cut to "12 km/").
+   * wind and feels like (or the one-line "feels like") doesn't fit across (at large text "12 km/h"
+   * was cut to "12 km/").
    */
   private fun heightDp(context: Context, views: RemoteViews, widthDp: Float): Float {
     val density = context.resources.displayMetrics.density
@@ -133,8 +143,11 @@ object WidgetRenderer {
     view.measure(
         View.MeasureSpec.makeMeasureSpec((widthDp * density).roundToInt(), View.MeasureSpec.EXACTLY),
         View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
-    val details = view.findViewById<View>(R.id.widget_details)
-    if (details?.visibility == View.VISIBLE && details.hasCutText()) return Float.POSITIVE_INFINITY
+    val cut =
+        listOf(R.id.widget_details, R.id.widget_one_value).any { id ->
+          view.findViewById<View>(id)?.let { it.visibility == View.VISIBLE && it.hasCutText() } == true
+        }
+    if (cut) return Float.POSITIVE_INFINITY
     // Whole dp, never less than needed: the launcher compares whole dp.
     return ceil(view.measuredHeight / density)
   }
@@ -177,8 +190,11 @@ object WidgetRenderer {
     // height of an earlier two-line text, and "No alerts" sat above its tick. Setting the line limits
     // again measures the texts anew (the same ones as in the layouts).
     val lineLimits =
-        if (small) listOf(R.id.widget_place to 1, R.id.widget_band_text to 2)
-        else listOf(R.id.widget_condition to 2, R.id.widget_place to 2, R.id.widget_updated to 2, R.id.widget_band_text to 2)
+        if (small) {
+          listOf(R.id.widget_place to 1, R.id.widget_band_text to 2, R.id.widget_one_label to 1, R.id.widget_one_text to 1)
+        } else {
+          listOf(R.id.widget_condition to 2, R.id.widget_place to 2, R.id.widget_updated to 2, R.id.widget_band_text to 2)
+        }
     for ((id, lines) in lineLimits) views.setInt(id, "setMaxLines", lines)
     views.setImageViewResource(R.id.widget_icon, iconFor(snapshot?.icon, snapshot?.isDay ?: true))
     views.setTextViewText(
@@ -209,6 +225,15 @@ object WidgetRenderer {
     } else {
       views.setViewVisibility(R.id.widget_details, View.GONE)
       if (!small) views.setViewVisibility(R.id.widget_details_space, View.GONE)
+    }
+    // The 2 x 2 at large text, where the two columns don't fit: "feels like" alone, on one line.
+    if (small) {
+      val feels = snapshot?.takeIf { it.temperature != null && layout.oneValue }
+      views.setViewVisibility(R.id.widget_one_value, if (feels != null) View.VISIBLE else View.GONE)
+      if (feels != null) {
+        views.setTextViewText(R.id.widget_one_label, texts.getString(R.string.widget_feels_like))
+        views.setTextViewText(R.id.widget_one_text, feels.feelsLike?.let { "${it.roundToInt()}°" } ?: "--")
+      }
     }
 
     when (val band = bandFor(snapshot, System.currentTimeMillis())) {
@@ -273,7 +298,13 @@ object WidgetRenderer {
             R.id.widget_feels_like_label to label,
             R.id.widget_feels_like to value)
     if (small) {
-      return details + listOf(R.id.widget_temperature to 26f, R.id.widget_place to 13f, R.id.widget_band_text to 13f)
+      return details +
+          listOf(
+              R.id.widget_one_label to label,
+              R.id.widget_one_text to value,
+              R.id.widget_temperature to 26f,
+              R.id.widget_place to 13f,
+              R.id.widget_band_text to 13f)
     }
     val top =
         if (smallTop) {

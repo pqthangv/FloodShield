@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AlertScheduler from '../specs/NativeAlertScheduler';
-import {toggleWidgetTest, widgetSnapshot} from '../services/widget';
+import storage from '../services/storage';
+import {setWidgetPicture, toggleWidgetTest, widgetSnapshot} from '../services/widget';
 import {Alert, WeatherData} from '../services/model';
 
 const weather = {
@@ -75,5 +76,25 @@ describe('the hidden widget test (long press on Settings > Version)', () => {
     // A restart keeps AsyncStorage; only the JS state is new.
     expect(await AsyncStorage.getItem('widgetTest')).toBe('true');
     expect(await toggleWidgetTest()).toBe(false);
+  });
+});
+
+describe('the widget background picture (Settings)', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    jest.mocked(AlertScheduler!.setWidgetPicture).mockClear();
+  });
+
+  test('is on by default, without touching Settings', async () => {
+    expect(await storage.getWidgetPicture()).toBe(true);
+  });
+
+  test('turned off and on again: remembered, and the widget is told each time', async () => {
+    await setWidgetPicture(false);
+    expect(await storage.getWidgetPicture()).toBe(false);
+    expect(AlertScheduler!.setWidgetPicture).toHaveBeenLastCalledWith(false);
+    await setWidgetPicture(true);
+    expect(await storage.getWidgetPicture()).toBe(true);
+    expect(AlertScheduler!.setWidgetPicture).toHaveBeenLastCalledWith(true);
   });
 });

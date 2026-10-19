@@ -3,124 +3,142 @@
      is the same with a smaller top row, for narrow home screens (WidgetState.kt). The defaults here
      are neutral on purpose: never "all clear" before a real check. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background">
+    android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    tools:targetApi="s">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <LinearLayout
+        <!-- The weather picture behind the content, not the band (WidgetState.kt pictureFor;
+             Android 12+, when on in Settings), clipped to the rounded corners. -->
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:orientation="vertical"
-            android:paddingStart="14dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="14dp"
-            android:paddingBottom="6dp">
+            android:layout_weight="1">
 
-            <!-- The spare height goes evenly above, between and below the two rows, so they don't
-                 sit packed together (the last space only with the wind row: without it the top row is
-                 centred). Empty FrameLayouts: a widget can't use a plain View. -->
-            <FrameLayout
+            <ImageView
+                android:id="@+id/widget_picture"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
 
-            <!-- The picture and the temperature always get their room; the place name takes what's
-                 left (2 lines, then "…"). Measured the other way round, a long place name pushed the
-                 "°" onto a new line. -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:paddingStart="14dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="6dp">
 
-                <ImageView
-                    android:id="@+id/widget_icon"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/widget_weather_cloudy_day" />
+                <!-- The spare height goes evenly above, between and below the two rows, so they don't
+                     sit packed together (the last space only with the wind row: without it the top row is
+                     centred). Empty FrameLayouts: a widget can't use a plain View. -->
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
 
+                <!-- The picture and the temperature always get their room; the place name takes what's
+                     left (2 lines, then "…"). Measured the other way round, a long place name pushed the
+                     "°" onto a new line. -->
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:orientation="vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/widget_temperature"
+                    <ImageView
+                        android:id="@+id/widget_icon"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/widget_weather_cloudy_day" />
+
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:includeFontPadding="false"
-                        android:maxLines="1"
-                        android:text="--°"
-                        android:textColor="#1F2D54"
-                        android:textSize="34sp"
-                        android:textStyle="bold" />
+                        android:layout_marginStart="10dp"
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/widget_condition"
-                        android:layout_width="wrap_content"
+                        <TextView
+                            android:id="@+id/widget_temperature"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:text="--°"
+                            android:textColor="#1F2D54"
+                            android:textSize="34sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/widget_condition"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:maxWidth="110dp"
+                            android:maxLines="2"
+                            android:textColor="#1F2D54"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:maxWidth="110dp"
-                        android:maxLines="2"
-                        android:textColor="#1F2D54"
-                        android:textSize="15sp" />
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:gravity="end"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/widget_place"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:gravity="end"
+                            android:maxLines="2"
+                            android:text="@string/app_name"
+                            android:textColor="#1F2D54"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/widget_updated"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:maxLines="2"
+                            android:textColor="#5A6E8C"
+                            android:textSize="13sp" />
+                    </LinearLayout>
                 </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <include layout="@layout/widget_medium_details" />
+
+                <FrameLayout
+                    android:id="@+id/widget_details_space"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:gravity="end"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/widget_place"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:gravity="end"
-                        android:maxLines="2"
-                        android:text="@string/app_name"
-                        android:textColor="#1F2D54"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/widget_updated"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:gravity="end"
-                        android:maxLines="2"
-                        android:textColor="#5A6E8C"
-                        android:textSize="13sp" />
-                </LinearLayout>
+                    android:visibility="gone" />
             </LinearLayout>
-
-            <FrameLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <include layout="@layout/widget_medium_details" />
-
-            <FrameLayout
-                android:id="@+id/widget_details_space"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:visibility="gone" />
-        </LinearLayout>
+        </FrameLayout>
 
         <include layout="@layout/widget_medium_band" />
     </LinearLayout>

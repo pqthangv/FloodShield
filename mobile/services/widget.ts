@@ -50,6 +50,15 @@ export function updateWidget(snapshot: WidgetSnapshot) {
 }
 
 /**
+ * The weather picture behind the home-screen widgets (Settings), on by default: remembered, and
+ * the widgets redraw at once.
+ */
+export async function setWidgetPicture(on: boolean) {
+  await storage.setWidgetPicture(on);
+  AlertScheduler?.setWidgetPicture(on);
+}
+
+/**
  * The hidden widget test (long press on Settings > Version) on or off; returns the new state. The
  * widgets then show how the launcher drew them, for testers' screenshots.
  */

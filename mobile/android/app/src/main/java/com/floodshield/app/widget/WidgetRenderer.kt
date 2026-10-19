@@ -106,12 +106,20 @@ object WidgetRenderer {
           null
         }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      // The weather picture behind the content, when on in Settings. Only from Android 12, which
+      // clips it to the widget's rounded corners (clipToOutline); older ones keep the plain card.
+      val picture =
+          if (WidgetStore(context).picture) {
+            pictureFor(snapshot?.icon, snapshot?.isDay ?: true, hasWeather = snapshot?.temperature != null)
+          } else {
+            null
+          }
       // One layout per size: the launcher draws the one that fits, also after a resize; the
       // smallest follows the reported size, for launchers that always draw that one.
       return RemoteViews(
           layoutsBySize(small, fontScale, needs, reported).associate { (size, layout) ->
             SizeF(size.first, size.second) to
-                draw(context, texts, snapshot, small, layout, scale, test?.invoke(size, layout))
+                draw(context, texts, snapshot, small, layout, scale, test?.invoke(size, layout), picture)
           })
     }
     // Older Android: only the reported size.
@@ -204,7 +212,11 @@ object WidgetRenderer {
         else -> false
       }
 
-  /** One drawing; [test]: the hidden widget test's text over it (null: not shown). */
+  /**
+   * One drawing; [test]: the hidden widget test's text over it (null: not shown); [picture]: the
+   * weather picture behind the content (null: the plain card; the measuring drawings never have
+   * one, since an image's own height would change what they measure).
+   */
   private fun draw(
       context: Context,
       texts: Context,
@@ -213,6 +225,7 @@ object WidgetRenderer {
       layout: WidgetLayout,
       scale: Float,
       test: String? = null,
+      picture: Picture? = null,
   ): RemoteViews {
     val views =
         RemoteViews(
@@ -222,6 +235,25 @@ object WidgetRenderer {
               layout.smallTop -> R.layout.widget_medium_narrow
               else -> R.layout.widget_medium
             })
+
+    if (picture != null) {
+      views.setImageViewResource(R.id.widget_picture, pictureResource(picture.name))
+      views.setViewVisibility(R.id.widget_picture, View.VISIBLE)
+    } else {
+      views.setViewVisibility(R.id.widget_picture, View.GONE)
+    }
+    // Every text's colour, every time: the launcher reuses the drawn widget, and white text must
+    // not stay on the plain card after the picture is turned off. Navy and grey on the plain card;
+    // on a picture navy (labels a darker navy: grey was too faint there) or white.
+    val ink = if (picture == null || picture.darkText) NAVY else WHITE
+    val label =
+        when {
+          picture == null -> GREY
+          picture.darkText -> NAVY_LABEL
+          else -> PALE_LABEL
+        }
+    for (id in mainTexts(small)) views.setTextColor(id, ink)
+    for (id in labelTexts(small)) views.setTextColor(id, label)
 
     for ((id, sp) in textSizes(small, layout.smallTop)) {
       views.setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_DIP, sp * scale)
@@ -377,6 +409,32 @@ object WidgetRenderer {
         else -> if (isDay) R.drawable.widget_weather_cloudy_day else R.drawable.widget_weather_cloudy_night
       }
 
+  /** The texts in the main colour and in the label colour (the same ids in every layout). */
+  private fun mainTexts(small: Boolean) =
+      listOf(R.id.widget_temperature, R.id.widget_place, R.id.widget_wind, R.id.widget_feels_like) +
+          if (small) listOf(R.id.widget_one_text) else listOf(R.id.widget_condition, R.id.widget_humidity)
+
+  private fun labelTexts(small: Boolean) =
+      listOf(R.id.widget_wind_label, R.id.widget_feels_like_label) +
+          if (small) listOf(R.id.widget_one_label) else listOf(R.id.widget_humidity_label, R.id.widget_updated)
+
+  /** The weather pictures (private/widget-backgrounds), in res/drawable-nodpi. */
+  private fun pictureResource(name: String) =
+      when (name) {
+        "clear_day" -> R.drawable.widget_bg_clear_day
+        "clear_night" -> R.drawable.widget_bg_clear_night
+        "cloudy_night" -> R.drawable.widget_bg_cloudy_night
+        "drizzle_day" -> R.drawable.widget_bg_drizzle_day
+        "drizzle_night" -> R.drawable.widget_bg_drizzle_night
+        "rain_day" -> R.drawable.widget_bg_rain_day
+        "rain_night" -> R.drawable.widget_bg_rain_night
+        "thunderstorm_day" -> R.drawable.widget_bg_thunderstorm_day
+        "thunderstorm_night" -> R.drawable.widget_bg_thunderstorm_night
+        "snow_day" -> R.drawable.widget_bg_snow_day
+        "snow_night" -> R.drawable.widget_bg_snow_night
+        else -> R.drawable.widget_bg_cloudy_day
+      }
+
   private fun bandBackground(severity: String) =
       when (severity) {
         "info" -> R.drawable.widget_band_info
@@ -395,4 +453,8 @@ object WidgetRenderer {
 
   private const val WHITE = 0xFFFFFFFF.toInt()
   private const val NAVY = 0xFF1F2D54.toInt()
+  /** The layouts' label grey (plain card), and the label colours on a light / dark picture. */
+  private const val GREY = 0xFF5A6E8C.toInt()
+  private const val NAVY_LABEL = 0xFF2A3A62.toInt()
+  private const val PALE_LABEL = 0xFFDCE6F4.toInt()
 }

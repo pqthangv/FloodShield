@@ -38,6 +38,11 @@ export interface Spec extends TurboModule {
    * stores it for the iPhone widget.
    */
   setWidgetTest(on: boolean): void;
+  /**
+   * The weather picture behind the home-screen widgets (Settings > Widget background picture), on
+   * by default. Android 12+ draws it; iOS stores it for the iPhone widget.
+   */
+  setWidgetPicture(on: boolean): void;
   /** Alerts already shown inside the app, so the worker does not notify them again. */
   markSeen(ids: string[]): void;
   /** Runs one check immediately (useful for testing). */

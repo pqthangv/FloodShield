@@ -36,10 +36,21 @@ struct SnapshotAlert: Decodable {
 /// The App Group shared with the app (both targets' .entitlements).
 enum WidgetData {
   static let kind = "FloodShieldWidget"
-  private static let defaults = UserDefaults(suiteName: "group.com.floodshield.app")
+  /// Also read and written by WidgetFetch.swift (the widget refreshing itself).
+  static let defaults = UserDefaults(suiteName: "group.com.floodshield.app")
 
   /// The language chosen in the app, not the phone's.
   static var language: String { defaults?.string(forKey: "fs_widget_language") ?? "vi" }
+
+  /// The hidden widget test (Settings > Version, long press in the app).
+  static var test: Bool { defaults?.bool(forKey: "fs_widget_test") ?? false }
+
+  /// The weather picture behind the widget (Settings > Widget background picture): on by default,
+  /// also before the app has saved the setting.
+  static var picture: Bool { defaults?.object(forKey: "fs_widget_picture") as? Bool ?? true }
+
+  /// When iOS last asked the widget for its timeline (markShown), in seconds since 1970.
+  static var shownAt: Double { defaults?.double(forKey: "fs_widget_seen_at") ?? 0 }
 
   static func load() -> Snapshot? {
     guard let json = defaults?.string(forKey: "fs_widget_snapshot"), let data = json.data(using: .utf8)
@@ -145,6 +156,40 @@ extension Color {
       red: Double((hex >> 16) & 0xFF) / 255,
       green: Double((hex >> 8) & 0xFF) / 255,
       blue: Double(hex & 0xFF) / 255)
+  }
+}
+
+/// The weather picture behind the widget's content (Assets.xcassets bg_<name>, drawn as vector art:
+/// private/widget-backgrounds), and whether its text is navy (light scenes) or white (every night,
+/// and storms by day). The same as Android (WidgetState.kt pictureFor).
+struct Picture: Equatable {
+  let name: String
+  let darkText: Bool
+}
+
+let pictureKinds = ["clear", "cloudy", "drizzle", "rain", "thunderstorm", "snow"]
+
+/// The picture for the weather now; nil with no weather yet. An unknown key is drawn as cloudy,
+/// like the weather pictures.
+func pictureFor(_ icon: String?, isDay: Bool, hasWeather: Bool) -> Picture? {
+  guard hasWeather else { return nil }
+  let kind = icon.flatMap { pictureKinds.contains($0) ? $0 : nil } ?? "cloudy"
+  return Picture(name: "bg_\(kind)_\(isDay ? "day" : "night")", darkText: isDay && kind != "thunderstorm")
+}
+
+/// The widget's text colours: navy and grey on the plain card; on a picture navy (labels a darker
+/// navy: grey was too faint there) or white. Each picture was checked for contrast with its colours.
+struct Ink {
+  let main: Color
+  let label: Color
+
+  static let plain = Ink(main: Palette.navy, label: Palette.grey)
+
+  static func on(_ picture: Picture?) -> Ink {
+    guard let picture else { return .plain }
+    return picture.darkText
+      ? Ink(main: Palette.navy, label: Color(hex: 0x2A3A62))
+      : Ink(main: .white, label: Color(hex: 0xDCE6F4))
   }
 }
 

@@ -1,5 +1,8 @@
 package com.floodshield.app.widget
 
+import java.util.Locale
+import kotlin.math.roundToInt
+
 /**
  * What the home-screen widget knows: saved by the app when it's open (setWidget) and by the
  * background check (AlertWorker). Texts are already in the app's language.
@@ -50,11 +53,97 @@ fun bandFor(snapshot: Snapshot?, now: Long): Band {
 }
 
 /**
- * How a widget is drawn at its size on the home screen. [narrow]: the 4 x 2's smaller top row
- * (widget_medium_narrow.xml); [details]: the row with wind, "feels like" (and humidity on the
- * 4 x 2).
+ * How a widget is drawn at its size on the home screen. [narrow]: too narrow for the 4 x 2's big
+ * top row; [details]: the row with wind, "feels like" (and humidity on the 4 x 2); [short]: the
+ * 4 x 2 is wide enough for its big top row but only tall enough for that row with the small one;
+ * [oneValue]: the 2 x 2 at large text shows "feels like" alone, on one line, instead of the row.
  */
-data class WidgetLayout(val narrow: Boolean, val details: Boolean)
+data class WidgetLayout(
+    val narrow: Boolean,
+    val details: Boolean,
+    val short: Boolean = false,
+    val oneValue: Boolean = false,
+) {
+  /** The 4 x 2's smaller top row, thinner band and short "No alerts" (widget_medium_narrow.xml). */
+  val smallTop: Boolean
+    get() = narrow || short
+}
+
+/**
+ * From [widthDp] wide on, the row with wind and feels like fits whole from [heightDp] tall
+ * (infinite: it doesn't fit across, a text would be cut).
+ */
+data class Need(val widthDp: Float, val heightDp: Float)
+
+/**
+ * Where the row with wind and feels like fits whole, narrowest width first (a narrower widget may
+ * need more: a place or a warning on two lines): the 4 x 2 with its small top row ([smallTop]) and
+ * with its big one ([bigTop]), the 2 x 2 ([small]) and the 2 x 2's one-line "feels like"
+ * ([smallOne], only at large text). WidgetRenderer measures them on the phone, with its fonts, text
+ * size and the texts to show; [defaultNeeds] when it can't.
+ */
+data class Needs(
+    val smallTop: List<Need>,
+    val bigTop: List<Need>,
+    val small: List<Need>,
+    val smallOne: List<Need> = emptyList(),
+)
+
+/**
+ * The 2 x 2's one-line "feels like" is only for text larger than normal (Settings > Display > Font
+ * size): there the two columns rarely fit (the user's choice, 2026-10-18). At normal text a 2 x 2
+ * without room for the row stays as it is.
+ */
+fun oneValueAllowed(fontScale: Float) = fontScale > 1f
+
+/**
+ * The needs measured on the Android14 emulator with one-line texts at font scale 1. Larger text
+ * needs more, here a little too much: the pictures and paddings don't grow with it.
+ */
+fun defaultNeeds(fontScale: Float = 1f): Needs {
+  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+  val wide = NARROW_BELOW_DP * scale
+  return Needs(
+      // Also at the first wide width, where the big top row starts: layoutSizes relies on it.
+      smallTop = listOf(Need(MEDIUM_MIN_WIDTH_DP, SMALL_TOP_DETAILS_DP * scale), Need(wide, SMALL_TOP_DETAILS_DP * scale)),
+      bigTop = listOf(Need(wide, BIG_TOP_DETAILS_DP * scale)),
+      small = listOf(Need(SMALL_DETAILS_WIDTH_DP * scale, SMALL_DETAILS_DP * scale)),
+  )
+}
+
+/**
+ * The widths (dp) the renderer measures the 4 x 2's big top row at: where it starts to be used
+ * (NARROW_BELOW_DP, growing with the widget's text scale like that limit) and a wider one.
+ */
+fun bigTopWidths(fontScale: Float): List<Float> {
+  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+  return BIG_TOP_WIDTHS.map { it * scale }
+}
+
+/**
+ * The widths (dp) the renderer measures the 4 x 2's small top row at: fixed narrow ones, the same
+ * at every text size (the measuring finds where a text would be cut), and from where the big top
+ * row starts, the big top row's own widths (layoutSizes relies on both rows sharing those). At
+ * 130 % text the narrow ones were 220 and 338 dp, and a 292 dp widget (5 columns) got the 220 dp
+ * answer: no row, though it fitted.
+ */
+fun smallTopWidths(fontScale: Float): List<Float> {
+  val wide = NARROW_BELOW_DP * widgetScale(fontScale).coerceAtLeast(1f)
+  return (NARROW_WIDTHS.filter { it < wide } + bigTopWidths(fontScale)).distinct().sorted()
+}
+
+// A 4 x 2 on a 5-column home screen is about 290 dp wide; it can't be narrower than 220.
+private val NARROW_WIDTHS = listOf(MEDIUM_MIN_WIDTH_DP, 240f, 260f, 280f, 300f, 340f)
+private val BIG_TOP_WIDTHS = listOf(NARROW_BELOW_DP, 340f)
+/**
+ * The 2 x 2's widths (dp), the same at every text size: the measuring tells where a text would
+ * be cut. Real 2 x 2s are 135-170 dp wide; Vietnamese "Không có cảnh báo" wraps around 140-150.
+ */
+val SMALL_WIDTHS = listOf(110f, SMALL_DETAILS_WIDTH_DP, 135f, 145f, 155f, 165f, 180f, 200f)
+
+/** The height the row needs at [widthDp] (0: the launcher didn't say), or null where it's never shown. */
+private fun List<Need>.heightAt(widthDp: Float): Float? =
+    if (widthDp <= 0) firstOrNull()?.heightDp else lastOrNull { it.widthDp <= widthDp }?.heightDp
 
 /**
  * How much the widget's text grows with the phone's font scale (Settings > Display > Font size):
@@ -65,37 +154,186 @@ fun widgetScale(fontScale: Float) = fontScale.coerceAtMost(MAX_FONT_SCALE)
 
 /**
  * The layout for a size in dp; in portrait, the launcher's smallest width and largest height (0:
- * it didn't say). Larger text needs more room, so the limits grow with the widget's text scale.
+ * it didn't say). Larger text needs more room, so the widths grow with the widget's text scale; the
+ * heights come measured with it ([needs]). The row with wind and feels like shows whenever it fits
+ * whole, on the 4 x 2 with the small top row if the big one leaves no room for it.
  */
-fun layoutFor(small: Boolean, widthDp: Float, heightDp: Float, fontScale: Float = 1f): WidgetLayout {
+fun layoutFor(
+    small: Boolean,
+    widthDp: Float,
+    heightDp: Float,
+    fontScale: Float = 1f,
+    needs: Needs = defaultNeeds(fontScale),
+): WidgetLayout {
   val scale = widgetScale(fontScale).coerceAtLeast(1f)
-  val tallEnough = heightDp >= (if (small) SMALL_DETAILS_DP else MEDIUM_DETAILS_DP) * scale
-  // The 2 x 2's two columns also need the width ("12 km/h" was cut to "12" at 130 %).
-  val wideEnough = !small || widthDp <= 0 || widthDp >= SMALL_DETAILS_WIDTH_DP * scale
-  return WidgetLayout(
-      narrow = !small && widthDp > 0 && widthDp < NARROW_BELOW_DP * scale,
-      details = tallEnough && wideEnough,
-  )
+  if (small) {
+    // The 2 x 2's two columns also need the width ("12 km/h" was cut to "12" at 130 %): measured
+    // as an infinite need where they don't fit across.
+    val need = needs.small.heightAt(widthDp)
+    if (need != null && heightDp >= need) return WidgetLayout(narrow = false, details = true)
+    val one = needs.smallOne.heightAt(widthDp)
+    return WidgetLayout(
+        narrow = false, details = false, oneValue = oneValueAllowed(fontScale) && one != null && heightDp >= one)
+  }
+  val narrow = widthDp > 0 && widthDp < NARROW_BELOW_DP * scale
+  val bigTop = if (narrow) null else needs.bigTop.heightAt(widthDp)
+  val smallTop = needs.smallTop.heightAt(widthDp)
+  return when {
+    bigTop != null && heightDp >= bigTop -> WidgetLayout(narrow = false, details = true)
+    smallTop != null && heightDp >= smallTop -> WidgetLayout(narrow, details = true, short = !narrow)
+    else -> WidgetLayout(narrow, details = false)
+  }
 }
 
 /**
- * Android 12+: the sizes (width to height, dp) where the layout changes. The launcher draws the
- * largest one that fits, also after a resize or a change of grid, without asking the app.
+ * Android 12+: the sizes (width to height, dp) where the layout changes. Of those that fit, the
+ * launcher draws the one closest to the widget's size, also after a resize or a change of grid,
+ * without asking the app. That is always one that looks right for the widget's own size: a size
+ * with the row is closer than any size without it, and both top rows have a size at the same wide
+ * widths, so the big one wins wherever it fits (short of widgets over a thousand dp tall).
  */
-fun layoutSizes(small: Boolean, fontScale: Float = 1f): List<Pair<Float, Float>> {
-  val scale = widgetScale(fontScale).coerceAtLeast(1f)
+fun layoutSizes(small: Boolean, fontScale: Float = 1f, needs: Needs = defaultNeeds(fontScale)): List<Pair<Float, Float>> {
+  val sizes = mutableListOf(1f to 1f)
   // The 2 x 2: without the details row, or with it once wide and tall enough.
-  if (small) return listOf(1f to 1f, SMALL_DETAILS_WIDTH_DP * scale to SMALL_DETAILS_DP * scale)
-  val widths = listOf(1f, NARROW_BELOW_DP * scale)
-  val heights = listOf(1f, MEDIUM_DETAILS_DP * scale)
-  return widths.flatMap { width -> heights.map { height -> width to height } }
+  if (small) {
+    sizes += needs.small.sizes()
+    // Measured at the same widths as the row, so the row wins wherever it fits.
+    if (oneValueAllowed(fontScale)) sizes += needs.smallOne.sizes()
+    return sizes.distinct()
+  }
+  sizes += NARROW_BELOW_DP * widgetScale(fontScale).coerceAtLeast(1f) to 1f
+  sizes += needs.smallTop.sizes()
+  sizes += needs.bigTop.sizes()
+  return sizes.distinct()
 }
+
+/**
+ * The widget's size as the launcher reports it (dp), or null if it doesn't say: on Android 12+ the
+ * smallest of its sizes (portrait and landscape, so never more than the widget has), else its
+ * smallest width and largest height (the portrait size, as Android documents it).
+ */
+fun reportedSize(sizes: List<Pair<Float, Float>>, minWidth: Int, maxHeight: Int): Pair<Float, Float>? =
+    when {
+      sizes.isNotEmpty() -> sizes.minOf { it.first } to sizes.minOf { it.second }
+      minWidth > 0 && maxHeight > 0 -> minWidth.toFloat() to maxHeight.toFloat()
+      else -> null
+    }
+
+/**
+ * Android 12+: the layout for each of [layoutSizes]. The smallest size gets the layout for the
+ * size the launcher reports ([reported]): some launchers always draw the smallest one, however
+ * much room the widget has (seen on a POCO, with Xiaomi's launcher, whose guide tells apps to pick
+ * the layout from the reported size). A launcher that picks properly only draws the smallest size
+ * when the widget is smaller than every other one, and then so is the reported size: nothing
+ * changes there.
+ */
+fun layoutsBySize(
+    small: Boolean,
+    fontScale: Float,
+    needs: Needs,
+    reported: Pair<Float, Float>?,
+): List<Pair<Pair<Float, Float>, WidgetLayout>> =
+    layoutSizes(small, fontScale, needs).map { size ->
+      val (width, height) = if (size == SMALLEST && reported != null) reported else size
+      size to layoutFor(small, width, height, fontScale, needs)
+    }
+
+/** The first of [layoutSizes]: what a launcher draws when no other size fits. */
+private val SMALLEST = 1f to 1f
+
+/**
+ * The weather picture behind the widget's content (res/drawable-nodpi/widget_bg_<name>.webp, drawn
+ * as vector art: private/widget-backgrounds), and whether its text is navy (light scenes) or white
+ * (every night, and storms by day). Each was checked for contrast with that text.
+ */
+data class Picture(val name: String, val darkText: Boolean)
+
+/** The picture for the weather now ([icon]: the app's weather key); null with no weather yet. */
+fun pictureFor(icon: String?, isDay: Boolean, hasWeather: Boolean): Picture? {
+  if (!hasWeather) return null
+  // Like the weather pictures (WidgetRenderer.iconFor): an unknown key is drawn as cloudy.
+  val kind = icon?.takeIf { it in PICTURE_KINDS } ?: "cloudy"
+  return Picture("${kind}_${if (isDay) "day" else "night"}", darkText = isDay && kind != "thunderstorm")
+}
+
+val PICTURE_KINDS = listOf("clear", "cloudy", "drizzle", "rain", "thunderstorm", "snow")
+
+/** What the launcher told the widget about its size (dp; 0 or empty when it didn't say). */
+data class LauncherInfo(
+    val sizes: List<Pair<Float, Float>>,
+    val minWidth: Int,
+    val minHeight: Int,
+    val maxWidth: Int,
+    val maxHeight: Int,
+)
+
+/**
+ * The hidden widget test's text (Settings > Version, long press), in English for the developer:
+ * which of [layoutSizes] the launcher drew ([drawn]; null on Android 11 and older, which draw one
+ * layout for the reported size), the layout it got, what the launcher reported, and the rows'
+ * needs at the reported width. One screenshot from a tester's phone then tells how its launcher
+ * sizes and picks.
+ */
+fun testText(
+    time: String,
+    small: Boolean,
+    drawn: Pair<Float, Float>?,
+    layout: WidgetLayout,
+    reported: Pair<Float, Float>?,
+    info: LauncherInfo,
+    needs: Needs,
+    sdk: Int,
+    density: Float,
+    fontScale: Float,
+): String {
+  fun dp(v: Float) = if (v.isInfinite()) "never" else v.roundToInt().toString()
+  fun size(s: Pair<Float, Float>) = "${dp(s.first)}x${dp(s.second)}"
+  val look =
+      listOf(
+              if (small) "2x2" else if (layout.smallTop) "small top" else "big top",
+              when {
+                layout.details -> "row"
+                layout.oneValue -> "1 value"
+                else -> "no row"
+              })
+          .joinToString(" + ")
+  val drew =
+      when (drawn) {
+        null -> "one layout"
+        SMALLEST -> "smallest" + (reported?.let { " (as ${size(it)})" } ?: "")
+        else -> size(drawn)
+      }
+  val width = reported?.first ?: 0f
+  val need =
+      if (small) {
+        "row ${needs.small.heightAt(width)?.let(::dp) ?: "-"}, 1 value ${needs.smallOne.heightAt(width)?.let(::dp) ?: "-"}"
+      } else {
+        "small ${needs.smallTop.heightAt(width)?.let(::dp) ?: "-"}, big ${needs.bigTop.heightAt(width)?.let(::dp) ?: "-"}"
+      }
+  return listOf(
+          "FloodShield test $time",
+          "drew $drew: $look",
+          "reported ${reported?.let(::size) ?: "nothing"}",
+          // Pixel Launcher sends its landscape size twice.
+          "sizes ${info.sizes.map(::size).distinct().joinToString(" ").ifEmpty { "none" }}",
+          "min ${info.minWidth}x${info.minHeight} max ${info.maxWidth}x${info.maxHeight}",
+          "need at ${dp(width)}: $need",
+          "Android $sdk, density ${"%.2f".format(Locale.ROOT, density)}, font ${"%.2f".format(Locale.ROOT, fontScale)}",
+      )
+      .joinToString("\n")
+}
+
+/** Where the row ever fits: an infinite height means it doesn't fit across at that width. */
+private fun List<Need>.sizes() = filter { it.heightDp.isFinite() }.map { it.widthDp to it.heightDp }
 
 /** Narrower than this (dp, at font scale 1), the 4 x 2's top row is too tight at its full size. */
 const val NARROW_BELOW_DP = 300f
-/** The details row fits from this height (dp, at font scale 1). */
-const val MEDIUM_DETAILS_DP = 160f
-const val SMALL_DETAILS_DP = 130f
+/** The 4 x 2 can't be made narrower (minResizeWidth in widget_medium_info.xml). */
+const val MEDIUM_MIN_WIDTH_DP = 220f
+/** [defaultNeeds] at font scale 1 (dp). */
+const val SMALL_TOP_DETAILS_DP = 144f
+const val BIG_TOP_DETAILS_DP = 165f
+const val SMALL_DETAILS_DP = 144f
 /** The 2 x 2's details row fits from this width (dp, at font scale 1). */
 const val SMALL_DETAILS_WIDTH_DP = 125f
 const val MAX_FONT_SCALE = 1.3f

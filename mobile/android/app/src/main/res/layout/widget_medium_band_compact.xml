@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- widget_medium_band.xml, thinner (36 dp like the 2 x 2's), for widget_medium_narrow.xml: on a
+     short 4 x 2 the few dp it saves make room for the wind / feels-like row. Same ids. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_band"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/widget_band_unknown"
+    android:gravity="center_vertical"
+    android:minHeight="36dp"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/widget_band_icon"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_marginEnd="8dp"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/widget_band_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="2"
+        android:text="@string/widget_open_app"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+</LinearLayout>

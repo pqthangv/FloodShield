@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {
   Alert,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -19,6 +20,7 @@ import {communityAPI} from '../../apis/disasterAPI';
 import {errorMessage, getApiBaseUrl, setApiBaseUrl} from '../../services/axiosClient';
 import {checkAlertsNow} from '../../services/alertNotifications';
 import storage from '../../services/storage';
+import {setWidgetPicture, toggleWidgetTest} from '../../services/widget';
 import {APP_VERSION, DEFAULT_API_URL} from '../../config';
 import {vh, vw} from '../../services/styleProps';
 import {Language, useI18n} from '../../i18n';
@@ -32,16 +34,24 @@ const Row = ({
   title,
   subtitle,
   onPress,
+  onLongPress,
   right,
   danger,
 }: {
   title: string;
   subtitle?: string;
   onPress?: () => void;
+  /** Hidden: the row doesn't look pressable for it. */
+  onLongPress?: () => void;
   right?: React.ReactNode;
   danger?: boolean;
 }) => (
-  <TouchableOpacity style={styles.row} onPress={onPress} disabled={!onPress}>
+  <TouchableOpacity
+    style={styles.row}
+    onPress={onPress}
+    onLongPress={onLongPress}
+    activeOpacity={onPress ? 0.2 : 1}
+    disabled={!onPress && !onLongPress}>
     <View style={styles.rowText}>
       <Text style={[styles.rowTitle, danger && styles.danger]}>{title}</Text>
       {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
@@ -66,8 +76,10 @@ const SettingsScreen = () => {
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [contactEmail, setContactEmail] = useState<string | null>(null);
+  const [widgetPicture, setWidgetPictureShown] = useState(true);
 
   useEffect(() => {
+    storage.getWidgetPicture().then(setWidgetPictureShown);
     storage.getNickname().then(n => setNickname(n || ''));
     storage.getBlockedAuthors().then(ids => setBlockedCount(ids.length));
     communityAPI.contactEmail().then(setContactEmail).catch(() => {});
@@ -176,6 +188,22 @@ const SettingsScreen = () => {
             }}
           />
         )}
+        {/* The weather picture behind the home-screen widgets; Android 11 and older can't show it. */}
+        {(Platform.OS !== 'android' || Number(Platform.Version) >= 31) && (
+          <Row
+            title={t('widgetPicture')}
+            right={
+              <Switch
+                value={widgetPicture}
+                onValueChange={on => {
+                  setWidgetPictureShown(on);
+                  setWidgetPicture(on);
+                }}
+                trackColor={{true: '#2A78D6'}}
+              />
+            }
+          />
+        )}
 
         <Text style={styles.section}>{t('sectionCommunity')}</Text>
         <Row title={t('displayName')} subtitle={nickname || t('nicknameNotSet')} />
@@ -199,10 +227,15 @@ const SettingsScreen = () => {
         <Row title={t('dataSources')} subtitle={t('dataSourcesList')} />
         <Row title={t('note')} subtitle={t('disclaimer')} />
         {/* Choosing another API server is for development only, never in store builds. */}
+        {/* A long press turns the hidden widget test on or off (for testers' screenshots). */}
         <Row
           title={t('version', {version: APP_VERSION})}
           subtitle={__DEV__ && !showAdvanced ? t('showAdvanced') : undefined}
           onPress={__DEV__ ? () => setShowAdvanced(!showAdvanced) : undefined}
+          onLongPress={async () => {
+            const on = await toggleWidgetTest();
+            Alert.alert(t(on ? 'widgetTestOn' : 'widgetTestOff'));
+          }}
         />
         {__DEV__ && showAdvanced && (
           <View style={styles.advanced}>

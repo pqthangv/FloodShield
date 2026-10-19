@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "bg_drizzle_day.jpg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

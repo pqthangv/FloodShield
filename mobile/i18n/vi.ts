@@ -251,6 +251,7 @@ const vi = {
   disasterAlerts: 'Cảnh báo thiên tai',
   disasterAlertsHint: 'Kiểm tra khoảng 30 phút một lần, kể cả khi đóng ứng dụng',
   checkNow: 'Kiểm tra cảnh báo ngay',
+  widgetPicture: 'Ảnh nền cho tiện ích',
   checking: 'Đang kiểm tra',
   checkingMessage: 'Bạn sẽ nhận thông báo nếu có cảnh báo mới.',
   sectionCommunity: 'Cộng đồng',
@@ -273,6 +274,8 @@ const vi = {
   disclaimer:
     'FloodShield là ứng dụng độc lập, không thuộc và không đại diện cho bất kỳ cơ quan nhà nước nào. Thông tin chỉ mang tính tham khảo. Luôn làm theo hướng dẫn của chính quyền và Trung tâm Dự báo KTTV Quốc gia (nchmf.gov.vn).',
   version: 'Phiên bản {version}',
+  widgetTestOn: 'Kiểm tra tiện ích: bật',
+  widgetTestOff: 'Kiểm tra tiện ích: tắt',
   showAdvanced: 'Nhấn để hiện cài đặt nâng cao',
   apiServer: 'Máy chủ API',
 

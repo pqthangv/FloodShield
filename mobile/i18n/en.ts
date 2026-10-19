@@ -251,6 +251,7 @@ const en: Record<keyof typeof vi, string> = {
   disasterAlerts: 'Disaster alerts',
   disasterAlertsHint: 'Checks about every 30 minutes, even when the app is closed',
   checkNow: 'Check for alerts now',
+  widgetPicture: 'Widget background picture',
   checking: 'Checking',
   checkingMessage: "You'll get a notification if there is a new alert.",
   sectionCommunity: 'Community',
@@ -273,6 +274,8 @@ const en: Record<keyof typeof vi, string> = {
   disclaimer:
     "FloodShield is an independent app. It is not affiliated with, and does not represent, any government agency. For guidance only. Always follow the instructions of the authorities and of Vietnam's National Center for Hydro-Meteorological Forecasting (nchmf.gov.vn).",
   version: 'Version {version}',
+  widgetTestOn: 'Widget test: on',
+  widgetTestOff: 'Widget test: off',
   showAdvanced: 'Tap to show advanced settings',
   apiServer: 'API server',
 

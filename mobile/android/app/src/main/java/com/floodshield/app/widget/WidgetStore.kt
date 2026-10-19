@@ -14,6 +14,16 @@ class WidgetStore(context: Context) {
 
   fun load(): Snapshot? = prefs.getString(KEY, null)?.let { runCatching { parse(JSONObject(it)) }.getOrNull() }
 
+  /** The hidden widget test (Settings > Version, long press): how the launcher drew the widget. */
+  var test: Boolean
+    get() = prefs.getBoolean(TEST, false)
+    set(on) = prefs.edit().putBoolean(TEST, on).apply()
+
+  /** The weather picture behind the widget (Settings > Widget background picture): on by default. */
+  var picture: Boolean
+    get() = prefs.getBoolean(PICTURE, true)
+    set(on) = prefs.edit().putBoolean(PICTURE, on).apply()
+
   /**
    * From the app: what it shows now. A part it couldn't load (null) keeps the saved one, except
    * the alerts of another place.
@@ -112,5 +122,7 @@ class WidgetStore(context: Context) {
 
   companion object {
     private const val KEY = "snapshot"
+    private const val TEST = "test"
+    private const val PICTURE = "picture"
   }
 }

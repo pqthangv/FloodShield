@@ -9,6 +9,8 @@ const KEYS = {
   rulesAccepted: 'communityRulesAccepted',
   apiUrl: 'apiUrlOverride',
   welcomeSeen: 'welcomeSeen',
+  widgetTest: 'widgetTest',
+  widgetPicture: 'widgetPicture',
   checklist: (typeId: number) => `checklist:${typeId}`,
 };
 
@@ -88,6 +90,13 @@ const storage = {
     );
   },
   setWelcomeSeen: () => setJSON(KEYS.welcomeSeen, true),
+
+  getWidgetTest: () => getJSON<boolean>(KEYS.widgetTest, false),
+  setWidgetTest: (on: boolean) => setJSON(KEYS.widgetTest, on),
+
+  /** The weather picture behind the home-screen widgets: on by default. */
+  getWidgetPicture: () => getJSON<boolean>(KEYS.widgetPicture, true),
+  setWidgetPicture: (on: boolean) => setJSON(KEYS.widgetPicture, on),
 
   getChecklist: (typeId: number) =>
     getJSON<number[]>(KEYS.checklist(typeId), []),

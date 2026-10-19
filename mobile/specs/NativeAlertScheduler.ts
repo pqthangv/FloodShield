@@ -32,6 +32,17 @@ export interface Spec extends TurboModule {
    * Android only for now; on iOS it does nothing until the iPhone widget exists.
    */
   setWidget(snapshot: string): void;
+  /**
+   * The hidden widget test (long press on Settings > Version): the widgets then show how the
+   * launcher drew them, for testers' screenshots. Android: the size it chose and reported; iOS
+   * stores it for the iPhone widget.
+   */
+  setWidgetTest(on: boolean): void;
+  /**
+   * The weather picture behind the home-screen widgets (Settings > Widget background picture), on
+   * by default. Android 12+ draws it; iOS stores it for the iPhone widget.
+   */
+  setWidgetPicture(on: boolean): void;
   /** Alerts already shown inside the app, so the worker does not notify them again. */
   markSeen(ids: string[]): void;
   /** Runs one check immediately (useful for testing). */

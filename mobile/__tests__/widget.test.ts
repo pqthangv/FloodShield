@@ -1,4 +1,7 @@
-import {widgetSnapshot} from '../services/widget';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AlertScheduler from '../specs/NativeAlertScheduler';
+import storage from '../services/storage';
+import {setWidgetPicture, toggleWidgetTest, widgetSnapshot} from '../services/widget';
 import {Alert, WeatherData} from '../services/model';
 
 const weather = {
@@ -52,5 +55,46 @@ test('a part that did not load stays empty, so the widget keeps what it had', ()
     humidity: null,
     alerts: null,
     checked_at: 0,
+  });
+});
+
+describe('the hidden widget test (long press on Settings > Version)', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    jest.mocked(AlertScheduler!.setWidgetTest).mockClear();
+  });
+
+  test('turns on, then off, telling the widget each time', async () => {
+    expect(await toggleWidgetTest()).toBe(true);
+    expect(AlertScheduler!.setWidgetTest).toHaveBeenLastCalledWith(true);
+    expect(await toggleWidgetTest()).toBe(false);
+    expect(AlertScheduler!.setWidgetTest).toHaveBeenLastCalledWith(false);
+  });
+
+  test('is remembered: the next long press, even after a restart, turns it off', async () => {
+    await toggleWidgetTest();
+    // A restart keeps AsyncStorage; only the JS state is new.
+    expect(await AsyncStorage.getItem('widgetTest')).toBe('true');
+    expect(await toggleWidgetTest()).toBe(false);
+  });
+});
+
+describe('the widget background picture (Settings)', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    jest.mocked(AlertScheduler!.setWidgetPicture).mockClear();
+  });
+
+  test('is on by default, without touching Settings', async () => {
+    expect(await storage.getWidgetPicture()).toBe(true);
+  });
+
+  test('turned off and on again: remembered, and the widget is told each time', async () => {
+    await setWidgetPicture(false);
+    expect(await storage.getWidgetPicture()).toBe(false);
+    expect(AlertScheduler!.setWidgetPicture).toHaveBeenLastCalledWith(false);
+    await setWidgetPicture(true);
+    expect(await storage.getWidgetPicture()).toBe(true);
+    expect(AlertScheduler!.setWidgetPicture).toHaveBeenLastCalledWith(true);
   });
 });

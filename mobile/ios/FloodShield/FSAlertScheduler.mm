@@ -28,7 +28,7 @@ static const int FORECAST_DAYS = 16;
 
 /// Must match BGTaskSchedulerPermittedIdentifiers in Info.plist, or iOS refuses to register it.
 static NSString *const kTaskId = @"com.floodshield.app.alerts";
-static NSString *const kUserAgent = @"FloodShield/1.0.5 (iOS app; https://github.com/pqthangv/FloodShield)";
+static NSString *const kUserAgent = @"FloodShield/1.0.6 (iOS app; https://github.com/pqthangv/FloodShield)";
 /// iOS treats this as "not before": it decides when the check really runs.
 static const NSTimeInterval kInterval = 30 * 60;
 static const NSUInteger kMaxSeen = 300;
@@ -52,6 +52,14 @@ static const NSTimeInterval kPushRefresh = 24 * 60 * 60;
 static NSString *const kWidgetGroup = @"group.com.floodshield.app";
 static NSString *const kWidgetSnapshot = @"fs_widget_snapshot";
 static NSString *const kWidgetLanguage = @"fs_widget_language";
+static NSString *const kWidgetTest = @"fs_widget_test";
+static NSString *const kWidgetPicture = @"fs_widget_picture";
+// What the widget needs to refresh itself (WidgetFetch.swift reads the same keys).
+static NSString *const kWidgetApiBase = @"fs_widget_api_base";
+static NSString *const kWidgetLatitude = @"fs_widget_latitude";
+static NSString *const kWidgetLongitude = @"fs_widget_longitude";
+static NSString *const kWidgetAlertsOn = @"fs_widget_alerts_on";
+static NSString *const kWidgetRiver = @"fs_widget_river";
 /// The widget notes when it last drew (WidgetModel.swift); recently means it's on the home screen.
 static NSString *const kWidgetShownAt = @"fs_widget_seen_at";
 static const NSTimeInterval kWidgetActive = 24 * 60 * 60;
@@ -158,8 +166,14 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
   [defaults setBool:enabled forKey:kKeyEnabled];
   [defaults setObject:language forKey:kKeyLanguage];
   [defaults setObject:deviceId forKey:kKeyDeviceId];
+  NSUserDefaults *widget = [FSAlertScheduler widgetDefaults];
   // The widget's own texts follow the language chosen in the app.
-  [[FSAlertScheduler widgetDefaults] setObject:language forKey:kWidgetLanguage];
+  [widget setObject:language forKey:kWidgetLanguage];
+  // The widget refreshes itself too (WidgetFetch.swift): where, from which server, whether at all.
+  [widget setObject:base forKey:kWidgetApiBase];
+  [widget setDouble:latitude forKey:kWidgetLatitude];
+  [widget setDouble:longitude forKey:kWidgetLongitude];
+  [widget setBool:enabled forKey:kWidgetAlertsOn];
   FSReloadWidgets();
 
   if (!enabled) {
@@ -188,6 +202,23 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 - (void)setRiver:(NSString *)river
 {
   [NSUserDefaults.standardUserDefaults setObject:river forKey:kKeyRiver];
+  // The widget sends it too when it refreshes itself.
+  [[FSAlertScheduler widgetDefaults] setObject:river forKey:kWidgetRiver];
+}
+
+/// The hidden widget test (Settings > Version, long press), kept for the iPhone widget.
+- (void)setWidgetTest:(BOOL)on
+{
+  [[FSAlertScheduler widgetDefaults] setBool:on forKey:kWidgetTest];
+  FSReloadWidgets();
+}
+
+/// The weather picture behind the widgets (Settings), kept for the iPhone widget. Stored even when
+/// on: the widget reads a missing value as on, the default.
+- (void)setWidgetPicture:(BOOL)on
+{
+  [[FSAlertScheduler widgetDefaults] setBool:on forKey:kWidgetPicture];
+  FSReloadWidgets();
 }
 
 /// What the home-screen widget shows, from the app (services/widget.ts).

@@ -61,6 +61,16 @@ class AlertSchedulerModule(reactContext: ReactApplicationContext) :
     WidgetRenderer.updateAll(reactApplicationContext)
   }
 
+  override fun setWidgetTest(on: Boolean) {
+    WidgetStore(reactApplicationContext).test = on
+    WidgetRenderer.updateAll(reactApplicationContext)
+  }
+
+  override fun setWidgetPicture(on: Boolean) {
+    WidgetStore(reactApplicationContext).picture = on
+    WidgetRenderer.updateAll(reactApplicationContext)
+  }
+
   override fun markSeen(ids: ReadableArray) {
     val seen = prefs.seenIds()
     for (i in 0 until ids.size()) {

@@ -135,6 +135,26 @@ def test_iphone_widget_reads_the_keys_the_app_writes():
     assert shared <= read, f"the widget doesn't read {sorted(shared - read)}"
 
 
+def test_both_widgets_have_the_same_weather_pictures():
+    """The widget background pictures: the same weather kinds on Android (WidgetState.kt) and
+    iPhone (WidgetModel.swift), and every picture is in both apps, by day and by night."""
+    kotlin_path = MOBILE / "android/app/src/main/java/com/floodshield/app/widget/WidgetState.kt"
+    swift_path = MOBILE / "ios/FloodShieldWidget/WidgetModel.swift"
+    if not kotlin_path.exists() or not swift_path.exists():
+        pytest.skip("mobile app not checked out")
+    kinds = lambda text, pattern: re.findall(r'"(\w+)"', re.search(pattern, text).group(1))
+    android = kinds(kotlin_path.read_text(encoding="utf-8"), r"PICTURE_KINDS = listOf\((.*?)\)")
+    iphone = kinds(swift_path.read_text(encoding="utf-8"), r"pictureKinds = \[(.*?)\]")
+    assert android == iphone
+    for kind in android:
+        for time in ("day", "night"):
+            webp = MOBILE / f"android/app/src/main/res/drawable-nodpi/widget_bg_{kind}_{time}.webp"
+            imageset = MOBILE / f"ios/FloodShieldWidget/Assets.xcassets/bg_{kind}_{time}.imageset"
+            assert webp.is_file(), webp
+            assert (imageset / f"bg_{kind}_{time}.jpg").is_file(), imageset
+            assert json.loads((imageset / "Contents.json").read_text(encoding="utf-8"))["images"][0]["filename"] == f"bg_{kind}_{time}.jpg"
+
+
 def test_server_gives_the_answers_the_app_tests_expect():
     """glofas.test.ts checks the app's copies against the same sample and answers."""
     if not GLOFAS_FIXTURE.exists():

@@ -20,9 +20,13 @@ struct Entry: TimelineEntry {
   let date: Date
   let snapshot: Snapshot?
   let language: String
+  /// The hidden widget test's text (WidgetFetch.testText), or nil when it's off.
+  var test: String? = nil
 
   static func now(_ date: Date) -> Entry {
-    Entry(date: date, snapshot: WidgetData.load(), language: WidgetData.language)
+    Entry(
+      date: date, snapshot: WidgetData.load(), language: WidgetData.language,
+      test: WidgetData.test ? WidgetFetch.testText() : nil)
   }
 }
 
@@ -37,18 +41,26 @@ struct Provider: TimelineProvider {
 
   // The app redraws the widget whenever it saves new data (FSReloadWidgets). Here: again every 30
   // minutes, and at the moment the last check gets too old, so the band turns neutral by itself.
+  // When iOS asks, the widget first refreshes its data itself if it's old (WidgetFetch.swift):
+  // iOS wakes a widget far more often than it runs the app's background check.
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    let now = Date()
-    WidgetData.markShown(now)
-    let entry = Entry.now(now)
-    var entries = [entry]
-    if let checkedAt = entry.snapshot?.checkedAt, checkedAt > 0 {
-      let staleAt = Date(timeIntervalSince1970: checkedAt / 1000 + staleAfter + 1)
-      if staleAt > now {
-        entries.append(Entry(date: staleAt, snapshot: entry.snapshot, language: entry.language))
+    WidgetData.markShown(Date())
+    let preview = context.isPreview
+    Task {
+      if !preview {
+        await WidgetFetch.refreshIfDue()
       }
+      let now = Date()
+      let entry = Entry.now(now)
+      var entries = [entry]
+      if let checkedAt = entry.snapshot?.checkedAt, checkedAt > 0 {
+        let staleAt = Date(timeIntervalSince1970: checkedAt / 1000 + staleAfter + 1)
+        if staleAt > now {
+          entries.append(Entry(date: staleAt, snapshot: entry.snapshot, language: entry.language, test: entry.test))
+        }
+      }
+      completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
     }
-    completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
   }
 }
 
@@ -69,6 +81,17 @@ struct WidgetView: View {
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       BandView(band: bandFor(entry.snapshot, now: entry.date), texts: texts, small: small)
+    }
+    // The hidden widget test: over the content, so it doesn't change the layout.
+    .overlay(alignment: .top) {
+      if let test = entry.test {
+        Text(test)
+          .font(.system(size: 9))
+          .foregroundColor(.white)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(4)
+          .background(Color.black.opacity(0.85))
+      }
     }
     .widgetBackground(Palette.card)
   }

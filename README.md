@@ -11,7 +11,7 @@
 
 <p align="center">
   <img src="docs/screenshots/home.png" width="160" alt="Home: the weather and a heavy-rain alert">
-  <img src="docs/screenshots/widgets.png" width="160" alt="The two home-screen widgets: weather, place and no alerts">
+  <img src="docs/screenshots/widgets.png" width="160" alt="The two home-screen widgets over a picture of the sky: weather, place and no alerts">
   <img src="docs/screenshots/river-flood.png" width="160" alt="The river forecast against its flood level">
   <img src="docs/screenshots/shelters.png" width="160" alt="The nearest evacuation places">
   <img src="docs/screenshots/skills.png" width="160" alt="What to do in each kind of disaster">

@@ -251,6 +251,7 @@ const en: Record<keyof typeof vi, string> = {
   disasterAlerts: 'Disaster alerts',
   disasterAlertsHint: 'Checks about every 30 minutes, even when the app is closed',
   checkNow: 'Check for alerts now',
+  widgetPicture: 'Widget background picture',
   checking: 'Checking',
   checkingMessage: "You'll get a notification if there is a new alert.",
   sectionCommunity: 'Community',

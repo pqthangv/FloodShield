@@ -241,6 +241,23 @@ fun layoutsBySize(
 /** The first of [layoutSizes]: what a launcher draws when no other size fits. */
 private val SMALLEST = 1f to 1f
 
+/**
+ * The weather picture behind the widget's content (res/drawable-nodpi/widget_bg_<name>.webp, drawn
+ * as vector art: private/widget-backgrounds), and whether its text is navy (light scenes) or white
+ * (every night, and storms by day). Each was checked for contrast with that text.
+ */
+data class Picture(val name: String, val darkText: Boolean)
+
+/** The picture for the weather now ([icon]: the app's weather key); null with no weather yet. */
+fun pictureFor(icon: String?, isDay: Boolean, hasWeather: Boolean): Picture? {
+  if (!hasWeather) return null
+  // Like the weather pictures (WidgetRenderer.iconFor): an unknown key is drawn as cloudy.
+  val kind = icon?.takeIf { it in PICTURE_KINDS } ?: "cloudy"
+  return Picture("${kind}_${if (isDay) "day" else "night"}", darkText = isDay && kind != "thunderstorm")
+}
+
+val PICTURE_KINDS = listOf("clear", "cloudy", "drizzle", "rain", "thunderstorm", "snow")
+
 /** What the launcher told the widget about its size (dp; 0 or empty when it didn't say). */
 data class LauncherInfo(
     val sizes: List<Pair<Float, Float>>,

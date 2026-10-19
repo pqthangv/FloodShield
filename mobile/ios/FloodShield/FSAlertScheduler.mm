@@ -53,6 +53,7 @@ static NSString *const kWidgetGroup = @"group.com.floodshield.app";
 static NSString *const kWidgetSnapshot = @"fs_widget_snapshot";
 static NSString *const kWidgetLanguage = @"fs_widget_language";
 static NSString *const kWidgetTest = @"fs_widget_test";
+static NSString *const kWidgetPicture = @"fs_widget_picture";
 // What the widget needs to refresh itself (WidgetFetch.swift reads the same keys).
 static NSString *const kWidgetApiBase = @"fs_widget_api_base";
 static NSString *const kWidgetLatitude = @"fs_widget_latitude";
@@ -209,6 +210,14 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
 - (void)setWidgetTest:(BOOL)on
 {
   [[FSAlertScheduler widgetDefaults] setBool:on forKey:kWidgetTest];
+  FSReloadWidgets();
+}
+
+/// The weather picture behind the widgets (Settings), kept for the iPhone widget. Stored even when
+/// on: the widget reads a missing value as on, the default.
+- (void)setWidgetPicture:(BOOL)on
+{
+  [[FSAlertScheduler widgetDefaults] setBool:on forKey:kWidgetPicture];
   FSReloadWidgets();
 }
 

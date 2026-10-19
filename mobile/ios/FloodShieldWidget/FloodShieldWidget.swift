@@ -22,11 +22,13 @@ struct Entry: TimelineEntry {
   let language: String
   /// The hidden widget test's text (WidgetFetch.testText), or nil when it's off.
   var test: String? = nil
+  /// The weather picture behind the content is on in the app's Settings.
+  var picture: Bool = true
 
   static func now(_ date: Date) -> Entry {
     Entry(
       date: date, snapshot: WidgetData.load(), language: WidgetData.language,
-      test: WidgetData.test ? WidgetFetch.testText() : nil)
+      test: WidgetData.test ? WidgetFetch.testText() : nil, picture: WidgetData.picture)
   }
 }
 
@@ -56,7 +58,10 @@ struct Provider: TimelineProvider {
       if let checkedAt = entry.snapshot?.checkedAt, checkedAt > 0 {
         let staleAt = Date(timeIntervalSince1970: checkedAt / 1000 + staleAfter + 1)
         if staleAt > now {
-          entries.append(Entry(date: staleAt, snapshot: entry.snapshot, language: entry.language, test: entry.test))
+          entries.append(
+            Entry(
+              date: staleAt, snapshot: entry.snapshot, language: entry.language, test: entry.test,
+              picture: entry.picture))
         }
       }
       completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(30 * 60))))
@@ -65,21 +70,58 @@ struct Provider: TimelineProvider {
 }
 
 struct WidgetView: View {
+  let entry: Entry
+
+  // iOS 16+ says how the home screen draws widgets: in the tinted and clear modes (iOS 18) a photo
+  // turns muddy, so the plain card there.
+  var body: some View {
+    if #available(iOS 16.0, *) {
+      RenderingModeReader(entry: entry)
+    } else {
+      WidgetContent(entry: entry, fullColor: true)
+    }
+  }
+}
+
+@available(iOS 16.0, *)
+private struct RenderingModeReader: View {
+  @Environment(\.widgetRenderingMode) private var mode
+  let entry: Entry
+
+  var body: some View {
+    WidgetContent(entry: entry, fullColor: mode == .fullColor)
+  }
+}
+
+private struct WidgetContent: View {
   @Environment(\.widgetFamily) private var family
   let entry: Entry
+  let fullColor: Bool
 
   var body: some View {
     let texts = Texts(language: entry.language)
     let small = family == .systemSmall
+    let picture =
+      entry.picture && fullColor
+      ? pictureFor(entry.snapshot?.icon, isDay: entry.snapshot?.isDay ?? true, hasWeather: entry.snapshot?.temperature != nil)
+      : nil
+    let ink = Ink.on(picture)
     VStack(spacing: 0) {
       Group {
         if small {
-          SmallTop(snapshot: entry.snapshot, texts: texts)
+          SmallTop(snapshot: entry.snapshot, texts: texts, ink: ink)
         } else {
-          MediumTop(snapshot: entry.snapshot, texts: texts)
+          MediumTop(snapshot: entry.snapshot, texts: texts, ink: ink)
         }
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
+      // The weather picture behind the content, not the band (as on Android).
+      .background {
+        if let picture {
+          Image(picture.name).resizable().scaledToFill()
+        }
+      }
+      .clipped()
       BandView(band: bandFor(entry.snapshot, now: entry.date), texts: texts, small: small)
     }
     // The hidden widget test: over the content, so it doesn't change the layout.
@@ -89,7 +131,9 @@ struct WidgetView: View {
           .font(.system(size: 9))
           .foregroundColor(.white)
           .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(4)
+          // Clear of the rounded corners, which cut off its first letter on Android.
+          .padding(.horizontal, 12)
+          .padding(.vertical, 6)
           .background(Color.black.opacity(0.85))
       }
     }
@@ -102,6 +146,7 @@ struct WidgetView: View {
 private struct SmallTop: View {
   let snapshot: Snapshot?
   let texts: Texts
+  let ink: Ink
 
   var body: some View {
     // With the wind / feels-like row when it fits, spaced evenly in the height left (as on
@@ -112,8 +157,8 @@ private struct SmallTop: View {
         place
         Spacer(minLength: 4)
         HStack(spacing: 0) {
-          Detail(label: texts.wind, value: wind(snapshot))
-          Detail(label: texts.feelsLike, value: feelsLike(snapshot))
+          Detail(label: texts.wind, value: wind(snapshot), ink: ink)
+          Detail(label: texts.feelsLike, value: feelsLike(snapshot), ink: ink)
         }
         Spacer(minLength: 4)
       },
@@ -133,7 +178,7 @@ private struct SmallTop: View {
       Spacer(minLength: 4)
       Text(temperature(snapshot))
         .font(.system(size: 26, weight: .bold))
-        .foregroundColor(Palette.navy)
+        .foregroundColor(ink.main)
         .lineLimit(1)
         .fixedSize()
     }
@@ -143,7 +188,7 @@ private struct SmallTop: View {
   private var place: some View {
     Text(snapshot?.place ?? "FloodShield")
       .font(.system(size: 13))
-      .foregroundColor(Palette.navy)
+      .foregroundColor(ink.main)
       .lineLimit(1)
       .truncationMode(.tail)
   }
@@ -152,15 +197,16 @@ private struct SmallTop: View {
 private struct MediumTop: View {
   let snapshot: Snapshot?
   let texts: Texts
+  let ink: Ink
 
   var body: some View {
     IfItFits(
       full: VStack(spacing: 8) {
         mainRow
         HStack(spacing: 0) {
-          Detail(label: texts.wind, value: wind(snapshot))
-          Detail(label: texts.feelsLike, value: feelsLike(snapshot))
-          Detail(label: texts.humidity, value: humidity(snapshot))
+          Detail(label: texts.wind, value: wind(snapshot), ink: ink)
+          Detail(label: texts.feelsLike, value: feelsLike(snapshot), ink: ink)
+          Detail(label: texts.humidity, value: humidity(snapshot), ink: ink)
         }
       },
       compact: mainRow)
@@ -175,12 +221,12 @@ private struct MediumTop: View {
       VStack(alignment: .leading, spacing: 0) {
         Text(temperature(snapshot))
           .font(.system(size: 32, weight: .bold))
-          .foregroundColor(Palette.navy)
+          .foregroundColor(ink.main)
           .lineLimit(1)
           .fixedSize()
         Text(snapshot?.condition ?? "")
           .font(.system(size: 15))
-          .foregroundColor(Palette.navy)
+          .foregroundColor(ink.main)
           .lineLimit(1)
       }
       .layoutPriority(1)
@@ -188,13 +234,13 @@ private struct MediumTop: View {
       VStack(alignment: .trailing, spacing: 2) {
         Text(snapshot?.place ?? "FloodShield")
           .font(.system(size: 15, weight: .bold))
-          .foregroundColor(Palette.navy)
+          .foregroundColor(ink.main)
           .multilineTextAlignment(.trailing)
           .lineLimit(2)
         if let checkedAt = snapshot?.checkedAt, checkedAt > 0 {
           Text(texts.updated(timeOfDay(checkedAt)))
             .font(.system(size: 13))
-            .foregroundColor(Palette.grey)
+            .foregroundColor(ink.label)
         }
       }
       .frame(maxWidth: 150, alignment: .trailing)
@@ -257,16 +303,17 @@ private struct BandView: View {
 private struct Detail: View {
   let label: String
   let value: String
+  let ink: Ink
 
   var body: some View {
     VStack(spacing: 2) {
       Text(label.uppercased())
         .font(.system(size: 12))
-        .foregroundColor(Palette.grey)
+        .foregroundColor(ink.label)
         .lineLimit(1)
       Text(value)
         .font(.system(size: 16, weight: .bold))
-        .foregroundColor(Palette.navy)
+        .foregroundColor(ink.main)
         .lineLimit(1)
     }
     .frame(maxWidth: .infinity)

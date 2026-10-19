@@ -414,6 +414,33 @@ class WidgetStateTest {
   }
 
   @Test
+  fun `each weather has its picture, by day and by night, with navy text only on light ones`() {
+    for (kind in PICTURE_KINDS) {
+      assertEquals(Picture("${kind}_day", darkText = kind != "thunderstorm"), pictureFor(kind, isDay = true, hasWeather = true))
+      assertEquals(Picture("${kind}_night", darkText = false), pictureFor(kind, isDay = false, hasWeather = true))
+    }
+  }
+
+  @Test
+  fun `no weather yet means the plain card, and an unknown weather is drawn as cloudy`() {
+    assertEquals(null, pictureFor("rain", isDay = true, hasWeather = false))
+    assertEquals(null, pictureFor(null, isDay = true, hasWeather = false))
+    assertEquals(Picture("cloudy_day", darkText = true), pictureFor("fog", isDay = true, hasWeather = true))
+    assertEquals(Picture("cloudy_night", darkText = false), pictureFor(null, isDay = false, hasWeather = true))
+  }
+
+  @Test
+  fun `every picture is in the app`() {
+    // Unit tests run in the app module's folder.
+    for (kind in PICTURE_KINDS) {
+      for (time in listOf("day", "night")) {
+        val file = java.io.File("src/main/res/drawable-nodpi/widget_bg_${kind}_$time.webp")
+        assertEquals("${file.path} missing", true, file.isFile && file.length() > 1000)
+      }
+    }
+  }
+
+  @Test
   fun `if the big top row ever needs no more than the small one, it's used from there`() {
     val odd =
         Needs(

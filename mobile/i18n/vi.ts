@@ -251,6 +251,7 @@ const vi = {
   disasterAlerts: 'Cảnh báo thiên tai',
   disasterAlertsHint: 'Kiểm tra khoảng 30 phút một lần, kể cả khi đóng ứng dụng',
   checkNow: 'Kiểm tra cảnh báo ngay',
+  widgetPicture: 'Ảnh nền cho tiện ích',
   checking: 'Đang kiểm tra',
   checkingMessage: 'Bạn sẽ nhận thông báo nếu có cảnh báo mới.',
   sectionCommunity: 'Cộng đồng',

@@ -48,6 +48,7 @@ jest.mock('./specs/NativeAlertScheduler', () => ({
     setRiver: jest.fn(),
     setWidget: jest.fn(),
     setWidgetTest: jest.fn(),
+    setWidgetPicture: jest.fn(),
     markSeen: jest.fn(),
     checkNow: jest.fn(),
   },

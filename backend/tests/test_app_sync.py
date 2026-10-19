@@ -1,6 +1,7 @@
 """The phone downloads the Open-Meteo forecast and the Overpass places itself, and the server
-reads them (see weather.py, osm.py). The app (TypeScript) and the background worker (Kotlin)
-must ask for the same data the server expects."""
+reads them (see weather.py, osm.py). The app (TypeScript), the background workers (Kotlin,
+Objective-C) and the iPhone widget refreshing itself (Swift) must ask for the same data the server
+expects."""
 
 import inspect
 import json
@@ -17,6 +18,7 @@ COPIES = [
     MOBILE / "services" / "openMeteo.ts",
     MOBILE / "android/app/src/main/java/com/floodshield/app/alerts/AlertWorker.kt",
     MOBILE / "ios/FloodShield/FSAlertScheduler.mm",
+    MOBILE / "ios/FloodShieldWidget/WidgetFetch.swift",
 ]
 EXPECTED = {
     "FORECAST_URL": weather.FORECAST_URL,
@@ -105,7 +107,8 @@ def test_app_downloads_the_river_data_the_server_would():
 
 @pytest.mark.parametrize("path", COPIES[1:], ids=lambda p: p.name)
 def test_background_checkers_download_the_river_forecast_the_server_reads(path):
-    """AlertWorker.kt and FSAlertScheduler.mm download the forecast of the river the app found."""
+    """AlertWorker.kt, FSAlertScheduler.mm and WidgetFetch.swift download the forecast of the river
+    the app found."""
     if not path.exists():
         pytest.skip("mobile app not checked out")
     source = path.read_text(encoding="utf-8")
@@ -114,6 +117,22 @@ def test_background_checkers_download_the_river_forecast_the_server_reads(path):
     for name in ("PAST_DAYS", "FORECAST_DAYS"):
         found = re.search(rf"{name} = (\d+);?\n", source)
         assert found and int(found.group(1)) == getattr(flood, name), f"{name} in {path.name} differs"
+
+
+def test_iphone_widget_reads_the_keys_the_app_writes():
+    """FSAlertScheduler.mm saves what the widget needs to refresh itself in the App Group;
+    WidgetFetch.swift reads it. A key spelled differently would stop every refresh silently."""
+    app_path = MOBILE / "ios/FloodShield/FSAlertScheduler.mm"
+    widget_path = MOBILE / "ios/FloodShieldWidget/WidgetFetch.swift"
+    if not app_path.exists() or not widget_path.exists():
+        pytest.skip("mobile app not checked out")
+    app = app_path.read_text(encoding="utf-8")
+    widget = widget_path.read_text(encoding="utf-8")
+    written = set(re.findall(r'kWidget\w+ = @"(fs_widget_\w+)"', app))
+    read = set(re.findall(r'static let \w+ = "(fs_widget_\w+)"', widget))
+    shared = {"fs_widget_api_base", "fs_widget_latitude", "fs_widget_longitude", "fs_widget_alerts_on", "fs_widget_river", "fs_widget_snapshot"}
+    assert shared <= written, f"the app doesn't write {sorted(shared - written)}"
+    assert shared <= read, f"the widget doesn't read {sorted(shared - read)}"
 
 
 def test_server_gives_the_answers_the_app_tests_expect():

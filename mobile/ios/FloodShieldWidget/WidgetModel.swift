@@ -36,10 +36,17 @@ struct SnapshotAlert: Decodable {
 /// The App Group shared with the app (both targets' .entitlements).
 enum WidgetData {
   static let kind = "FloodShieldWidget"
-  private static let defaults = UserDefaults(suiteName: "group.com.floodshield.app")
+  /// Also read and written by WidgetFetch.swift (the widget refreshing itself).
+  static let defaults = UserDefaults(suiteName: "group.com.floodshield.app")
 
   /// The language chosen in the app, not the phone's.
   static var language: String { defaults?.string(forKey: "fs_widget_language") ?? "vi" }
+
+  /// The hidden widget test (Settings > Version, long press in the app).
+  static var test: Bool { defaults?.bool(forKey: "fs_widget_test") ?? false }
+
+  /// When iOS last asked the widget for its timeline (markShown), in seconds since 1970.
+  static var shownAt: Double { defaults?.double(forKey: "fs_widget_seen_at") ?? 0 }
 
   static func load() -> Snapshot? {
     guard let json = defaults?.string(forKey: "fs_widget_snapshot"), let data = json.data(using: .utf8)

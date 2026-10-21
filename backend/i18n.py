@@ -133,6 +133,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "vi": "Mưa nhiều nhất khoảng {time}. Nhớ mang ô hoặc áo mưa khi ra ngoài.",
         "en": "Heaviest around {time}. Remember an umbrella or raincoat when you go out.",
     },
+    # The morning push when the UV index will be very high today.
+    "uv_reminder_title": {"vi": "Hôm nay nắng gắt", "en": "Strong sun today"},
+    "uv_reminder_desc": {
+        "vi": "Chỉ số UV lên đến {uv}, từ {start} đến {end}. Đội mũ rộng vành, mặc áo dài tay và dùng kem "
+              "chống nắng khi ra ngoài.",
+        "en": "UV index up to {uv}, from {start} to {end}. Wear a wide-brimmed hat and long sleeves, and use "
+              "sunscreen when you go out.",
+    },
+    # Both morning reminders in one push.
+    "reminder_both_title": {"vi": "Hôm nay có mưa và nắng gắt", "en": "Rain and strong sun today"},
     "rain_extreme": {"vi": "Mưa đặc biệt to", "en": "Extremely heavy rain"},
     "rain_very_heavy": {"vi": "Mưa rất to", "en": "Very heavy rain"},
     "rain_heavy": {"vi": "Mưa to", "en": "Heavy rain"},

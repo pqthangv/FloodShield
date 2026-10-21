@@ -51,18 +51,25 @@ def sent(monkeypatch):
     return sent
 
 
-def forecast(lat, lon, daily_mm=(10, 0, 0), hourly_mm=0.0, now="2026-10-14T10:00", rain_at=None):
-    """rain_at: {"15:00": (mm, chance %)} for today's hours; other hours are dry."""
+def forecast(lat, lon, daily_mm=(10, 0, 0), hourly_mm=0.0, now="2026-10-14T10:00", rain_at=None, uv_at=None):
+    """rain_at: {"15:00": (mm, chance %)} for today's hours; other hours are dry.
+    uv_at: {"12:00": UV index} for today's hours, other hours 0; without it, no UV index at all
+    (the job before 1.0.7)."""
     hours = [f"2026-10-14T{h:02d}:00" for h in range(24)] + [f"2026-10-15T{h:02d}:00" for h in range(24)]
     rain = [hourly_mm] * len(hours)
     chance = [0] * len(hours)
     for at, (mm, pct) in (rain_at or {}).items():
         i = hours.index(f"2026-10-14T{at}")
         rain[i], chance[i] = mm, pct
+    hourly = {"time": hours, "precipitation": rain, "precipitation_probability": chance}
+    if uv_at is not None:
+        hourly["uv_index"] = [0.0] * len(hours)
+        for at, uv in uv_at.items():
+            hourly["uv_index"][hours.index(f"2026-10-14T{at}")] = uv
     return {
         "latitude": lat, "longitude": lon, "utc_offset_seconds": 25200, "elevation": 10,
         "current": {"time": now, "precipitation": 0},
-        "hourly": {"time": hours, "precipitation": rain, "precipitation_probability": chance},
+        "hourly": hourly,
         "daily": {"time": ["2026-10-14", "2026-10-15", "2026-10-16"], "precipitation_sum": list(daily_mm)},
     }
 
@@ -245,6 +252,101 @@ async def test_reminder_today_and_warning_for_tomorrow(client, sent):
     await run(client, forecast(21.0, 105.8, daily_mm=(10, 120, 0), now="2026-10-14T07:00",
                                rain_at={"15:00": (3.0, 80)}))
     assert sorted(m.id for _, _, m in sent) == ["rain-2026-10-15-high", "rain-today-2026-10-14"]
+
+
+@pytest.mark.asyncio
+async def test_morning_uv_reminder(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    await register(client, EN_PHONE, "token-en-" + "a" * 30, "ios")
+    sunny = {"10:00": 7.6, "11:00": 8.4, "12:00": 9.4, "13:00": 8.0, "14:00": 6.1}
+    result = await run(client, forecast(21.0, 105.8, now="2026-10-14T07:00", uv_at=sunny))
+    assert result["sent"] == 2
+    messages = {platform: m for platform, _, m in sent}
+    assert messages["android"].id == "uv-today-2026-10-14" and messages["android"].kind == "reminder"
+    assert messages["android"].title == "Hôm nay nắng gắt"
+    assert messages["android"].body == ("Chỉ số UV lên đến 9, từ 11:00 đến 14:00. Đội mũ rộng vành, mặc áo dài tay "
+                                        "và dùng kem chống nắng khi ra ngoài.\nNguồn: Open-Meteo")
+    assert messages["ios"].title == "Strong sun today"
+    assert messages["ios"].body == ("UV index up to 9, from 11:00 to 14:00. Wear a wide-brimmed hat and long sleeves, "
+                                    "and use sunscreen when you go out.\nSource: Open-Meteo")
+    # Once a day.
+    assert (await run(client, forecast(21.0, 105.8, now="2026-10-14T08:00", uv_at=sunny)))["sent"] == 0
+
+
+def test_uv_reminder_only_in_the_morning_from_uv_8_and_for_the_rest_of_today():
+    def reminder(uv_at, now="2026-10-14T07:00"):
+        return push.uv_reminder(forecast(21.0, 105.8, now=now, uv_at=uv_at), "vi")
+
+    assert reminder({"12:00": 7.9}) is None
+    assert reminder({"12:00": 8.0}).body.startswith("Chỉ số UV lên đến 8, từ 12:00 đến 13:00.")
+    assert reminder({"12:00": 8.1}).body.startswith("Chỉ số UV lên đến 8, từ 12:00 đến 13:00.")
+    assert reminder({"12:00": 8.6}).body.startswith("Chỉ số UV lên đến 9, từ 12:00 đến 13:00.")
+    # Hours in between below 8 still count as part of the time span.
+    assert reminder({"10:00": 8.2, "11:00": 6.0, "13:00": 8.8}).body.startswith("Chỉ số UV lên đến 9, từ 10:00 đến 14:00.")
+    for now in ("2026-10-14T05:00", "2026-10-14T10:00", "2026-10-14T13:00"):
+        assert reminder({"12:00": 9.0}, now) is None
+    # Strong sun earlier today, or only tomorrow, isn't reminded.
+    assert reminder({"08:00": 9.0}, "2026-10-14T09:00") is None
+    only_tomorrow = forecast(21.0, 105.8, now="2026-10-14T07:00", uv_at={})
+    only_tomorrow["hourly"]["uv_index"][24 + 12] = 10.0
+    assert push.uv_reminder(only_tomorrow, "vi") is None
+
+
+@pytest.mark.asyncio
+async def test_no_uv_reminder_without_uv_data(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    empty = forecast(21.0, 105.8, now="2026-10-14T07:00", uv_at={})
+    empty["hourly"]["uv_index"] = [None] * 48
+    for f in (forecast(21.0, 105.8, now="2026-10-14T07:00"), empty):
+        result = await run(client, f)
+        assert result["sent"] == 0 and result["bad_forecasts"] == 0
+    assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_rain_and_uv_reminders_come_as_one(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    await register(client, EN_PHONE, "token-en-" + "a" * 30, "ios")
+    day = dict(now="2026-10-14T07:00", rain_at={"16:00": (4.0, 80)}, uv_at={"11:00": 8.2, "12:00": 8.9})
+    assert (await run(client, forecast(21.0, 105.8, **day)))["sent"] == 2
+    messages = {platform: m for platform, _, m in sent}
+    assert messages["android"].id == "morning-2026-10-14" and messages["android"].kind == "reminder"
+    assert messages["android"].title == "Hôm nay có mưa và nắng gắt"
+    assert messages["android"].body == ("Mưa nhiều nhất khoảng 16:00. Nhớ mang ô hoặc áo mưa khi ra ngoài.\n"
+                                        "Chỉ số UV lên đến 9, từ 11:00 đến 13:00. Đội mũ rộng vành, mặc áo dài tay "
+                                        "và dùng kem chống nắng khi ra ngoài.\nNguồn: Open-Meteo")
+    assert messages["ios"].title == "Rain and strong sun today"
+    assert messages["ios"].body == ("Heaviest around 16:00. Remember an umbrella or raincoat when you go out.\n"
+                                    "UV index up to 9, from 11:00 to 13:00. Wear a wide-brimmed hat and long sleeves, "
+                                    "and use sunscreen when you go out.\nSource: Open-Meteo")
+    # Neither reminder comes again that day.
+    day["now"] = "2026-10-14T08:00"
+    assert (await run(client, forecast(21.0, 105.8, **day)))["sent"] == 0
+
+
+@pytest.mark.asyncio
+async def test_a_reminder_already_sent_isnt_repeated_in_the_one_for_both(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    await register(client, EN_PHONE, "token-en-" + "a" * 30, "ios", where=(10.78, 106.7))
+    rain, sun = {"16:00": (4.0, 80)}, {"12:00": 8.3}
+    # Android (Hà Nội): rain at 06:00, strong sun only from the 08:00 forecast. iPhone (TP.HCM): the other way round.
+    await run(client, forecast(21.0, 105.8, now="2026-10-14T06:00", rain_at=rain))
+    await run(client, forecast(10.78, 106.7, now="2026-10-14T06:00", uv_at=sun))
+    await run(client, forecast(21.0, 105.8, now="2026-10-14T08:00", rain_at=rain, uv_at=sun),
+              forecast(10.78, 106.7, now="2026-10-14T08:00", rain_at=rain, uv_at=sun))
+    assert [(platform, m.id) for platform, _, m in sent] == [
+        ("android", "rain-today-2026-10-14"), ("ios", "uv-today-2026-10-14"),
+        ("android", "uv-today-2026-10-14"), ("ios", "rain-today-2026-10-14")]
+
+
+@pytest.mark.asyncio
+async def test_uv_reminder_on_a_day_with_a_heavy_rain_warning(client, sent):
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    stormy = forecast(21.0, 105.8, daily_mm=(120, 0, 0), now="2026-10-14T07:00", rain_at={"15:00": (9.0, 95)},
+                      uv_at={"10:00": 8.5})
+    await run(client, stormy)
+    assert sorted((m.id, m.kind) for _, _, m in sent) == [("rain-2026-10-14-high", "warning"),
+                                                          ("uv-today-2026-10-14", "reminder")]
 
 # --- The real senders, against a fake Google / Apple ---------------------------------------
 

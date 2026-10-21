@@ -192,7 +192,8 @@ Chúng tôi chỉ thu thập dữ liệu cần thiết cho các chức năng nà
 FloodShield khi bạn mở ứng dụng và khi ứng dụng kiểm tra cảnh báo định kỳ (nếu bạn bật thông báo). Chúng tôi không lưu lịch sử vị trí của bạn.</li>
 <li><b>Thông báo</b>: nếu bạn bật thông báo, ứng dụng gửi cho máy chủ một mã nhận thông báo (do Google Firebase Cloud
 Messaging trên Android hoặc Apple Push Notification service trên iPhone cấp), ngôn ngữ của bạn và khu vực của bạn đã
-làm tròn tới khoảng 10 km, để gửi cảnh báo mưa lớn cho khu vực đó. Máy chủ chỉ giữ khu vực gần nhất, không giữ lịch sử.</li>
+làm tròn tới khoảng 10 km, để gửi cảnh báo mưa lớn và lời nhắc buổi sáng (khi trong ngày có mưa hoặc nắng gắt) cho
+khu vực đó. Máy chủ chỉ giữ khu vực gần nhất, không giữ lịch sử.</li>
 <li><b>Bài đăng cộng đồng</b>: tên hiển thị, nội dung, mức nước, ảnh và vị trí bạn gửi kèm. Bài đăng được <b>công khai</b>
 cho người dùng khác. Ảnh được xử lý để xóa thông tin EXIF (bao gồm tọa độ GPS trong ảnh).</li>
 <li><b>Mã thiết bị ngẫu nhiên</b>: được tạo khi cài ứng dụng, dùng để bạn quản lý/xóa bài đăng của mình và chống spam.
@@ -204,8 +205,9 @@ Mã này không gắn với danh tính, số điện thoại hay tài khoản Go
 (địa danh, nơi sơ tán), sử dụng tọa độ đã được làm tròn. Ứng dụng cũng gửi trực tiếp tọa độ đã làm tròn tới hai dịch vụ
 này: tới Open-Meteo (open-meteo.com) để lấy dự báo thời tiết (khoảng 1 km) và dự báo lũ sông (khoảng 10 km), và tới máy chủ Overpass của OpenStreetMap
 (overpass-api.de và máy chủ dự phòng maps.mail.ru, khoảng 2 km) để tìm nơi sơ tán gần bạn. Ứng dụng có thể mở
-Google Maps khi bạn chọn chỉ đường. Cảnh báo gửi bằng thông báo được chuyển qua Google Firebase Cloud Messaging
-(Android) hoặc Apple Push Notification service (iPhone); các dịch vụ này nhận nội dung cảnh báo và mã nhận thông báo.</p>
+Google Maps khi bạn chọn chỉ đường. Cảnh báo và lời nhắc gửi bằng thông báo được chuyển qua Google Firebase Cloud
+Messaging (Android) hoặc Apple Push Notification service (iPhone); các dịch vụ này nhận nội dung thông báo và mã nhận
+thông báo.</p>
 <h2>3. Lưu trữ và xóa dữ liệu</h2>
 <p>Bài đăng hiển thị trong 7 ngày và có thể được lưu trữ tối đa 90 ngày. Bạn có thể xóa từng bài đăng, hoặc xóa toàn bộ
 dữ liệu của mình trong <b>Cài đặt &rarr; Xóa dữ liệu của tôi</b>. Bài đăng vi phạm có thể bị ẩn hoặc xóa; khi đó mã
@@ -226,7 +228,8 @@ FloodShield server when you open the app, and when the app checks for alerts in 
 notifications). We do not keep a history of your locations.</li>
 <li><b>Notifications</b>: if you turn on notifications, the app gives the server a notification token (issued by Google
 Firebase Cloud Messaging on Android, or the Apple Push Notification service on iPhone), your language and your area
-rounded to about 10 km, so it can send heavy rain warnings for that area. The server keeps only your latest area, not a
+rounded to about 10 km, so it can send heavy rain warnings, and morning reminders when rain or strong sun is likely,
+for that area. The server keeps only your latest area, not a
 history.</li>
 <li><b>Community posts</b>: the display name, text, water level, photo and location you send with a post. Posts are
 <b>public</b>: other users can see them. Photos are processed to remove their EXIF information (including the GPS
@@ -241,8 +244,9 @@ spam. It is not linked to your identity, your phone number, or your Google or Ap
 services: to Open-Meteo (open-meteo.com) for the weather forecast (about 1 km) and the river flood forecast (about
 10 km), and to OpenStreetMap's Overpass servers
 (overpass-api.de, with maps.mail.ru as backup, about 2 km) to find shelters near you. The app can open Google Maps when
-you ask for directions. Warnings sent as notifications are delivered by Google Firebase Cloud Messaging (Android) or the
-Apple Push Notification service (iPhone); these services receive the warning text and the notification token.</p>
+you ask for directions. Warnings and reminders sent as notifications are delivered by Google Firebase Cloud Messaging
+(Android) or the Apple Push Notification service (iPhone); these services receive their text and the notification
+token.</p>
 <h2>3. Storing and deleting data</h2>
 <p>Posts are shown for 7 days and may be stored for up to 90 days. You can delete each of your posts, or delete all of
 your data in <b>Settings &rarr; Delete my data</b>. Posts that break the community rules may be hidden or removed; the

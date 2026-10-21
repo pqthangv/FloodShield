@@ -2,8 +2,8 @@
     <string name="app_name">FloodShield</string>
     <string name="alert_channel_name">Cảnh báo thiên tai</string>
     <string name="alert_channel_description">Cảnh báo lũ lụt, mưa lớn, bão và thiên tai tại vị trí của bạn</string>
-    <string name="reminder_channel_name">Nhắc trời mưa</string>
-    <string name="reminder_channel_description">Buổi sáng nhắc mang ô khi trong ngày có thể có mưa</string>
+    <string name="reminder_channel_name">Nhắc nhở buổi sáng</string>
+    <string name="reminder_channel_description">Buổi sáng nhắc khi trong ngày có thể có mưa hoặc nắng gắt</string>
 
     <string name="widget_medium_description">Thời tiết và cảnh báo thiên tai nơi bạn ở</string>
     <string name="widget_small_description">Cảnh báo nơi bạn ở, xem nhanh</string>

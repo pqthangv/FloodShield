@@ -34,6 +34,9 @@ QUIET_FROM, QUIET_UNTIL = 22, 6
 REMINDER_FROM, REMINDER_UNTIL = 6, 10
 REMINDER_RAIN_FROM, REMINDER_RAIN_UNTIL = 6, 21
 REMINDER_MM, REMINDER_CHANCE = 2.0, 60
+# The morning "strong sun" reminder: sent by the same morning run, if some hour from now until the
+# end of today has this UV index or more (WHO's "very high": avoid the midday sun).
+REMINDER_UV = 8
 # Phones that haven't checked in for this long are forgotten.
 STALE_DAYS = 60
 SENT_KEEP_DAYS = 14
@@ -55,10 +58,12 @@ class Message:
     title: str
     body: str
     severity: str
-    # "warning", or "reminder" for the morning rain reminder (a quieter notification channel).
+    # "warning", or "reminder" for the morning reminders (rain, strong sun; a quieter notification channel).
     kind: str = "warning"
     # The day it is about ("2026-10-14").
     day: str = ""
+    # When it is both morning reminders in one (one_reminder): their ids, which then count as sent.
+    covers: tuple[str, ...] = ()
 
 
 def rain_warnings(raw: dict, lang: Lang) -> list[Message]:
@@ -109,13 +114,66 @@ def rain_reminder(raw: dict, lang: Lang) -> Optional[Message]:
     )
 
 
+def uv_reminder(raw: dict, lang: Lang) -> Optional[Message]:
+    """'Strong sun today, wear a hat': sent in the morning when the UV index will be very high
+    later today."""
+    now = raw["current"]["time"]
+    today, hour = now[:10], int(now[11:13])
+    if not REMINDER_FROM <= hour < REMINDER_UNTIL:
+        return None
+    hourly = raw.get("hourly", {})
+    strong = [
+        (uv, time)
+        for time, uv in zip(hourly.get("time", []), hourly.get("uv_index", []))
+        if time[:10] == today and int(time[11:13]) >= hour and uv is not None and uv >= REMINDER_UV
+    ]
+    if not strong:
+        return None
+    # From the first such hour until the end of the last one.
+    start, end = strong[0][1][11:16], f"{int(strong[-1][1][11:13]) + 1:02d}:00"
+    text = t(lang, "uv_reminder_desc", uv=f"{max(strong)[0]:.0f}", start=start, end=end)
+    return Message(
+        id=f"uv-today-{today}",
+        title=t(lang, "uv_reminder_title"),
+        body=f'{text}\n{t(lang, "push_source", source="Open-Meteo")}',
+        severity="info",
+        kind="reminder",
+        day=today,
+    )
+
+
 def pushes_for(raw: dict, lang: Lang) -> list[Message]:
-    """The warnings, and the morning reminder unless a warning already covers today."""
+    """The warnings, the morning rain reminder unless a warning already covers today, and the
+    morning UV reminder."""
     found = rain_warnings(raw, lang)
     reminder = rain_reminder(raw, lang)
     if reminder and not any(m.day == reminder.day for m in found):
         found.append(reminder)
+    sun = uv_reminder(raw, lang)
+    if sun:
+        found.append(sun)
     return found
+
+
+def one_reminder(messages: list[Message], lang: Lang) -> list[Message]:
+    """What a phone hasn't had yet, with both morning reminders as one notification when neither
+    has been sent; if one already went, the other goes alone."""
+    reminders = [m for m in messages if m.kind == "reminder"]
+    if len(reminders) < 2:
+        return messages
+    rain, sun = reminders  # in pushes_for's order
+    rain_line = rain.body.split("\n")[0]
+    both = Message(
+        id=f"morning-{rain.day}",
+        title=t(lang, "reminder_both_title"),
+        # The rain line, then the UV line and the source.
+        body=f"{rain_line}\n{sun.body}",
+        severity="info",
+        kind="reminder",
+        day=rain.day,
+        covers=(rain.id, sun.id),
+    )
+    return [m for m in messages if m.kind != "reminder"] + [both]
 
 
 def is_quiet(raw: dict) -> bool:
@@ -311,9 +369,8 @@ async def send_rain_warnings(db: AsyncSession, forecasts: list[tuple[float, floa
             ).all()
         )
         for device in devices:
-            for message in warnings[device.language]:
-                if (device.device_id, message.id) in sent_before:
-                    continue
+            new = [m for m in warnings[device.language] if (device.device_id, m.id) not in sent_before]
+            for message in one_reminder(new, device.language):
                 if quiet and message.severity != "severe":
                     counts["held"] += 1  # sent by the first run after QUIET_UNTIL, if still forecast
                 elif device.platform not in senders:
@@ -336,7 +393,8 @@ async def send_rain_warnings(db: AsyncSession, forecasts: list[tuple[float, floa
     gone = set()
     for (device, message), result in zip(jobs, results):
         if result == "sent":
-            db.add(PushSent(device_id=device.device_id, alert_id=message.id))
+            for alert_id in message.covers or (message.id,):
+                db.add(PushSent(device_id=device.device_id, alert_id=alert_id))
             counts["sent"] += 1
         elif result == "gone":
             gone.add(device.device_id)

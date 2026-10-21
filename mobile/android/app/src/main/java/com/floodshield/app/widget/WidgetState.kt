@@ -300,7 +300,8 @@ fun testText(
   val drew =
       when (drawn) {
         null -> "one layout"
-        SMALLEST -> "smallest" + (reported?.let { " (as ${size(it)})" } ?: "")
+        // With the look for the reported size (layoutsBySize), which the next line gives.
+        SMALLEST -> "smallest"
         else -> size(drawn)
       }
   val width = reported?.first ?: 0f
@@ -310,15 +311,16 @@ fun testText(
       } else {
         "small ${needs.smallTop.heightAt(width)?.let(::dp) ?: "-"}, big ${needs.bigTop.heightAt(width)?.let(::dp) ?: "-"}"
       }
+  // Short lines: on a 2 x 2 of 110 dp (Xiaomi, 5 columns) the box has ~90 dp for its text.
   return listOf(
-          "FloodShield test $time",
+          "Test $time",
           "drew $drew: $look",
           "reported ${reported?.let(::size) ?: "nothing"}",
           // Pixel Launcher sends its landscape size twice.
           "sizes ${info.sizes.map(::size).distinct().joinToString(" ").ifEmpty { "none" }}",
           "min ${info.minWidth}x${info.minHeight} max ${info.maxWidth}x${info.maxHeight}",
           "need at ${dp(width)}: $need",
-          "Android $sdk, density ${"%.2f".format(Locale.ROOT, density)}, font ${"%.2f".format(Locale.ROOT, fontScale)}",
+          "Android $sdk, ${"%.2f".format(Locale.ROOT, density)}x, font ${"%.2f".format(Locale.ROOT, fontScale)}",
       )
       .joinToString("\n")
 }

@@ -375,13 +375,13 @@ class WidgetStateTest {
             reported = 344.4f to 150.9f, info = pixel, needs = needs, sdk = 34, density = 2.625f, fontScale = 1.3f)
     assertEquals(
         listOf(
-            "FloodShield test 15:42:07",
+            "Test 15:42:07",
             "drew 300x144: small top + row",
             "reported 344x151",
             "sizes 344x158 375x151",
             "min 344x133 max 582x157",
             "need at 344: small 144, big 165",
-            "Android 34, density 2.63, font 1.30"),
+            "Android 34, 2.63x, font 1.30"),
         text.lines())
   }
 
@@ -392,7 +392,8 @@ class WidgetStateTest {
         testText(
             "08:37:00", small = true, drawn = 1f to 1f, layout = WidgetLayout(narrow = false, details = true),
             reported = 145f to 160f, info = poco, needs = needs, sdk = 35, density = 2.75f, fontScale = 1f)
-    assertEquals("drew smallest (as 145x160): 2x2 + row", text.lines()[1])
+    // The smallest entry gets the look for the reported size, which the next line gives.
+    assertEquals("drew smallest: 2x2 + row", text.lines()[1])
     assertEquals("sizes none", text.lines()[3])
     assertEquals("need at 145: row 144, 1 value -", text.lines()[5])
   }

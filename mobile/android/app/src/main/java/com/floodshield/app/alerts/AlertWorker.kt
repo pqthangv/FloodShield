@@ -231,7 +231,9 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
     }
 
     const val CHANNEL_ID = "disaster_alerts"
-    // The morning rain reminder (backend/services/push.py), apart so it can be turned off alone.
+    // The morning reminders (rain, strong sun; backend/services/push.py), apart so they can be
+    // turned off alone. The id is from when it was rain only: a new id would be a new channel, and
+    // phones that turned the reminders off would get them again.
     const val REMINDER_CHANNEL_ID = "rain_reminders"
     private val NOTIFY_SEVERITIES = setOf("moderate", "high", "severe")
 

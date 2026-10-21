@@ -167,14 +167,16 @@ def test_server_gives_the_answers_the_app_tests_expect():
 
 def test_rain_job_downloads_what_the_rain_rules_read():
     """The hourly push job (scripts/rain_push.py) asks Open-Meteo only for what rain_alerts,
-    intense_rain_alert and the morning reminder read; a new value read there must be added to the job too."""
+    intense_rain_alert and the morning reminders read; a new value read there must be added to the job too."""
     job = RAIN_JOB.read_text(encoding="utf-8")
     asks = lambda name: set(re.search(rf'^{name} = "([^"]*)"', job, re.M).group(1).split(","))
     rules = (inspect.getsource(alerts.rain_alerts) + inspect.getsource(alerts.intense_rain_alert)
-             + inspect.getsource(push.rain_reminder))
+             + inspect.getsource(push.rain_reminder) + inspect.getsource(push.uv_reminder))
     reads = lambda part: set(re.findall(rf'{part}\.get\("([^"]+)"', rules)) - {"time"}
     assert reads("daily") <= asks("DAILY_VARS")
     assert reads("hourly") <= asks("HOURLY_VARS")
-    # The same names as the phones' request, so the server reads both the same way.
+    # The same names as the phones' request, so the server reads both the same way; except the UV
+    # index, which only the morning reminder uses (the app doesn't show it).
+    job_only = {"HOURLY_VARS": {"uv_index"}}
     for name in ("CURRENT_VARS", "HOURLY_VARS", "DAILY_VARS"):
-        assert asks(name) <= set(getattr(weather, name).split(","))
+        assert asks(name) <= set(getattr(weather, name).split(",")) | job_only.get(name, set())

@@ -2,7 +2,8 @@
 <!-- The hidden widget test (Settings > Version, long press): a dark box over the top of the widget
      with how the launcher drew it (WidgetState.kt, testText), for testers' screenshots. Over the
      content, so it doesn't change the layout it describes; text in dp, the same at every font
-     size; padded clear of the rounded corners, which the widget clips to (clipToOutline). -->
+     size; padded clear of the rounded corners, which the widget clips to (clipToOutline). Small
+     enough that its ~11 wrapped lines fit a 2 x 2 of 114 x 126 dp (a POCO's, 2026-10-21). -->
 <TextView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_test"
     android:layout_width="match_parent"
@@ -10,11 +11,11 @@
     android:layout_gravity="top"
     android:background="#E6000000"
     android:includeFontPadding="false"
-    android:maxLines="9"
+    android:maxLines="14"
     android:paddingStart="12dp"
     android:paddingTop="6dp"
     android:paddingEnd="12dp"
     android:paddingBottom="4dp"
     android:textColor="#FFFFFF"
-    android:textSize="9dp"
+    android:textSize="8dp"
     android:visibility="gone" />

@@ -28,7 +28,7 @@
   minutes on Android, and whenever iOS lets the app check on iPhone.
 - **Rain warnings also come by push,** checked every hour, so they arrive even when the phone holds
   back its own check. At night only the most serious ones; the others wait for the morning. A
-  morning reminder says when rain is likely that day.
+  morning reminder says when rain or strong sun (a very high UV index) is likely that day.
 - **Home-screen widgets** in two sizes show the weather, your area and whether there's a warning,
   without opening the app, over a picture of the sky that matches the weather (it can be turned
   off). They keep themselves up to date and fit narrow home screens and large text too.
@@ -86,7 +86,7 @@ with many other apps. So the phone downloads the raw forecast and map data itsel
 rounded first, and the server does all the processing. A test keeps the TypeScript, Kotlin,
 Objective-C, Swift and Python versions of these requests identical. The flood levels come from 20 years of GloFAS river
 data: the yearly peaks are fitted with a Gumbel distribution
-([`backend/services/flood.py`](backend/services/flood.py)). GitHub Actions runs 111 pytest tests (on
+([`backend/services/flood.py`](backend/services/flood.py)). GitHub Actions runs 117 pytest tests (on
 SQLite and PostgreSQL) and 77 Jest tests on every change; the widgets' size rules have their own
 Kotlin tests (`gradlew app:testDebugUnitTest`).
 

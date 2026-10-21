@@ -26,7 +26,7 @@ class PushService : FirebaseMessagingService() {
     // Alerts turned off since, or already shown by the background check or seen in the app.
     if (!prefs.enabled || id in seen) return
     val alert = JSONObject().put("id", id).put("title", title).put("description", data["body"] ?: "")
-    // "reminder": the morning "take an umbrella" push, on its own quieter channel.
+    // "reminder": the morning reminders (rain, strong sun), on their own quieter channel.
     AlertWorker.notify(
         applicationContext, alert, data["severity"] ?: "moderate", reminder = data["kind"] == "reminder")
     seen.add(id)

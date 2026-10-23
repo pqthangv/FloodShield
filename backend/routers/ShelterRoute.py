@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -36,15 +37,30 @@ async def nearby_shelters(
 ):
     """Evacuation places near a location: the administrator's ones first, then OpenStreetMap places
     (schools, community centres, ward offices, hospitals...), queried by this server."""
-    community = []
+    community = await _osm_places(lat, lon, radius_km, lang)
+    # Too few results in rural areas: widen the search once.
+    if community is not None and len(community) < 5 and radius_km < 15:
+        wider = await _osm_places(lat, lon, 15, lang)
+        if wider is not None:
+            community = wider
+        elif not community:
+            # Nothing within 5 km, and 15 km couldn't be searched: not "nothing within 15 km".
+            community = None
+    if community is None:
+        # An error, not an empty list: the app keeps the list it gets for days (1.0.7 and older
+        # keep even an empty one for 7 days), and on an error it shows its older list, or the
+        # message with "Retry". The administrator's shelters alone would be kept the same way.
+        raise HTTPException(status_code=503, detail=t(lang, "err_shelters_unavailable"))
+    return {"shelters": await with_official(db, lat, lon, radius_km, lang, community)}
+
+
+async def _osm_places(lat: float, lon: float, radius_km: float, lang: Lang) -> Optional[list[dict]]:
+    """The OpenStreetMap places, or None when no Overpass server answered this server."""
     try:
-        community = await osm.find_shelters(lat, lon, radius_km, lang)
-        # Too few results in rural areas: widen the search once.
-        if len(community) < 5 and radius_km < 15:
-            community = await osm.find_shelters(lat, lon, 15, lang)
+        return await osm.find_shelters(lat, lon, radius_km, lang)
     except Exception as e:
         logger.warning(f"Overpass error: {e}")
-    return {"shelters": await with_official(db, lat, lon, radius_km, lang, community)}
+        return None
 
 
 @router.post("/shelters", response_model=ShelterListResponse)

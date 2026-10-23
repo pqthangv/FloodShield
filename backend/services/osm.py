@@ -122,7 +122,14 @@ async def find_shelters(
             try:
                 resp = await get_client().post(url, data={"data": query}, timeout=25)
                 resp.raise_for_status()
-                return parse_places(resp.json().get("elements", []))
+                data = resp.json()
+                # Only a real answer is kept (7 days): it has a list of places, and no "runtime
+                # error" remark. A query that ran out of time or memory still answers 200, with
+                # what it found so far, often nothing. (The app checks the same, overpass.ts.)
+                elements = data.get("elements")
+                if not isinstance(elements, list) or "runtime error" in (data.get("remark") or "").lower():
+                    raise RuntimeError(data.get("remark") or "not an answer")
+                return parse_places(elements)
             except Exception as e:
                 logger.warning(f"Overpass {url.split('/')[2]} failed: {e}")
                 last_error = e

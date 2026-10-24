@@ -1,5 +1,6 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
+  AppState,
   View,
   Text,
   StyleSheet,
@@ -21,6 +22,11 @@ import {errorMessage} from '../../services/axiosClient';
 import {formatDistance} from '../../services/format';
 import {useI18n} from '../../i18n';
 
+// After a failed search with nothing on screen, it tries again by itself, quietly: every
+// RETRY_MS, at most RETRIES times, only while this screen is open and the app on screen.
+export const RETRY_MS = 60 * 1000;
+export const RETRIES = 5;
+
 const openDirections = (s: Shelter) =>
   Linking.openURL(
     `https://www.google.com/maps/dir/?api=1&destination=${s.latitude},${s.longitude}&travelmode=walking`,
@@ -39,26 +45,42 @@ const NearbySheltersScreen = () => {
   const [loading, setLoading] = useState(!initial);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A search the user started ("Retry", pull down) with nothing on screen: it says it's searching,
+  // not "none".
+  const [searching, setSearching] = useState(false);
+  // Each failed search adds one, so a quiet retry follows it (below).
+  const [failures, setFailures] = useState(0);
+  const retries = useRef(0);
 
   // Runs again when the language changes: kind labels come from the API in the current language.
+  // quiet: a retry by itself; the error stays on screen until a list comes.
   const load = useCallback(
-    async (refresh = false) => {
+    async (refresh = false, quiet = false) => {
       if (!location) {
         setLoading(false);
         return;
       }
-      setError(null);
+      if (!quiet) {
+        setError(null);
+        setSearching(true);
+        retries.current = 0;
+      }
       const showOlder = (older: Shelter[]) => {
         setShelters(older);
         setLoading(false);
       };
       try {
         setShelters(await loadShelters(location.latitude, location.longitude, lang, refresh, showOlder));
+        setError(null);
       } catch (e) {
         // With an older list on screen, it stays there (the error only shows on an empty list).
         setError(errorMessage(e));
+        setFailures(count => count + 1);
       } finally {
         setLoading(false);
+        if (!quiet) {
+          setSearching(false);
+        }
       }
     },
     [location, lang],
@@ -67,6 +89,40 @@ const NearbySheltersScreen = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // The error with nothing on screen: try again by itself, without a new text or button (an
+  // elderly user may never tap "Retry"). One retry after each failure; the wait pauses while the
+  // app is in the background. A search for this place already running is shared, not doubled.
+  useEffect(() => {
+    if (!error || shelters.length > 0 || retries.current >= RETRIES) {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let fired = false;
+    const start = () => {
+      if (timer === null && !fired) {
+        timer = setTimeout(() => {
+          fired = true;
+          retries.current += 1;
+          load(false, true);
+        }, RETRY_MS);
+      }
+    };
+    const pause = () => {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    if (AppState.currentState === 'active') {
+      start();
+    }
+    const screen = AppState.addEventListener('change', state => (state === 'active' ? start() : pause()));
+    return () => {
+      pause();
+      screen.remove();
+    };
+  }, [error, failures, shelters.length, load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -144,10 +200,11 @@ const NearbySheltersScreen = () => {
         }
         ListEmptyComponent={
           <View style={styles.loadingContainer}>
+            {location && searching && !refreshing ? <ActivityIndicator size="large" color="#2C3E50" /> : null}
             <Text style={styles.loadingText}>
               {!location
                 ? t('noLocationSettings')
-                : error || t('noShelters')}
+                : error || t(searching ? 'findingShelters' : 'noShelters')}
             </Text>
             {error && (
               <Text style={styles.retry} onPress={() => load(true)}>

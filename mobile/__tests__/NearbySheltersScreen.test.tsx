@@ -1,9 +1,9 @@
 import React from 'react';
-import {Text} from 'react-native';
+import {AppState, Text} from 'react-native';
 import ReactTestRenderer, {act} from 'react-test-renderer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import disasterAPI from '../apis/disasterAPI';
-import NearbySheltersScreen from '../components/home/NearbySheltersScreen';
+import NearbySheltersScreen, {RETRIES, RETRY_MS} from '../components/home/NearbySheltersScreen';
 import {I18nProvider, translate} from '../i18n';
 import type {Shelter} from '../services/model';
 import {forgetSheltersForTests, prefetchShelters} from '../services/shelters';
@@ -141,4 +141,130 @@ test('a search that finds nothing says so, and the next visit searches again', a
   await act(async () => answer(NEW));
   expect(texts(second)).toContain('Trường mới');
   await act(async () => second.unmount());
+});
+
+describe('after a failed search with nothing on screen, it tries again by itself', () => {
+  const OFFLINE = () => translate('errOffline');
+  const listeners = new Set<(state: string) => void>();
+  const setScreen = (state: string) =>
+    act(async () => {
+      (AppState as {currentState: string}).currentState = state;
+      listeners.forEach(listener => listener(state));
+    });
+  // The clock moves in 5 s steps, each in its own act, so React runs its effects in between (as
+  // on a phone): one big jump would hide the retries scheduled after the first.
+  const wait = async (ms: number) => {
+    for (let left = ms; left > 0; left -= 5000) {
+      const step = Math.min(5000, left);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(step);
+      });
+    }
+  };
+  const retryButton = (tree: Tree) =>
+    tree.root.findAll(node => node.type === Text && node.props.children === translate('retry'))[0];
+  // A tap doesn't wait for the search it starts.
+  const tapRetry = (tree: Tree) =>
+    act(async () => {
+      retryButton(tree).props.onPress();
+    });
+
+  beforeEach(async () => {
+    jest.useFakeTimers();
+    await AsyncStorage.removeItem('shelters');
+    getShelters.mockRejectedValue(new Error('no server answers'));
+    (AppState as {currentState: string}).currentState = 'active';
+    (AppState.addEventListener as jest.Mock).mockImplementation((_: string, listener: (state: string) => void) => {
+      listeners.add(listener);
+      return {remove: () => listeners.delete(listener)};
+    });
+  });
+  afterEach(() => {
+    listeners.clear();
+    jest.useRealTimers();
+  });
+
+  test('a minute later, and the list replaces the error; the error stays while it searches', async () => {
+    const tree = await open();
+    expect(texts(tree)).toContain(OFFLINE());
+    expect(texts(tree)).toContain(translate('retry'));
+
+    let found: (list: Shelter[]) => void = () => {};
+    getShelters.mockReturnValue(new Promise(resolve => (found = list => resolve({shelters: list}))));
+    await wait(RETRY_MS - 1000);
+    expect(getShelters).toHaveBeenCalledTimes(1);
+    await wait(1000);
+    expect(getShelters).toHaveBeenCalledTimes(2);
+    // Searching quietly: the same error, no spinner and no "none".
+    expect(texts(tree)).toContain(OFFLINE());
+    expect(texts(tree)).not.toContain(translate('findingShelters'));
+    expect(texts(tree)).not.toContain(translate('noShelters'));
+
+    await act(async () => found(NEW));
+    expect(texts(tree)).toContain('Trường mới');
+    expect(texts(tree)).not.toContain(OFFLINE());
+    await wait(10 * RETRY_MS);
+    expect(getShelters).toHaveBeenCalledTimes(2);
+    await act(async () => tree.unmount());
+  });
+
+  test(`at most ${RETRIES} times; a tap on "Thử lại" gives it ${RETRIES} more`, async () => {
+    const tree = await open();
+    await wait(20 * RETRY_MS);
+    expect(getShelters).toHaveBeenCalledTimes(1 + RETRIES);
+    expect(texts(tree)).toContain(OFFLINE());
+    expect(texts(tree)).toContain(translate('retry'));
+
+    await tapRetry(tree);
+    expect(getShelters).toHaveBeenCalledTimes(2 + RETRIES);
+    await wait(20 * RETRY_MS);
+    expect(getShelters).toHaveBeenCalledTimes(2 + 2 * RETRIES);
+    await act(async () => tree.unmount());
+  });
+
+  test('not while a list is on screen', async () => {
+    // A list kept from 3 km away is shown, and the new search fails.
+    await AsyncStorage.setItem(
+      'shelters',
+      JSON.stringify({at: Date.now() - 30 * DAY, latitude: 16.46, longitude: 107.59, lang: 'vi', shelters: OLD}),
+    );
+    const tree = await open();
+    expect(texts(tree)).toContain('Trường cũ');
+    await wait(10 * RETRY_MS);
+    expect(getShelters).toHaveBeenCalledTimes(1);
+    await act(async () => tree.unmount());
+  });
+
+  test('not after the screen is closed', async () => {
+    const tree = await open();
+    await act(async () => tree.unmount());
+    await wait(10 * RETRY_MS);
+    expect(getShelters).toHaveBeenCalledTimes(1);
+  });
+
+  test('not while the app is in the background; back on screen, a minute later', async () => {
+    const tree = await open();
+    await setScreen('background');
+    await wait(10 * RETRY_MS);
+    expect(getShelters).toHaveBeenCalledTimes(1);
+    await setScreen('active');
+    await wait(RETRY_MS - 1000);
+    expect(getShelters).toHaveBeenCalledTimes(1);
+    await wait(1000);
+    expect(getShelters).toHaveBeenCalledTimes(2);
+    await act(async () => tree.unmount());
+  });
+
+  test('"Thử lại" shows that it is searching, not "none", until the answer', async () => {
+    const tree = await open();
+    let found: (list: Shelter[]) => void = () => {};
+    getShelters.mockReturnValue(new Promise(resolve => (found = list => resolve({shelters: list}))));
+    await tapRetry(tree);
+    expect(texts(tree)).toContain(translate('findingShelters'));
+    expect(texts(tree)).not.toContain(translate('noShelters'));
+    expect(texts(tree)).not.toContain(OFFLINE());
+    await act(async () => found(NEW));
+    expect(texts(tree)).toContain('Trường mới');
+    await act(async () => tree.unmount());
+  });
 });

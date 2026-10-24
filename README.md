@@ -86,8 +86,8 @@ with many other apps. So the phone downloads the raw forecast and map data itsel
 rounded first, and the server does all the processing. A test keeps the TypeScript, Kotlin,
 Objective-C, Swift and Python versions of these requests identical. The flood levels come from 20 years of GloFAS river
 data: the yearly peaks are fitted with a Gumbel distribution
-([`backend/services/flood.py`](backend/services/flood.py)). GitHub Actions runs 117 pytest tests (on
-SQLite and PostgreSQL) and 77 Jest tests on every change; the widgets' size rules have their own
+([`backend/services/flood.py`](backend/services/flood.py)). GitHub Actions runs 122 pytest tests (on
+SQLite and PostgreSQL) and 90 Jest tests on every change; the widgets' size rules have their own
 Kotlin tests (`gradlew app:testDebugUnitTest`).
 
 To run it yourself on Windows, `scripts/setup-dev-windows.ps1` installs the tools and

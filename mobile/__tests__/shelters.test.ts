@@ -159,3 +159,53 @@ test('the list kept on the phone opens instantly after a restart, and bad data i
   expect(await broken.loadShelters(HUE.lat, HUE.lon, 'vi')).toHaveLength(2);
   expect(broken.getShelters).toHaveBeenCalledTimes(1);
 });
+
+// 1.0.7 and older kept the server's empty answer when no server could search, and showed
+// "no places within 15 km" for 7 days.
+const EMPTY = () =>
+  JSON.stringify({at: Date.now() - DAY, latitude: HUE.lat, longitude: HUE.lon, lang: 'vi', shelters: []});
+
+test('an empty answer is not kept: the next visit searches again', async () => {
+  const app = openApp();
+  app.getShelters.mockResolvedValue({shelters: []});
+  expect(await app.loadShelters(HUE.lat, HUE.lon, 'vi')).toEqual([]);
+  expect(app.savedShelters(HUE.lat, HUE.lon, 'vi')).toBeNull();
+  expect(await app.AsyncStorage.getItem('shelters')).toBeNull();
+
+  app.getShelters.mockResolvedValue({shelters: LIST});
+  expect(await app.loadShelters(HUE.lat, HUE.lon, 'vi')).toHaveLength(2);
+  expect(app.getShelters).toHaveBeenCalledTimes(2);
+});
+
+test('an empty list kept by an older version counts as nothing kept', async () => {
+  const app = openApp({shelters: EMPTY()});
+  const shownFirst = jest.fn();
+  expect(await app.loadShelters(HUE.lat, HUE.lon, 'vi', false, shownFirst)).toHaveLength(2);
+  expect(app.getShelters).toHaveBeenCalledTimes(1);
+  expect(shownFirst).not.toHaveBeenCalled();
+});
+
+test('without network and only an empty list kept, the error shows, not "none"', async () => {
+  const app = openApp({shelters: EMPTY()});
+  app.getShelters.mockRejectedValue(new Error('offline'));
+  await expect(app.loadShelters(HUE.lat, HUE.lon, 'vi')).rejects.toThrow('offline');
+});
+
+test('an empty answer near a list found before shows that list, and keeps it', async () => {
+  const old = JSON.stringify({at: Date.now() - 30 * DAY, latitude: HUE.lat, longitude: HUE.lon, lang: 'vi', shelters: LIST});
+  const app = openApp({shelters: old});
+  app.getShelters.mockResolvedValue({shelters: []});
+  // 3 km away: places that close can't be missing from a search here, so the empty answer is a
+  // search that went wrong, like an error.
+  const shown: Shelter[] = await app.loadShelters(HUE.lat + 0.027, HUE.lon, 'vi');
+  expect(shown.map(s => s.id)).toEqual(['official', 'school']);
+  expect(JSON.parse(await app.AsyncStorage.getItem('shelters')).shelters).toHaveLength(2);
+});
+
+test('an empty answer far from the kept list shows "none", and the kept list stays', async () => {
+  const old = JSON.stringify({at: Date.now() - 30 * DAY, latitude: HUE.lat, longitude: HUE.lon, lang: 'vi', shelters: LIST});
+  const app = openApp({shelters: old});
+  app.getShelters.mockResolvedValue({shelters: []});
+  expect(await app.loadShelters(HUE.lat + 0.1, HUE.lon, 'vi')).toEqual([]); // ~11 km
+  expect(JSON.parse(await app.AsyncStorage.getItem('shelters')).shelters).toHaveLength(2);
+});

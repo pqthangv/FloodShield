@@ -61,7 +61,9 @@ function restore() {
     restoring = (async () => {
       try {
         const value = JSON.parse((await AsyncStorage.getItem(KEY)) || 'null');
-        if (!saved && Array.isArray(value?.shelters)) {
+        // An empty list counts as nothing kept: 1.0.7 and older kept the server's empty answer
+        // when no server could search, and showed "none" for 7 days.
+        if (!saved && Array.isArray(value?.shelters) && value.shelters.length > 0) {
           saved = value;
         }
       } catch {}
@@ -91,6 +93,11 @@ export function keptShelters(lat: number, lon: number, lang: string): Shelter[] 
 async function search(lat: number, lon: number, lang: string): Promise<Shelter[]> {
   try {
     const {shelters} = await disasterAPI.getShelters(lat, lon);
+    if (shelters.length === 0) {
+      // Not kept, so the next visit searches again. Places from a list found within 5 km can't
+      // be missing from a search here (it reaches 15 km): that empty answer went wrong somewhere.
+      return saved && within(saved, lat, lon, SHOW_OLDER_KM) ? saved.shelters : [];
+    }
     saved = {at: Date.now(), latitude: lat, longitude: lon, lang, shelters};
     AsyncStorage.setItem(KEY, JSON.stringify(saved)).catch(() => {});
     return shelters;

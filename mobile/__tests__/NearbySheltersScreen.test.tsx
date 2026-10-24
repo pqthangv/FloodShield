@@ -111,3 +111,34 @@ test('with nothing kept from around here, the spinner shows until the search end
   expect(texts(tree)).toContain('Trường mới');
   await act(async () => tree.unmount());
 });
+
+test('an empty list kept by an older version: the spinner and a new search, not "none"', async () => {
+  // What 1.0.7 kept on the user's iPhone when no server could search (2026-10-22).
+  await AsyncStorage.setItem(
+    'shelters',
+    JSON.stringify({at: Date.now() - DAY, ...HERE, lang: 'vi', shelters: []}),
+  );
+  const tree = await open();
+  expect(texts(tree)).toContain(translate('findingShelters'));
+  expect(texts(tree)).not.toContain(translate('noShelters'));
+  expect(getShelters).toHaveBeenCalledTimes(1);
+  await act(async () => answer(NEW));
+  expect(texts(tree)).toContain('Trường mới');
+  await act(async () => tree.unmount());
+});
+
+test('a search that finds nothing says so, and the next visit searches again', async () => {
+  await AsyncStorage.removeItem('shelters');
+  const first = await open();
+  await act(async () => answer([]));
+  expect(texts(first)).toContain(translate('noShelters'));
+  await act(async () => first.unmount());
+
+  getShelters.mockReturnValue(new Promise(resolve => (answer = list => resolve({shelters: list}))));
+  const second = await open();
+  expect(texts(second)).toContain(translate('findingShelters'));
+  expect(getShelters).toHaveBeenCalledTimes(2);
+  await act(async () => answer(NEW));
+  expect(texts(second)).toContain('Trường mới');
+  await act(async () => second.unmount());
+});

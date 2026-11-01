@@ -34,4 +34,13 @@ class CalmRainTest {
     assertFalse(CalmRain.isRainReminder("uv-today-2026-10-31"))
     assertFalse(CalmRain.isRainReminder(""))
   }
+
+  @Test
+  fun `only strong sun alone is the sun reminder`() {
+    assertTrue(CalmRain.isSunReminder("uv-today-2026-10-31"))
+    // Rain and strong sun in one shows the rain cloud.
+    assertFalse(CalmRain.isSunReminder("morning-2026-10-31"))
+    assertFalse(CalmRain.isSunReminder("rain-today-2026-10-31"))
+    assertFalse(CalmRain.isSunReminder(""))
+  }
 }

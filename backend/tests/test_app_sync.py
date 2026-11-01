@@ -202,3 +202,6 @@ def test_plain_rain_is_the_same_on_home_and_in_android_notifications():
     id_of = lambda f: re.search(r'id=f"([\w-]+)\{', inspect.getsource(f)).group(1)
     assert sorted(reminder_ids) == sorted([id_of(push.rain_reminder), id_of(push.one_reminder)])
     assert not any(id_of(push.uv_reminder).startswith(p) for p in reminder_ids)
+    # The strong-sun reminder alone gets a sun.
+    sun_ids = re.findall(r'"([\w-]+)"', re.search(r"SUN_REMINDER_IDS = listOf\((.*?)\)", kotlin_source).group(1))
+    assert sun_ids == [id_of(push.uv_reminder)]

@@ -14,7 +14,7 @@ import {errorMessage} from '../../services/axiosClient';
 import {parseLocal, shortDate, weekdayName} from '../../services/format';
 import {getLanguage, useI18n} from '../../i18n';
 import {FloodOutlook, FloodRisk} from '../../services/model';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 
 // Chart tokens (light surface). Series uses categorical slot 1; thresholds use status colors.
 const C = {
@@ -53,6 +53,8 @@ function niceStep(max: number) {
 
 const DischargeChart = ({data}: {data: FloodOutlook}) => {
   const {t} = useI18n();
+  const {vw, vh} = useLayout();
+  const styles = useStyles(makeStyles);
   const [selected, setSelected] = useState<number | null>(null);
   const points = data.forecast.filter(p => p.discharge !== null);
   if (points.length < 2) {
@@ -253,6 +255,7 @@ const DischargeChart = ({data}: {data: FloodOutlook}) => {
 const LuSongTab = () => {
   const {location} = useApp();
   const {t, lang} = useI18n();
+  const styles = useStyles(makeStyles);
   const [data, setData] = useState<FloodOutlook | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -353,7 +356,7 @@ const LuSongTab = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     paddingHorizontal: vw(4),
   },

@@ -8,7 +8,6 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import {vh, vw} from './services/styleProps';
 import Home from './views/bottomtabs/Home';
 import {homeIcon, menuIcon, predictIcon, reportIcon} from './assets/svgIcon';
 import Predict from './views/bottomtabs/Predict';
@@ -23,7 +22,7 @@ import LocationPickerScreen from './views/settings/LocationPicker';
 import {AppProvider} from './context/AppContext';
 import {TourProvider, useFirstLaunchTour} from './components/tour/Tour';
 import {I18nProvider, useI18n} from './i18n';
-import {LayoutColumn, LayoutProvider} from './services/layout';
+import {LayoutColumn, LayoutProvider, useLayout} from './services/layout';
 
 export type RootStackParamList = {
   MainTabs: {screen?: string; params?: object} | undefined;
@@ -49,6 +48,7 @@ const SCREEN_BOTTOM: Record<string, string> = {
 
 const TabNavigator = () => {
   const insets = useSafeAreaInsets();
+  const {vw, vh} = useLayout();
   const {t} = useI18n();
   const createTabBarIcon =
     (iconComponent: Function) =>

@@ -18,7 +18,7 @@ import {launchCamera, launchImageLibrary, Asset} from 'react-native-image-picker
 import CustomStatusBar from '../../components/CustomStatusBar';
 import PhotoViewer from '../../components/PhotoViewer';
 import {backIcon, cameraIcon, imageIcon} from '../../assets/svgIcon';
-import {vw} from '../../services/styleProps';
+import {Layout, useStyles} from '../../services/layout';
 import {communityAPI} from '../../apis/disasterAPI';
 import {locationLabel, useApp} from '../../context/AppContext';
 import storage from '../../services/storage';
@@ -40,6 +40,7 @@ const AddReport = () => {
   const navigation = useNavigation();
   const {location, weather} = useApp();
   const {t} = useI18n();
+  const styles = useStyles(makeStyles);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<PostCategory>('flood');
   const [waterLevel, setWaterLevel] = useState<WaterLevel | null>(null);
@@ -273,7 +274,7 @@ const AddReport = () => {
 
 export default AddReport;
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',

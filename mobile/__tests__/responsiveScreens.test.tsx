@@ -6,6 +6,9 @@ import ThoiTietTab from '../components/predict/ThoiTietTab';
 import WeatherIcon from '../components/WeatherIcon';
 import {LayoutProvider, MAX_WIDTH} from '../services/layout';
 
+// Given by Jest (Node), not in the app's type definitions.
+declare const __dirname: string;
+
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({goBack: jest.fn()}),
   useIsFocused: () => true,
@@ -68,6 +71,32 @@ test('the slide-to-call buttons follow the screen while it is open (fold, open)'
   setWindow(382, 678);
   expect(widths()).toEqual(Array(5).fill(382 * 0.13));
   act(() => tree.unmount());
+});
+
+test("no screen measures the window itself: sizes come from services/layout.tsx", () => {
+  // A size taken from Dimensions when a file loads stays the same when the phone folds or opens,
+  // and it is the whole window's, not the app's column.
+  const fs = require('fs');
+  const path = require('path');
+  const root = path.join(__dirname, '..');
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of fs.readdirSync(dir)) {
+      const file = path.join(dir, name);
+      if (fs.statSync(file).isDirectory()) {
+        walk(file);
+      } else if (/\.tsx?$/.test(name)) {
+        files.push(file);
+      }
+    }
+  };
+  ['components', 'views', 'context', 'services'].forEach(dir => walk(path.join(root, dir)));
+  files.push(path.join(root, 'App.tsx'));
+  const offenders = files.filter(file => {
+    const source = fs.readFileSync(file, 'utf8');
+    return /Dimensions\.get\(|services\/styleProps/.test(source) && !file.endsWith('layout.tsx');
+  });
+  expect(offenders.map(file => path.relative(root, file))).toEqual([]);
 });
 
 test("the Forecast tab's weather pictures follow the screen while it is open", () => {

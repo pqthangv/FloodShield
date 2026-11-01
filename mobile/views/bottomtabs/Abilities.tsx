@@ -13,7 +13,7 @@ import React, {useState, useEffect, useCallback} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import CustomStatusBar from '../../components/CustomStatusBar';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import disasterAPI from '../../apis/disasterAPI';
 import {Dissater} from '../../services/model';
 import {useApp} from '../../context/AppContext';
@@ -37,6 +37,8 @@ const Abilities = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {alerts} = useApp();
   const {t, lang} = useI18n();
+  const {vh} = useLayout();
+  const styles = useStyles(makeStyles);
   // "10 việc cần làm khi có lũ" needs the name in lower case; "Flood: 10 things to do" doesn't.
   const typeName = (type: Dissater) => (lang === 'vi' ? type.name.toLowerCase() : type.name);
   const [types, setTypes] = useState<Dissater[]>([]);
@@ -203,7 +205,7 @@ const Abilities = () => {
 
 export default Abilities;
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#C9E5FF',

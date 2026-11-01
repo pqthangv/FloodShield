@@ -60,6 +60,8 @@ class Message:
     severity: str
     # "warning", or "reminder" for the morning reminders (rain, strong sun; a quieter notification channel).
     kind: str = "warning"
+    # The warning's category ("heavy_rain", "urban_flood"); empty for the reminders.
+    category: str = ""
     # The day it is about ("2026-10-14").
     day: str = ""
     # When it is both morning reminders in one (one_reminder): their ids, which then count as sent.
@@ -78,6 +80,7 @@ def rain_warnings(raw: dict, lang: Lang) -> list[Message]:
             body=f'{a["description"]}\n{t(lang, "push_source", source=a["source"])}',
             severity=a["severity"],
             day=(a.get("starts_at") or "")[:10],
+            category=a["category"],
         )
         for a in found
         if a["category"] in PUSHED_CATEGORIES and a["severity"] in PUSHED_SEVERITIES
@@ -227,8 +230,10 @@ class FcmSender:
             json={
                 "message": {
                     "token": token,
+                    # The category lets the app show plain rain with a rain icon instead of "!".
                     "data": {"id": message.id, "title": message.title, "body": message.body,
-                             "severity": message.severity, "kind": message.kind},
+                             "severity": message.severity, "kind": message.kind,
+                             "category": message.category},
                     "android": {"priority": "HIGH", "ttl": f"{TTL_SECONDS}s"},
                 }
             },

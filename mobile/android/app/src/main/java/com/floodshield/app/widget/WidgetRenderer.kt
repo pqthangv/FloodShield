@@ -331,7 +331,8 @@ object WidgetRenderer {
         val ink = if (band.severity == "moderate") NAVY else WHITE
         views.setInt(R.id.widget_band, "setBackgroundResource", bandBackground(band.severity))
         views.setViewVisibility(R.id.widget_band_icon, View.VISIBLE)
-        views.setImageViewResource(R.id.widget_band_icon, R.drawable.ic_widget_warning)
+        views.setImageViewResource(
+            R.id.widget_band_icon, if (band.calmRain) R.drawable.ic_widget_rain else R.drawable.ic_widget_warning)
         views.setInt(R.id.widget_band_icon, "setColorFilter", ink)
         val others = if (band.others > 0) " " + texts.getString(R.string.widget_more, band.others) else ""
         val text =

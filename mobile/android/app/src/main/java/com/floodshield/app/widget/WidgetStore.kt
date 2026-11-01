@@ -92,7 +92,11 @@ class WidgetStore(context: Context) {
     snapshot.alerts?.let { list ->
       json.put(
           "alerts",
-          JSONArray().apply { list.forEach { put(JSONObject().put("title", it.title).put("severity", it.severity)) } })
+          JSONArray().apply {
+            list.forEach {
+              put(JSONObject().put("title", it.title).put("severity", it.severity).put("category", it.category))
+            }
+          })
     }
     prefs.edit().putString(KEY, json.toString()).apply()
   }
@@ -117,7 +121,7 @@ class WidgetStore(context: Context) {
   private fun alertsOf(array: JSONArray) =
       (0 until array.length()).map { i ->
         val alert = array.getJSONObject(i)
-        SnapshotAlert(alert.optString("title"), alert.optString("severity"))
+        SnapshotAlert(alert.optString("title"), alert.optString("severity"), alert.optString("category"))
       }
 
   companion object {

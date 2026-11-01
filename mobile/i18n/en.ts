@@ -54,6 +54,7 @@ const en: Record<keyof typeof vi, string> = {
   // Home
   alertsCount: 'Alerts ({count})',
   emergencyAlert: 'Emergency alert!',
+  heavyRain: 'Heavy rain',
   severityLabel: 'Severity:',
   alertsLoadFailed: 'Could not load alerts',
   noAlerts: 'No alerts',

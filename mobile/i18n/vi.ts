@@ -54,6 +54,7 @@ const vi = {
   // Home
   alertsCount: 'Cảnh báo ({count})',
   emergencyAlert: 'Cảnh báo khẩn cấp!',
+  heavyRain: 'Mưa to',
   severityLabel: 'Mức độ:',
   alertsLoadFailed: 'Chưa tải được cảnh báo',
   noAlerts: 'Không có cảnh báo',

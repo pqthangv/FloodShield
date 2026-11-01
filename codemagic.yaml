@@ -30,7 +30,9 @@ workflows:
         XCODE_SCHEME: FloodShield
         APP_STORE_APPLE_ID: 6821424169 # REPLACE with the app's Apple ID number
       node: 24
-      xcode: latest
+      # Pinned: the app doesn't use the UIScene life cycle yet, and apps built with Xcode 27 must, or
+      # they don't open. 26.6 built 1.0.7. Move to 27.1 only after that change has been tested.
+      xcode: 26.6
     scripts:
       - name: Install npm packages
         script: npm ci

@@ -23,6 +23,7 @@ import LocationPickerScreen from './views/settings/LocationPicker';
 import {AppProvider} from './context/AppContext';
 import {TourProvider, useFirstLaunchTour} from './components/tour/Tour';
 import {I18nProvider, useI18n} from './i18n';
+import {LayoutColumn, LayoutProvider} from './services/layout';
 
 export type RootStackParamList = {
   MainTabs: {screen?: string; params?: object} | undefined;
@@ -117,37 +118,40 @@ const TabNavigator = () => {
 };
 
 // The first-launch tour runs over the real screens; the app only locates the user (and asks
-// for the permissions) once it's over.
+// for the permissions) once it's over. The screens sit in the app's column (services/layout.tsx),
+// the tour's dimming over the whole window.
 const Screens = () => {
   const tour = useFirstLaunchTour();
   return (
     <AppProvider holdStartup={tour.state !== 'done'}>
       <TourProvider active={tour.state === 'show'} onFinish={tour.finish}>
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName="MainTabs"
-            screenOptions={{headerShown: false}}>
-            <Stack.Screen name="MainTabs" component={TabNavigator} />
-            <Stack.Screen name="MustDo" component={MustDoScreen} />
-            <Stack.Screen name="AddReport" component={AddReport} />
-            <Stack.Screen
-              name="NearbyShelters"
-              component={NearbySheltersScreen}
-            />
-            <Stack.Screen
-              name="EmergencyContacts"
-              component={EmergencyContactsScreen}
-              // Calling is a slide to the right, the same move as iOS's swipe back: without
-              // this, the slide closed the screen instead of calling. The ← button still works.
-              options={{gestureEnabled: false}}
-            />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen
-              name="LocationPicker"
-              component={LocationPickerScreen}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
+        <LayoutColumn>
+          <NavigationContainer>
+            <Stack.Navigator
+              initialRouteName="MainTabs"
+              screenOptions={{headerShown: false}}>
+              <Stack.Screen name="MainTabs" component={TabNavigator} />
+              <Stack.Screen name="MustDo" component={MustDoScreen} />
+              <Stack.Screen name="AddReport" component={AddReport} />
+              <Stack.Screen
+                name="NearbyShelters"
+                component={NearbySheltersScreen}
+              />
+              <Stack.Screen
+                name="EmergencyContacts"
+                component={EmergencyContactsScreen}
+                // Calling is a slide to the right, the same move as iOS's swipe back: without
+                // this, the slide closed the screen instead of calling. The ← button still works.
+                options={{gestureEnabled: false}}
+              />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen
+                name="LocationPicker"
+                component={LocationPickerScreen}
+              />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </LayoutColumn>
       </TourProvider>
     </AppProvider>
   );
@@ -156,9 +160,11 @@ const Screens = () => {
 const App = () => {
   return (
     <SafeAreaProvider>
-      <I18nProvider>
-        <Screens />
-      </I18nProvider>
+      <LayoutProvider>
+        <I18nProvider>
+          <Screens />
+        </I18nProvider>
+      </LayoutProvider>
     </SafeAreaProvider>
   );
 };

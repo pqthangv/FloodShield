@@ -266,10 +266,10 @@ private struct BandView: View {
           .foregroundStyle(Palette.clear, Color.white)
           .font(.system(size: small ? 16 : 20))
         label(small ? texts.noAlertsShort : texts.noAlerts, ink: .white)
-      case let .warning(title, severity, others):
+      case let .warning(title, severity, others, calmRain):
         // White on the orange of "moderate" is hard to read: navy there.
         let ink = severity == "moderate" ? Palette.navy : Color.white
-        Image(systemName: "exclamationmark.triangle.fill")
+        Image(systemName: calmRain ? "cloud.rain.fill" : "exclamationmark.triangle.fill")
           .foregroundColor(ink)
           .font(.system(size: small ? 15 : 19))
         let more = others > 0 ? " +\(others)" : ""
@@ -287,7 +287,7 @@ private struct BandView: View {
     switch band {
     case .unknown: return Palette.navy
     case .clear: return Palette.clear
-    case let .warning(_, severity, _): return Palette.band(severity)
+    case let .warning(_, severity, _, _): return Palette.band(severity)
     }
   }
 

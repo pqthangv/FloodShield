@@ -217,7 +217,10 @@ enum WidgetFetch {
     }
     if let alerts {
       snapshot["alerts"] = alerts.compactMap { $0 as? [String: Any] }.map { alert -> [String: String] in
-        ["title": alert["title"] as? String ?? "", "severity": alert["severity"] as? String ?? ""]
+        [
+          "title": alert["title"] as? String ?? "", "severity": alert["severity"] as? String ?? "",
+          "category": alert["category"] as? String ?? "",
+        ]
       }
       snapshot["checked_at"] = (now.timeIntervalSince1970 * 1000).rounded(.down)
     }

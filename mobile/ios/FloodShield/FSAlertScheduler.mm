@@ -700,7 +700,9 @@ typedef void (^FSResponse)(NSInteger status, NSData *_Nullable body);
     if ([alert isKindOfClass:NSDictionary.class]) {
       [list addObject:@{
         @"title" : StringOrEmpty(alert[@"title"]),
-        @"severity" : StringOrEmpty(alert[@"severity"])
+        @"severity" : StringOrEmpty(alert[@"severity"]),
+        // Plain rain gets a rain cloud on the widget (WidgetModel.swift isCalmRain).
+        @"category" : StringOrEmpty(alert[@"category"])
       }];
     }
   }

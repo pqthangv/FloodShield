@@ -87,7 +87,7 @@ export const SEVERITY_LEVEL: Record<Severity, string> = {
 };
 
 // Plain rain (a moderate rain warning) is shown with a rain picture instead of "!": in a city it
-// rains this much often. The same categories in CalmRain.kt (test_app_sync).
+// rains this much often. The same categories in CalmRain.kt and WidgetModel.swift (test_app_sync).
 export const CALM_RAIN_CATEGORIES = ['heavy_rain', 'urban_flood'];
 
 export const isCalmRain = (alert: Pick<Alert, 'severity' | 'category'>) =>

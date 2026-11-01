@@ -31,6 +31,16 @@ struct Snapshot: Decodable {
 struct SnapshotAlert: Decodable {
   var title: String?
   var severity: String?
+  /// nil in a snapshot saved before 1.0.9 (the band then keeps the "!").
+  var category: String?
+}
+
+/// Plain rain (a moderate rain warning) gets a rain cloud instead of "!", like the app's Home card.
+/// The same categories as CALM_RAIN_CATEGORIES in services/format.ts (test_app_sync).
+let calmRainCategories = ["heavy_rain", "urban_flood"]
+
+func isCalmRain(_ alert: SnapshotAlert) -> Bool {
+  alert.severity == "moderate" && calmRainCategories.contains(alert.category ?? "")
 }
 
 /// The App Group shared with the app (both targets' .entitlements).
@@ -70,8 +80,8 @@ enum Band {
   /// Not checked, the check failed, or it's too old: neither a warning nor "all clear".
   case unknown
   case clear
-  /// The most serious warning, and how many others there are.
-  case warning(title: String, severity: String, others: Int)
+  /// The most serious warning, and how many others there are. calmRain: only plain rain.
+  case warning(title: String, severity: String, others: Int, calmRain: Bool)
 }
 
 /// The background check runs when iOS allows it; a few hours without one is normal.
@@ -95,7 +105,8 @@ func bandFor(_ snapshot: Snapshot?, now: Date) -> Band {
   guard let top = alerts.max(by: { rank($0) < rank($1) }) else {
     return .clear
   }
-  return .warning(title: top.title ?? "", severity: top.severity ?? "", others: alerts.count - 1)
+  let calmRain = isCalmRain(top) && alerts.allSatisfy { $0.severity == "info" || isCalmRain($0) }
+  return .warning(title: top.title ?? "", severity: top.severity ?? "", others: alerts.count - 1, calmRain: calmRain)
 }
 
 /// The widget's own texts, in the app's language (the rest comes translated in the snapshot).

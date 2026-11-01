@@ -14,7 +14,7 @@ import {
 import {useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomStatusBar from '../CustomStatusBar';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {
   ambulanceIcon,
   backIcon,
@@ -29,7 +29,8 @@ interface EmergencyContact {
   id: string;
   name: MessageKey;
   number: string;
-  icon: JSX.Element;
+  /** Drawn at the size of the screen now. */
+  icon: (width: number, height: number) => JSX.Element;
   color: string;
   iconBackgroundColor: string;
 }
@@ -40,7 +41,7 @@ const emergencyContactsData: EmergencyContact[] = [
     id: '115',
     name: 'contact115',
     number: '115',
-    icon: ambulanceIcon(vw(6.5), vw(6.5)),
+    icon: ambulanceIcon,
     color: '#F0F4C3',
     iconBackgroundColor: '#D4E157',
   },
@@ -48,7 +49,7 @@ const emergencyContactsData: EmergencyContact[] = [
     id: '114',
     name: 'contact114',
     number: '114',
-    icon: fireFighterIcon(vw(6.5), vw(6.5)),
+    icon: fireFighterIcon,
     color: '#FFCDD2',
     iconBackgroundColor: '#F06292',
   },
@@ -56,7 +57,7 @@ const emergencyContactsData: EmergencyContact[] = [
     id: '113',
     name: 'contact113',
     number: '113',
-    icon: copIcon(vw(6.5), vw(6.5)),
+    icon: copIcon,
     color: '#FFCCBC',
     iconBackgroundColor: '#FF8A65',
   },
@@ -64,7 +65,7 @@ const emergencyContactsData: EmergencyContact[] = [
     id: '112',
     name: 'contact112',
     number: '112',
-    icon: rescueIcon(vw(6.5), vw(6.5)),
+    icon: rescueIcon,
     color: '#FFF9C4',
     iconBackgroundColor: '#FFEE58',
   },
@@ -72,16 +73,18 @@ const emergencyContactsData: EmergencyContact[] = [
     id: '111',
     name: 'contact111',
     number: '111',
-    icon: contactIcon(vw(6.5), vw(6.5)),
+    icon: contactIcon,
     color: '#E1BEE7',
     iconBackgroundColor: '#BA68C8',
   },
 ];
 
-const ICON_DRAGGABLE_WIDTH = vw(13);
-const SLIDE_FULL_RANGE = vw(51);
-// Must slide most of the way so a call is never started by accident.
-const SLIDE_TO_CALL_THRESHOLD = SLIDE_FULL_RANGE * 0.6;
+// The round button that slides, and how far it goes: sizes that follow the screen.
+const slideSizes = ({vw}: Layout) => {
+  const range = vw(51);
+  // Must slide most of the way so a call is never started by accident.
+  return {button: vw(13), range, threshold: range * 0.6};
+};
 
 const callNumber = (phoneNumber: string) => Linking.openURL(`tel:${phoneNumber}`);
 
@@ -93,6 +96,10 @@ const confirmCall = (item: EmergencyContact) =>
 
 const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
   const {t} = useI18n();
+  const layout = useLayout();
+  const {vw} = layout;
+  const {range, threshold} = slideSizes(layout);
+  const styles = useStyles(makeStyles);
   const translateX = useRef(new Animated.Value(0)).current;
 
   // A tap never calls, so a call isn't started by mistake (in a pocket, or by a child): the
@@ -103,7 +110,7 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
         Animated.timing(translateX, {toValue: vw(12), duration: 180, useNativeDriver: true}),
         Animated.spring(translateX, {toValue: 0, useNativeDriver: true, bounciness: 12}),
       ]).start(),
-    [translateX],
+    [translateX, vw],
   );
 
   const panResponder = useMemo(
@@ -114,14 +121,14 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
         onStartShouldSetPanResponder: () => true,
         onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_, g) => {
-          translateX.setValue(Math.max(0, Math.min(g.dx, SLIDE_FULL_RANGE)));
+          translateX.setValue(Math.max(0, Math.min(g.dx, range)));
         },
         onPanResponderRelease: (_, g) => {
           if (Math.abs(g.dx) < 8 && Math.abs(g.dy) < 8) {
             nudge();
             return;
           }
-          if (g.dx >= SLIDE_TO_CALL_THRESHOLD) {
+          if (g.dx >= threshold) {
             callNumber(item.number);
           }
           Animated.spring(translateX, {
@@ -134,7 +141,7 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
           Animated.spring(translateX, {toValue: 0, useNativeDriver: true}).start();
         },
       }),
-    [item.number, translateX, nudge],
+    [item.number, translateX, nudge, range, threshold],
   );
 
   return (
@@ -150,6 +157,15 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
           confirmCall(item);
         }
       }}>
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.iconDraggable,
+          {backgroundColor: item.iconBackgroundColor},
+          {transform: [{translateX}]},
+        ]}>
+        {item.icon(vw(6.5), vw(6.5))}
+      </Animated.View>
       <View style={styles.staticContentContainer}>
         <View style={styles.infoContainer}>
           <Text style={styles.itemName}>{t(item.name)}</Text>
@@ -159,16 +175,6 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
           <Text style={styles.slidePromptText}>{t('slideToCall')}</Text>
         </View>
       </View>
-
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[
-          styles.iconDraggable,
-          {backgroundColor: item.iconBackgroundColor},
-          {transform: [{translateX}]},
-        ]}>
-        {item.icon}
-      </Animated.View>
     </Pressable>
   );
 };
@@ -176,6 +182,8 @@ const EmergencyContactItem = ({item}: {item: EmergencyContact}) => {
 const EmergencyContactsScreen = () => {
   const navigation = useNavigation();
   const {t} = useI18n();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -200,108 +208,112 @@ const EmergencyContactsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: vw(4),
-    paddingTop: vh(2),
-    paddingBottom: vh(2.5),
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  backButton: {
-    padding: vw(1),
-  },
-  headerTitle: {
-    fontSize: vw(5.5),
-    fontWeight: 'bold',
-    color: '#2C3E50',
-    marginLeft: vw(3),
-    textAlign: 'center',
-    flex: 1,
-    marginRight: vw(10),
-  },
-  list: {
-    flex: 1,
-    paddingHorizontal: vw(3),
-    marginTop: vh(2),
-  },
-  listContent: {
-    paddingBottom: vh(2),
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: vw(4.5),
-    paddingVertical: vh(1.5),
-    marginBottom: vh(2),
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.15,
-    shadowRadius: 2.5,
-    position: 'relative',
-  },
-  staticContentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-    left: vw(3) + ICON_DRAGGABLE_WIDTH + vw(3.5),
-    right: vw(3),
-    top: 0,
-    bottom: 0,
-  },
-  iconDraggable: {
-    width: ICON_DRAGGABLE_WIDTH,
-    height: ICON_DRAGGABLE_WIDTH,
-    borderRadius: ICON_DRAGGABLE_WIDTH / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-    marginLeft: vw(3),
-  },
-  infoContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  itemName: {
-    fontSize: vw(4.3),
-    fontWeight: 'bold',
-    color: '#2C3E50',
-  },
-  itemNumber: {
-    fontSize: vw(5),
-    fontWeight: 'bold',
-    color: '#34495E',
-    marginTop: vh(0.3),
-  },
-  slidePromptContainer: {
-    width: vw(28),
-    height: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: vw(1),
-  },
-  slidePromptText: {
-    fontSize: vw(3.3),
-    color: '#34495E',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  footer: {
-    fontSize: vw(3.4),
-    color: '#7F8C8D',
-    textAlign: 'center',
-    paddingHorizontal: vw(4),
-    marginTop: vh(1),
-  },
-});
+const makeStyles = (layout: Layout) => {
+  const {vw, vh} = layout;
+  const {button} = slideSizes(layout);
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: 'white',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: vw(4),
+      paddingTop: vh(2),
+      paddingBottom: vh(2.5),
+      backgroundColor: 'white',
+      borderBottomWidth: 1,
+      borderBottomColor: '#E0E0E0',
+    },
+    backButton: {
+      padding: vw(1),
+    },
+    headerTitle: {
+      fontSize: vw(5.5),
+      fontWeight: 'bold',
+      color: '#2C3E50',
+      marginLeft: vw(3),
+      textAlign: 'center',
+      flex: 1,
+      marginRight: vw(10),
+    },
+    list: {
+      flex: 1,
+      paddingHorizontal: vw(3),
+      marginTop: vh(2),
+    },
+    listContent: {
+      paddingBottom: vh(2),
+    },
+    itemContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: vw(4.5),
+      paddingVertical: vh(1.5),
+      marginBottom: vh(2),
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOffset: {width: 0, height: 2},
+      shadowOpacity: 0.15,
+      shadowRadius: 2.5,
+      position: 'relative',
+    },
+    // Next to the button, in the card's row: a long name with large text makes the card taller
+    // (it used to lie over the card and spill out of it).
+    staticContentContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginLeft: vw(3.5),
+      marginRight: vw(3),
+    },
+    iconDraggable: {
+      width: button,
+      height: button,
+      borderRadius: button / 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,
+      marginLeft: vw(3),
+    },
+    infoContainer: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    itemName: {
+      fontSize: vw(4.3),
+      fontWeight: 'bold',
+      color: '#2C3E50',
+    },
+    itemNumber: {
+      fontSize: vw(5),
+      fontWeight: 'bold',
+      color: '#34495E',
+      marginTop: vh(0.3),
+    },
+    slidePromptContainer: {
+      width: vw(28),
+      alignSelf: 'stretch',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: vw(1),
+    },
+    slidePromptText: {
+      fontSize: vw(3.3),
+      color: '#34495E',
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+    footer: {
+      fontSize: vw(3.4),
+      color: '#7F8C8D',
+      textAlign: 'center',
+      paddingHorizontal: vw(4),
+      marginTop: vh(1),
+    },
+  });
+};
 
 export default EmergencyContactsScreen;

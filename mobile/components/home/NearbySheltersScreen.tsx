@@ -13,7 +13,7 @@ import {
 import {useNavigation} from '@react-navigation/native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomStatusBar from '../CustomStatusBar';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {backIcon, directionsIcon, phoneIcon} from '../../assets/svgIcon';
 import {keptShelters, loadShelters} from '../../services/shelters';
 import {Shelter} from '../../services/model';
@@ -36,6 +36,8 @@ const NearbySheltersScreen = () => {
   const navigation = useNavigation();
   const {location} = useApp();
   const {t, lang} = useI18n();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
   // Usually found already, in the background since the app opened, or kept from an earlier day
   // or a few km away: shown at once, and a new search replaces it (services/shelters.ts).
   const [initial] = useState(() =>
@@ -193,6 +195,8 @@ const NearbySheltersScreen = () => {
       <FlatList
         data={shelters}
         renderItem={renderItem}
+        // The rows are drawn again with the new sizes when the phone folds or opens.
+        extraData={styles}
         keyExtractor={item => item.id}
         style={styles.list}
         ListHeaderComponent={
@@ -231,7 +235,7 @@ const NearbySheltersScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',

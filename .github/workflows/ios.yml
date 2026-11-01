@@ -5,6 +5,8 @@ name: iOS build
 # compiles. Signed TestFlight builds are made by Codemagic (codemagic.yaml).
 #
 # App Store screenshots only when asked: Actions > iOS build > Run workflow > tick "screenshots".
+# Tick "duo" too for a try with Xcode 27.1 in the iPhone Duo simulator (Apple's foldable). The
+# TestFlight builds stay on Xcode 26.6 (codemagic.yaml) until the app is ready for the Duo.
 on:
   push:
     branches: [main]
@@ -15,18 +17,30 @@ on:
         description: Also take App Store screenshots in the iPhone simulator (English and Vietnamese)
         type: boolean
         default: true
+      duo:
+        description: Build with Xcode 27.1 and take the screenshots in the iPhone Duo simulator instead
+        type: boolean
+        default: false
 
 jobs:
   ios:
     name: iOS (simulator, unsigned)
-    runs-on: macos-latest
+    # GitHub's Xcode 27 machines (Apple Silicon only) have Xcode 27.1 and the iPhone Duo simulator.
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && inputs.duo) && 'xcode-27' || 'macos-latest' }}
     timeout-minutes: 75
     env:
       SCREENSHOTS: ${{ github.event_name == 'workflow_dispatch' && inputs.screenshots }}
+      DUO: ${{ github.event_name == 'workflow_dispatch' && inputs.duo }}
     defaults:
       run:
         working-directory: mobile
     steps:
+      - name: 'Duo run: use Xcode 27.1'
+        if: env.DUO == 'true'
+        working-directory: .
+        run: |
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
@@ -64,7 +78,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ios-build
+          name: ios-build${{ env.DUO == 'true' && '-duo' || '' }}
           path: |
             mobile/ios/build.log
             mobile/ios/Podfile.lock
@@ -105,22 +119,30 @@ jobs:
           set -euo pipefail
           APP=ios/build/Build/Products/Release-iphonesimulator/FloodShield.app
           # iPhone 17 Pro Max if there is one (6.9-inch: the App Store's required screenshot size),
-          # otherwise the newest Pro Max.
+          # otherwise the newest Pro Max. On a Duo run: the iPhone Duo.
           UDID=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
+          import json, os, sys
+          duo = os.environ.get("DUO") == "true"
           best = None
           for runtime, devices in json.load(sys.stdin)["devices"].items():
               if ".iOS-" not in runtime:
                   continue
               version = tuple(int(x) for x in runtime.split(".iOS-")[1].split("-"))
               for d in devices:
-                  if "Pro Max" in d["name"]:
+                  if (d["name"] == "iPhone Duo") if duo else ("Pro Max" in d["name"]):
                       key = (d["name"] == "iPhone 17 Pro Max", version)
                       if best is None or key > best[0]:
                           best = (key, d["udid"], d["name"] + " / iOS " + ".".join(map(str, version)))
           print(best[1]); print("Simulator:", best[2], file=sys.stderr)')
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b > /dev/null
+          if [ "$DUO" = "true" ]; then
+            # How this simulator is folded and opened from the command line isn't documented yet:
+            # print what simctl offers, so the next run can take both screens.
+            xcrun simctl help 2>&1 | grep -iE "fold|posture|hinge|display|screen" || true
+            xcrun simctl io "$UDID" enumerate 2>&1 || true
+            xcrun simctl list devicetypes 2>&1 | grep -i duo || true
+          fi
           # The tidy status bar of App Store screenshots.
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged \
             --batteryLevel 100 --wifiBars 3 --cellularBars 4
@@ -167,6 +189,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always() && env.SCREENSHOTS == 'true'
         with:
-          name: ios-screenshots
+          name: ios-screenshots${{ env.DUO == 'true' && '-duo' || '' }}
           path: mobile/screenshots/
           if-no-files-found: ignore

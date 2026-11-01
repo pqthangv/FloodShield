@@ -1,4 +1,4 @@
-import {Severity, WeatherData} from './model';
+import {Alert, Severity, WeatherData} from './model';
 import {getLanguage, translate} from '../i18n';
 
 const WEEKDAYS = {
@@ -85,6 +85,13 @@ export const SEVERITY_LEVEL: Record<Severity, string> = {
   high: '03',
   severe: '04',
 };
+
+// Plain rain (a moderate rain warning) is shown with a rain picture instead of "!": in a city it
+// rains this much often. The same categories in CalmRain.kt (test_app_sync).
+export const CALM_RAIN_CATEGORIES = ['heavy_rain', 'urban_flood'];
+
+export const isCalmRain = (alert: Pick<Alert, 'severity' | 'category'>) =>
+  alert.severity === 'moderate' && CALM_RAIN_CATEGORIES.includes(alert.category);
 
 /** Whether a local time ("2026-10-13T19:00") is before sunrise or after sunset of its day. */
 export function isNightAt(time: string, days: Pick<WeatherData['daily'][number], 'date' | 'sunrise' | 'sunset'>[]) {

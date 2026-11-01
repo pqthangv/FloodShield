@@ -180,3 +180,25 @@ def test_rain_job_downloads_what_the_rain_rules_read():
     job_only = {"HOURLY_VARS": {"uv_index"}}
     for name in ("CURRENT_VARS", "HOURLY_VARS", "DAILY_VARS"):
         assert asks(name) <= set(getattr(weather, name).split(",")) | job_only.get(name, set())
+
+
+def test_plain_rain_is_the_same_on_home_and_in_android_notifications():
+    """Plain rain (a moderate rain warning) gets a rain picture instead of "!": the same categories
+    in format.ts (Home) and CalmRain.kt (notifications), all of them ones the server makes. The rain
+    reminders are found by their id (push.py), strong sun alone isn't rain."""
+    ts_path = MOBILE / "services" / "format.ts"
+    kotlin_path = MOBILE / "android/app/src/main/java/com/floodshield/app/alerts/CalmRain.kt"
+    if not ts_path.exists() or not kotlin_path.exists():
+        pytest.skip("mobile app not checked out")
+    quoted = lambda text, pattern: re.findall(r"""['"](\w+)['"]""", re.search(pattern, text).group(1))
+    ts = quoted(ts_path.read_text(encoding="utf-8"), r"CALM_RAIN_CATEGORIES = \[(.*?)\]")
+    kotlin_source = kotlin_path.read_text(encoding="utf-8")
+    kotlin = quoted(kotlin_source, r"CATEGORIES = setOf\((.*?)\)")
+    assert sorted(ts) == sorted(kotlin) == ["heavy_rain", "urban_flood"]
+    made = set(re.findall(r'category="(\w+)"', inspect.getsource(alerts)))
+    assert set(ts) <= made
+
+    reminder_ids = re.findall(r'"([\w-]+)"', re.search(r"REMINDER_IDS = listOf\((.*?)\)", kotlin_source).group(1))
+    id_of = lambda f: re.search(r'id=f"([\w-]+)\{', inspect.getsource(f)).group(1)
+    assert sorted(reminder_ids) == sorted([id_of(push.rain_reminder), id_of(push.one_reminder)])
+    assert not any(id_of(push.uv_reminder).startswith(p) for p in reminder_ids)

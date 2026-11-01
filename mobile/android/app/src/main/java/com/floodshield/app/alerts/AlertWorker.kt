@@ -186,6 +186,10 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
       createChannel(context)
 
       val title = alert.optString("title")
+      val id = alert.optString("id")
+      val rain =
+          if (reminder) CalmRain.isRainReminder(id)
+          else CalmRain.isCalmRain(severity, alert.optString("category"))
       // Pushed warnings have no place name: their text comes first then.
       val area = alert.optString("area")
       val description = alert.optString("description")
@@ -204,7 +208,7 @@ class AlertWorker(context: Context, params: WorkerParameters) : Worker(context, 
 
       val notification =
           NotificationCompat.Builder(context, if (reminder) REMINDER_CHANNEL_ID else CHANNEL_ID)
-              .setSmallIcon(R.drawable.ic_stat_alert)
+              .setSmallIcon(if (rain) R.drawable.ic_stat_rain else R.drawable.ic_stat_alert)
               .setColor(
                   when {
                     reminder -> 0xFF2A78D6.toInt()

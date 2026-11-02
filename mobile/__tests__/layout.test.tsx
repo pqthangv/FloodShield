@@ -1,7 +1,7 @@
 import React from 'react';
 import {Dimensions, StyleSheet, View} from 'react-native';
 import ReactTestRenderer, {act} from 'react-test-renderer';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {
   Layout,
   LayoutColumn,
@@ -19,6 +19,7 @@ jest.mock('react-native-safe-area-context', () => {
   const {createContext, useContext} = require('react');
   const Context = createContext(null);
   return {
+    SafeAreaProvider: ({children}: {children: React.ReactNode}) => children,
     SafeAreaInsetsContext: Context,
     useSafeAreaInsets: () => useContext(Context) ?? mockWindowInsets,
   };
@@ -152,5 +153,24 @@ test('the column: its width and place, and no side insets inside it', () => {
   expect(StyleSheet.flatten(column.props.style)).toMatchObject({width: 382, marginLeft: 0});
   // Top and bottom stay (the screens still keep clear of the status bar and the home bar).
   expect(inside).toEqual({top: 47, right: 0, bottom: 34, left: 0});
+  act(() => tree.unmount());
+});
+
+test("the screens' SafeAreaViews measure the column, not the whole window", () => {
+  // A native SafeAreaView takes its insets from the nearest native SafeAreaProvider. The app's
+  // root one covers the whole window (the folded Duo: right 84), so the column holds its own,
+  // which measures the column: nothing at the sides, the same top and bottom.
+  mockWindowInsets = {top: 47, right: 84, bottom: 34, left: 0};
+  setWindow(466, 678);
+  const tree = render(
+    <LayoutProvider>
+      <LayoutColumn>
+        <View testID="screen" />
+      </LayoutColumn>
+    </LayoutProvider>,
+  );
+  const column = tree.root.findAllByType(View)[1];
+  const provider = column.findByType(SafeAreaProvider);
+  expect(provider.findByProps({testID: 'screen'})).toBeTruthy();
   act(() => tree.unmount());
 });

@@ -3,6 +3,7 @@ import {Dimensions, StyleSheet, useWindowDimensions, View} from 'react-native';
 import {
   EdgeInsets,
   SafeAreaInsetsContext,
+  SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
@@ -63,6 +64,9 @@ export function useStyles<T>(make: (layout: Layout) => T): T {
 /**
  * The screens' column: the app's width, in the middle of a wider screen. It already keeps clear
  * of the sides, so inside it the left and right insets are 0 (the tab bar would add them again).
+ * The screens' native SafeAreaViews take their insets from the nearest native provider, not from
+ * the context: the column's own provider measures the column, the app's root one the whole window
+ * (the folded Duo's strip would be kept twice).
  */
 export function LayoutColumn({children}: {children: React.ReactNode}) {
   const layout = useLayout();
@@ -71,7 +75,9 @@ export function LayoutColumn({children}: {children: React.ReactNode}) {
   return (
     <View style={styles.margins}>
       <View style={[styles.column, {width: layout.width, marginLeft: layout.left}]}>
-        <SafeAreaInsetsContext.Provider value={inner}>{children}</SafeAreaInsetsContext.Provider>
+        <SafeAreaProvider>
+          <SafeAreaInsetsContext.Provider value={inner}>{children}</SafeAreaInsetsContext.Provider>
+        </SafeAreaProvider>
       </View>
     </View>
   );

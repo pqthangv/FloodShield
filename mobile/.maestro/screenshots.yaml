@@ -73,6 +73,13 @@ appId: com.floodshield.app
     timeout: 10000
 - takeScreenshot: 3-alerts
 - tapOn: ${DETAILS}
+# The details sheet's severity line ("Severity: Dangerous"): a slow simulator once photographed
+# the list before the sheet had opened. The sheet is one touchable, so iOS may read all its texts
+# as one label ("Very heavy rain warning, …, Severity: Dangerous, 03, …"), hence the leading .*;
+# Home's card reads "…, Severity:, DANGEROUS" (no space after the colon), so it doesn't match.
+- extendedWaitUntil:
+    visible: ".*${SEVERITY} .*"
+    timeout: 60000
 - waitForAnimationToEnd:
     timeout: 10000
 - takeScreenshot: 4-alert-detail

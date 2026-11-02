@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {RouteProp, useRoute, useNavigation} from '@react-navigation/native';
-import {vw, vh} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomStatusBar from '../../components/CustomStatusBar';
 import {backIcon} from '../../assets/svgIcon';
@@ -21,17 +21,22 @@ import type {RootStackParamList} from '../../App';
 
 type MustDoScreenRouteProp = RouteProp<RootStackParamList, 'MustDo'>;
 
-const CheckBox = ({checked}: {checked: boolean}) => (
-  <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-    {checked && <Text style={styles.checkmark}>✓</Text>}
-  </View>
-);
+const CheckBox = ({checked}: {checked: boolean}) => {
+  const styles = useStyles(makeStyles);
+  return (
+    <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+      {checked && <Text style={styles.checkmark}>✓</Text>}
+    </View>
+  );
+};
 
 const MustDoScreen = () => {
   const route = useRoute<MustDoScreenRouteProp>();
   const navigation = useNavigation();
   const {disasterTypeId, title} = route.params;
   const {t, lang} = useI18n();
+  const {vw, vh} = useLayout();
+  const styles = useStyles(makeStyles);
   const [disaster, setDisaster] = useState<Dissater | null>(null);
   const [done, setDone] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +139,7 @@ const MustDoScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',

@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
-import {vw, vh} from '../../services/styleProps';
+import {Layout, useStyles} from '../../services/layout';
 import ThoiTietTab from './ThoiTietTab';
 import CanhBaoTab from './CanhBaoTab';
 import LuSongTab from './LuSongTab';
@@ -19,6 +19,7 @@ const WeatherTabView = ({initialTab}: {initialTab?: PredictTab}) => {
   const [activeTab, setActiveTab] = useState<PredictTab>(initialTab || 'THOI_TIET');
   const {alerts} = useApp();
   const {t} = useI18n();
+  const styles = useStyles(makeStyles);
 
   useEffect(() => {
     if (initialTab) {
@@ -50,7 +51,7 @@ const WeatherTabView = ({initialTab}: {initialTab?: PredictTab}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     width: '100%',

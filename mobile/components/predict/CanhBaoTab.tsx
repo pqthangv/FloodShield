@@ -11,9 +11,10 @@ import {
   TouchableWithoutFeedback,
   Linking,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
-import {vw, vh} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {Alert} from '../../services/model';
 import {useApp} from '../../context/AppContext';
 import {
@@ -52,6 +53,12 @@ function formatWhen(alert: Alert) {
 const CanhBaoTab = () => {
   const {alerts, alertsError, loading, refresh, location} = useApp();
   const {t} = useI18n();
+  const {vw, vh} = useLayout();
+  const styles = useStyles(makeStyles);
+  // The level's circle grows with the phone's text size, or a large "02" is cut off.
+  const {fontScale} = useWindowDimensions();
+  const circle = vw(8) * fontScale;
+  const levelCircle = {width: circle, height: circle, borderRadius: circle / 2};
   const [selectedCaution, setSelectedCaution] = useState<Alert | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation<NavigationProp<any>>();
@@ -118,6 +125,7 @@ const CanhBaoTab = () => {
                   <View
                     style={[
                       styles.dangerLevelCircle,
+                      levelCircle,
                       {backgroundColor: SEVERITY_COLOR[caution.severity]},
                     ]}>
                     <Text style={styles.dangerLevelNumber}>
@@ -200,7 +208,7 @@ const CanhBaoTab = () => {
                       {selectedCaution &&
                         t('severityWithLabel', {label: severityLabel(selectedCaution.severity)})}{' '}
                     </Text>
-                    <View style={[styles.dangerLevelCircle, {backgroundColor: '#1F2D54'}]}>
+                    <View style={[styles.dangerLevelCircle, levelCircle, {backgroundColor: '#1F2D54'}]}>
                       <Text style={[styles.dangerLevelNumber, {color: '#FFA500'}]}>
                         {selectedCaution && SEVERITY_LEVEL[selectedCaution.severity]}
                       </Text>
@@ -230,7 +238,7 @@ const CanhBaoTab = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh, width, left}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     width: vw(100),
@@ -312,9 +320,6 @@ const styles = StyleSheet.create({
     marginRight: vw(2),
   },
   dangerLevelCircle: {
-    width: vw(8),
-    height: vw(8),
-    borderRadius: vw(4),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -360,7 +365,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
+  // A Modal covers the whole window: the sheet stays over the app's column (its middle on a wide
+  // screen), like the screen it opens from.
   modalContainer: {
+    width,
+    marginLeft: left,
     height: '80%',
     backgroundColor: '#1F2D54',
     borderTopLeftRadius: vw(5),

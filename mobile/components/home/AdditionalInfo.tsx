@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {contactIcon, homeLocationIcon} from '../../assets/svgIcon';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {useApp} from '../../context/AppContext';
@@ -24,6 +24,8 @@ const AdditionalInfo = () => {
   const {alerts, alertsError, alertsChecked, weather, location} = useApp();
   const {t} = useI18n();
   const {fontScale} = useWindowDimensions();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
   const topAlert = alerts.find(a => a.severity !== 'info') || alerts[0];
   // Only plain rain: a rain picture and "Mưa to" instead of ⚠️ and "Cảnh báo khẩn cấp!".
   const calmRain =
@@ -181,7 +183,7 @@ const AdditionalInfo = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: vw(4),

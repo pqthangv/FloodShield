@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
-import {vw, vh} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {locationLabel, useApp} from '../../context/AppContext';
 import {longDate, timeOf} from '../../services/format';
 import {useI18n} from '../../i18n';
@@ -26,6 +26,8 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
   const {weather, weatherError, location, locationError, locating, loading, refresh} =
     useApp();
   const {t} = useI18n();
+  const {vw, vh} = useLayout();
+  const styles = useStyles(makeStyles);
 
   const dynamicStyles = StyleSheet.create({
     dateText: {
@@ -190,7 +192,7 @@ const WeatherDisplay: React.FC<WeatherDisplayProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   upperSection: {
     width: '100%',
     alignItems: 'center',

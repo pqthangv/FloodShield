@@ -22,7 +22,7 @@ import {checkAlertsNow} from '../../services/alertNotifications';
 import storage from '../../services/storage';
 import {setWidgetPicture, toggleWidgetTest} from '../../services/widget';
 import {APP_VERSION, DEFAULT_API_URL} from '../../config';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {Language, useI18n} from '../../i18n';
 
 const LANGUAGES: {code: Language; label: string}[] = [
@@ -45,20 +45,23 @@ const Row = ({
   onLongPress?: () => void;
   right?: React.ReactNode;
   danger?: boolean;
-}) => (
-  <TouchableOpacity
-    style={styles.row}
-    onPress={onPress}
-    onLongPress={onLongPress}
-    activeOpacity={onPress ? 0.2 : 1}
-    disabled={!onPress && !onLongPress}>
-    <View style={styles.rowText}>
-      <Text style={[styles.rowTitle, danger && styles.danger]}>{title}</Text>
-      {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
-    </View>
-    {right}
-  </TouchableOpacity>
-);
+}) => {
+  const styles = useStyles(makeStyles);
+  return (
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      activeOpacity={onPress ? 0.2 : 1}
+      disabled={!onPress && !onLongPress}>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, danger && styles.danger]}>{title}</Text>
+        {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {right}
+    </TouchableOpacity>
+  );
+};
 
 const SettingsScreen = () => {
   const navigation = useNavigation<NavigationProp<any>>();
@@ -71,6 +74,8 @@ const SettingsScreen = () => {
     refresh,
   } = useApp();
   const {t, lang, setLanguage} = useI18n();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
   const [nickname, setNickname] = useState('');
   const [blockedCount, setBlockedCount] = useState(0);
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
@@ -258,7 +263,7 @@ const SettingsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F4F7FB',

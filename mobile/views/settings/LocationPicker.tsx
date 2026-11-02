@@ -17,13 +17,15 @@ import disasterAPI from '../../apis/disasterAPI';
 import {DEFAULT_LOCATIONS} from '../../services/locationService';
 import {Place} from '../../services/model';
 import {errorMessage} from '../../services/axiosClient';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {useI18n} from '../../i18n';
 
 const LocationPickerScreen = () => {
   const navigation = useNavigation();
   const {setManualLocation, switchToGps, locationError, locating} = useApp();
   const {t, lang} = useI18n();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Place[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -95,6 +97,8 @@ const LocationPickerScreen = () => {
       <Text style={styles.section}>{results ? t('searchResults') : t('bigCities')}</Text>
       <FlatList
         data={data}
+        // The rows are drawn again with the new sizes when the phone folds or opens.
+        extraData={styles}
         keyExtractor={(item, i) => `${item.name}-${item.latitude}-${i}`}
         keyboardShouldPersistTaps="handled"
         renderItem={({item}) => (
@@ -121,7 +125,7 @@ const LocationPickerScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',

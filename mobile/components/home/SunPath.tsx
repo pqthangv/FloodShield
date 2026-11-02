@@ -3,7 +3,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import Svg, {Circle, Line, Path} from 'react-native-svg';
 import {timeOf} from '../../services/format';
 import {useI18n} from '../../i18n';
-import {vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 
 interface Props {
   sunrise?: string;
@@ -23,6 +23,8 @@ function toEpoch(local: string, utcOffsetSeconds: number) {
 /** Arc from sunrise to sunset with the sun at its current position. */
 const SunPath = ({sunrise, sunset, utcOffsetSeconds = 7 * 3600}: Props) => {
   const {t} = useI18n();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
   const width = vw(84);
   const height = vw(24);
   const baseY = height - 8;
@@ -77,7 +79,7 @@ const SunPath = ({sunrise, sunset, utcOffsetSeconds = 7 * 3600}: Props) => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw}: Layout) => StyleSheet.create({
   container: {
     alignItems: 'center',
   },

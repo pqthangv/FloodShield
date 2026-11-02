@@ -10,7 +10,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import WeatherDisplay from '../../components/bottomtabs/WeatherDisplay';
 import AdditionalInfo from '../../components/home/AdditionalInfo';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import CustomStatusBar from '../../components/CustomStatusBar';
 import {useApp} from '../../context/AppContext';
 import {useI18n} from '../../i18n';
@@ -23,6 +23,8 @@ const Home = () => {
   const {t} = useI18n();
   const [refreshing, setRefreshing] = useState(false);
   const tourScroll = useTourScroll();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -70,7 +72,7 @@ const Home = () => {
 
 export default Home;
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#C9E5FF',

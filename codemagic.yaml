@@ -30,9 +30,11 @@ workflows:
         XCODE_SCHEME: FloodShield
         APP_STORE_APPLE_ID: 6821424169 # REPLACE with the app's Apple ID number
       node: 24
-      # Pinned: the app doesn't use the UIScene life cycle yet, and apps built with Xcode 27 must, or
-      # they don't open. 26.6 built 1.0.7. Move to 27.1 only after that change has been tested.
-      xcode: 26.6
+      # Pinned: the iOS 27.1 SDK makes the app fit the iPhone Duo (built with older ones it sits in
+      # the middle with empty space around it), tested in ios.yml's Duo run. Apps built with Xcode 27
+      # must use the UIScene life cycle (SceneDelegate.swift) or they don't open. If a 27.1 build
+      # misbehaves, 26.6 (which built 1.0.7) is the way back.
+      xcode: 27.1
     scripts:
       - name: Install npm packages
         script: npm ci

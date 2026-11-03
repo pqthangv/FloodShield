@@ -1,20 +1,35 @@
 import React from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator} from 'react-native';
-import {vh, vw} from '../../services/styleProps';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  useWindowDimensions,
+} from 'react-native';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {contactIcon, homeLocationIcon} from '../../assets/svgIcon';
 import {NavigationProp, useNavigation} from '@react-navigation/native';
 import {useApp} from '../../context/AppContext';
-import {SEVERITY_COLOR, severityLabel} from '../../services/format';
+import {SEVERITY_COLOR, isCalmRain, severityLabel} from '../../services/format';
 import {useI18n} from '../../i18n';
 import SunPath from './SunPath';
 import {useTourTarget} from '../tour/Tour';
 import CheckBadge from '../CheckBadge';
+import WeatherIcon from '../WeatherIcon';
 
 const AdditionalInfo = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {alerts, alertsError, alertsChecked, weather, location} = useApp();
   const {t} = useI18n();
+  const {fontScale} = useWindowDimensions();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
   const topAlert = alerts.find(a => a.severity !== 'info') || alerts[0];
+  // Only plain rain: a rain picture and "Mưa to" instead of ⚠️ and "Cảnh báo khẩn cấp!".
+  const calmRain =
+    !!topAlert && isCalmRain(topAlert) && alerts.every(a => a.severity === 'info' || isCalmRain(a));
   const checking = !!location && !alertsError && !alertsChecked;
   const allClear = !!location && !alertsError && alertsChecked;
   const alertsTarget = useTourTarget('alerts');
@@ -55,11 +70,18 @@ const AdditionalInfo = () => {
           onPress={openAlerts}
           activeOpacity={0.85}>
           <View style={styles.warningHeader}>
-            <Text style={styles.warningIcon}>⚠️</Text>
+            {calmRain ? (
+              // As large as the title next to it, like the ⚠️ it replaces, also at large text.
+              <WeatherIcon icon="rain" size={vw(7) * fontScale} style={styles.rainIcon} />
+            ) : (
+              <Text style={styles.warningIcon}>⚠️</Text>
+            )}
             <Text style={styles.warningTitle}>
               {alerts.length > 1
                 ? t('alertsCount', {count: alerts.length})
-                : t('emergencyAlert')}
+                : calmRain
+                  ? t('heavyRain')
+                  : t('emergencyAlert')}
             </Text>
           </View>
           <View style={styles.warningBody}>
@@ -161,7 +183,7 @@ const AdditionalInfo = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: vw(4),
@@ -195,6 +217,9 @@ const styles = StyleSheet.create({
   },
   checkBadge: {
     marginRight: vw(2),
+  },
+  rainIcon: {
+    marginRight: vw(1.5),
   },
   checkingIcon: {
     marginRight: vw(2),

@@ -16,6 +16,7 @@
 		F5A1E70000000000000B000E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0008 /* SwiftUI.framework */; };
 		F5A1E70000000000000B000F /* FloodShieldWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0006 /* FloodShieldWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F5A1E70000000000000B0010 /* WidgetReload.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0009 /* WidgetReload.swift */; };
+		F5A1E70000000000000B0020 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E70000000000000B0021 /* SceneDelegate.swift */; };
 		F5A1E7000000000000000A04 /* FSAlertScheduler.mm in Sources */ = {isa = PBXBuildFile; fileRef = F5A1E7000000000000000A02 /* FSAlertScheduler.mm */; };
 		0C80B921A6F3F58F76C31292 /* libPods-FloodShield.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-FloodShield.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
@@ -68,6 +69,7 @@
 		F5A1E70000000000000B0007 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		F5A1E70000000000000B0008 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		F5A1E70000000000000B0009 /* WidgetReload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetReload.swift; path = FloodShield/WidgetReload.swift; sourceTree = "<group>"; };
+		F5A1E70000000000000B0021 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SceneDelegate.swift; path = FloodShield/SceneDelegate.swift; sourceTree = "<group>"; };
 		F5A1E7000000000000000A01 /* FSAlertScheduler.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FSAlertScheduler.h; path = FloodShield/FSAlertScheduler.h; sourceTree = "<group>"; };
 		F5A1E7000000000000000A02 /* FSAlertScheduler.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = FSAlertScheduler.mm; path = FloodShield/FSAlertScheduler.mm; sourceTree = "<group>"; };
 		F5A1E7000000000000000A03 /* FloodShield-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "FloodShield-Bridging-Header.h"; path = "FloodShield/FloodShield-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -123,6 +125,7 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				F5A1E70000000000000B0021 /* SceneDelegate.swift */,
 				F5A1E70000000000000B0009 /* WidgetReload.swift */,
 				F5A1E7000000000000000A01 /* FSAlertScheduler.h */,
 				F5A1E7000000000000000A02 /* FSAlertScheduler.mm */,
@@ -376,6 +379,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				F5A1E70000000000000B0020 /* SceneDelegate.swift in Sources */,
 				F5A1E70000000000000B0010 /* WidgetReload.swift in Sources */,
 				F5A1E7000000000000000A04 /* FSAlertScheduler.mm in Sources */,
 			);
@@ -398,7 +402,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.8;
+				MARKETING_VERSION = 1.0.9;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.floodshield.app.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -424,7 +428,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.8;
+				MARKETING_VERSION = 1.0.9;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.floodshield.app.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -451,7 +455,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.8;
+				MARKETING_VERSION = 1.0.9;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -487,7 +491,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.8;
+				MARKETING_VERSION = 1.0.9;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

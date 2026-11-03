@@ -153,6 +153,20 @@ async def test_short_intense_rain_is_pushed(client, sent):
 
 
 @pytest.mark.asyncio
+async def test_warnings_carry_their_category(client, sent):
+    # The app shows plain rain (moderate) with a rain icon, the rest with "!": it needs the category.
+    await register(client, VI_PHONE, "token-vi-" + "a" * 30)
+    await run(client, forecast(21.0, 105.8, daily_mm=(60, 0, 0)))
+    await run(client, forecast(21.0, 105.8, daily_mm=(120, 0, 0)))
+    await run(client, forecast(21.0, 105.8, daily_mm=(40, 0, 0), hourly_mm=20))
+    assert [(m.id, m.severity, m.category) for _, _, m in sent] == [
+        ("rain-2026-10-14-moderate", "moderate", "heavy_rain"),
+        ("rain-2026-10-14-high", "high", "heavy_rain"),
+        ("urban-2026-10-14-moderate", "moderate", "urban_flood"),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_quiet_hours_hold_all_but_severe(client, sent):
     await register(client, VI_PHONE, "token-vi-" + "a" * 30)
     night = forecast(21.0, 105.8, daily_mm=(120, 0, 0), now="2026-10-14T23:00")
@@ -219,6 +233,7 @@ async def test_morning_rain_reminder(client, sent):
     assert result["sent"] == 2
     messages = {platform: m for platform, _, m in sent}
     assert messages["android"].id == "rain-today-2026-10-14" and messages["android"].kind == "reminder"
+    assert messages["android"].category == ""
     assert messages["android"].title == "Hôm nay có mưa"
     assert messages["android"].body.startswith("Mưa nhiều nhất khoảng 15:00. Nhớ mang ô")
     assert messages["ios"].body == ("Heaviest around 15:00. Remember an umbrella or raincoat when you go out.\n"
@@ -263,6 +278,7 @@ async def test_morning_uv_reminder(client, sent):
     assert result["sent"] == 2
     messages = {platform: m for platform, _, m in sent}
     assert messages["android"].id == "uv-today-2026-10-14" and messages["android"].kind == "reminder"
+    assert messages["android"].category == ""
     assert messages["android"].title == "Hôm nay nắng gắt"
     assert messages["android"].body == ("Chỉ số UV lên đến 9, từ 11:00 đến 14:00. Đội mũ rộng vành, mặc áo dài tay "
                                         "và dùng kem chống nắng khi ra ngoài.\nNguồn: Open-Meteo")
@@ -311,6 +327,7 @@ async def test_rain_and_uv_reminders_come_as_one(client, sent):
     assert (await run(client, forecast(21.0, 105.8, **day)))["sent"] == 2
     messages = {platform: m for platform, _, m in sent}
     assert messages["android"].id == "morning-2026-10-14" and messages["android"].kind == "reminder"
+    assert messages["android"].category == ""
     assert messages["android"].title == "Hôm nay có mưa và nắng gắt"
     assert messages["android"].body == ("Mưa nhiều nhất khoảng 16:00. Nhớ mang ô hoặc áo mưa khi ra ngoài.\n"
                                         "Chỉ số UV lên đến 9, từ 11:00 đến 13:00. Đội mũ rộng vành, mặc áo dài tay "
@@ -351,7 +368,9 @@ async def test_uv_reminder_on_a_day_with_a_heavy_rain_warning(client, sent):
 # --- The real senders, against a fake Google / Apple ---------------------------------------
 
 MESSAGE = push.Message(id="rain-2026-10-14-high", title="Mưa rất to - 120 mm/ngày", body="...\nNguồn: Open-Meteo",
-                       severity="high")
+                       severity="high", category="heavy_rain")
+REMINDER = push.Message(id="rain-today-2026-10-14", title="Hôm nay có mưa", body="...\nNguồn: Open-Meteo",
+                        severity="info", kind="reminder")
 
 
 def pem(key):
@@ -381,6 +400,7 @@ async def test_fcm_sender():
     async with httpx.AsyncClient(transport=httpx.MockTransport(google)) as client:
         assert await sender.send(client, "phone-token", MESSAGE) == "sent"
         assert await sender.send(client, "dead-token", MESSAGE) == "gone"
+        assert await sender.send(client, "phone-token", REMINDER) == "sent"
     sends = [r for r in seen if r.url.host == "fcm.googleapis.com"]
     assert len(seen) - len(sends) == 1  # one login, reused
     assert sends[0].url.path == "/v1/projects/floodshield-test/messages:send"
@@ -388,7 +408,12 @@ async def test_fcm_sender():
     message = json.loads(sends[0].content)["message"]
     # A data message: the app builds the notification itself, with the alert's id.
     assert "notification" not in message and message["data"]["id"] == MESSAGE.id
+    assert message["data"]["category"] == "heavy_rain"
     assert message["android"]["priority"] == "HIGH"
+    # FCM takes only strings as data values; a reminder has an empty category.
+    reminder = json.loads(sends[2].content)["message"]["data"]
+    assert reminder["category"] == "" and reminder["kind"] == "reminder"
+    assert all(isinstance(v, str) for v in (*message["data"].values(), *reminder.values()))
 
 
 @pytest.mark.asyncio
@@ -414,3 +439,5 @@ async def test_apns_sender():
     assert request.headers["apns-topic"] == "com.floodshield.app"
     assert request.headers["apns-collapse-id"] == MESSAGE.id
     assert json.loads(request.content)["aps"]["alert"]["title"] == MESSAGE.title
+    # iOS shows the app icon whatever the warning: the payload has no category.
+    assert set(json.loads(request.content)) == {"aps", "id"}

@@ -13,7 +13,7 @@ import React, {useState, useCallback, useRef} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import CustomStatusBar from '../../components/CustomStatusBar';
 import PhotoViewer from '../../components/PhotoViewer';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {NavigationProp, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {communityAPI} from '../../apis/disasterAPI';
 import {useApp} from '../../context/AppContext';
@@ -46,14 +46,17 @@ function avatarColor(authorId: string) {
   return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
-const Avatar = ({name, authorId, mine}: {name: string; authorId: string; mine: boolean}) => (
-  <View
-    style={[styles.avatar, {backgroundColor: mine ? MY_AVATAR_COLOR : avatarColor(authorId)}]}
-    importantForAccessibility="no-hide-descendants"
-    accessibilityElementsHidden>
-    <Text style={styles.avatarInitial}>{Array.from(name.trim())[0]?.toUpperCase() || '?'}</Text>
-  </View>
-);
+const Avatar = ({name, authorId, mine}: {name: string; authorId: string; mine: boolean}) => {
+  const styles = useStyles(makeStyles);
+  return (
+    <View
+      style={[styles.avatar, {backgroundColor: mine ? MY_AVATAR_COLOR : avatarColor(authorId)}]}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden>
+      <Text style={styles.avatarInitial}>{Array.from(name.trim())[0]?.toUpperCase() || '?'}</Text>
+    </View>
+  );
+};
 
 const REFRESH_MS = 60 * 1000;
 
@@ -61,6 +64,8 @@ const Report = () => {
   const navigation = useNavigation<NavigationProp<any>>();
   const {location} = useApp();
   const {t} = useI18n();
+  const {vw} = useLayout();
+  const styles = useStyles(makeStyles);
   const [posts, setPosts] = useState<Post[]>([]);
   const [blocked, setBlocked] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,6 +245,8 @@ const Report = () => {
         data={visible}
         keyExtractor={p => String(p.id)}
         renderItem={renderPost}
+        // The rows are drawn again with the new sizes when the phone folds or opens.
+        extraData={styles}
         contentContainerStyle={styles.scrollContentContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2A4B8D']} />
@@ -286,7 +293,7 @@ const Report = () => {
 
 export default Report;
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',

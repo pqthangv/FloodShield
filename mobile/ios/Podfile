@@ -30,5 +30,16 @@ target 'FloodShield' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Some libraries' resource bundles still say iOS 9.0, 12.4 or 13.0, which Xcode 27 refuses
+    # (15.0 at least). The app itself needs min_ios_version_supported anyway.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |build|
+        target_version = build.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if target_version && target_version.to_f < min_ios_version_supported.to_f
+          build.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = min_ios_version_supported
+        end
+      end
+    end
   end
 end

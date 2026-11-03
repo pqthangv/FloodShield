@@ -7,7 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import {vw, vh} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 import {useApp} from '../../context/AppContext';
 import {
   isNightAt,
@@ -22,6 +22,8 @@ import WeatherIcon from '../WeatherIcon';
 const ThoiTietTab = () => {
   const {weather, weatherError, loading, refresh} = useApp();
   const {t} = useI18n();
+  const {vw, vh} = useLayout();
+  const styles = useStyles(makeStyles);
 
   if (!weather && loading) {
     return (
@@ -140,7 +142,7 @@ const ThoiTietTab = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({vw, vh}: Layout) => StyleSheet.create({
   container: {
     flex: 1,
   },

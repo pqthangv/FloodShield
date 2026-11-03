@@ -1,4 +1,24 @@
-import {formatDistance, isNightAt, parseLocal, shortDate, timeAgo, timeOf} from '../services/format';
+import {
+  formatDistance,
+  isCalmRain,
+  isNightAt,
+  parseLocal,
+  shortDate,
+  timeAgo,
+  timeOf,
+} from '../services/format';
+
+test('plain rain is a moderate rain warning, nothing more', () => {
+  expect(isCalmRain({severity: 'moderate', category: 'heavy_rain'})).toBe(true);
+  expect(isCalmRain({severity: 'moderate', category: 'urban_flood'})).toBe(true);
+  for (const severity of ['info', 'high', 'severe'] as const) {
+    expect(isCalmRain({severity, category: 'heavy_rain'})).toBe(false);
+    expect(isCalmRain({severity, category: 'urban_flood'})).toBe(false);
+  }
+  for (const category of ['storm', 'wind', 'heat', 'flood', 'landslide', 'river_flood', '']) {
+    expect(isCalmRain({severity: 'moderate', category})).toBe(false);
+  }
+});
 
 test('parses API local times without shifting the time zone', () => {
   const d = parseLocal('2026-10-04T15:30');

@@ -463,4 +463,48 @@ class WidgetStateTest {
     assertEquals(
         Band.Warning("Mưa rất to", "severe", others = 3), bandFor(Snapshot(alerts = alerts, checkedAt = now), now))
   }
+
+  private fun band(vararg alerts: SnapshotAlert) = bandFor(Snapshot(alerts = alerts.toList(), checkedAt = now), now)
+
+  @Test
+  fun `plain rain gets the rain cloud, like the app's Home card`() {
+    assertEquals(
+        Band.Warning("Mưa to", "moderate", others = 0, calmRain = true),
+        band(SnapshotAlert("Mưa to", "moderate", "heavy_rain")))
+    assertEquals(
+        Band.Warning("Ngập úng", "moderate", others = 0, calmRain = true),
+        band(SnapshotAlert("Ngập úng", "moderate", "urban_flood")))
+    // Two plain rains, or a watch next to it: still the rain cloud.
+    assertEquals(
+        true,
+        (band(SnapshotAlert("Mưa to", "moderate", "heavy_rain"), SnapshotAlert("Ngập úng", "moderate", "urban_flood"))
+                as Band.Warning)
+            .calmRain)
+    assertEquals(
+        true,
+        (band(SnapshotAlert("Mưa to", "moderate", "heavy_rain"), SnapshotAlert("Lũ", "info", "flood")) as Band.Warning)
+            .calmRain)
+  }
+
+  @Test
+  fun `stronger rain, other warnings and older snapshots keep the "!"`() {
+    for (alert in
+        listOf(
+            SnapshotAlert("Mưa rất to", "high", "heavy_rain"),
+            SnapshotAlert("Mưa lớn", "severe", "urban_flood"),
+            SnapshotAlert("Gió mạnh", "moderate", "wind"),
+            SnapshotAlert("Bão", "moderate", "storm"),
+            // Saved by 1.0.8 or older: no category.
+            SnapshotAlert("Mưa to", "moderate"))) {
+      assertEquals(alert.toString(), false, (band(alert) as Band.Warning).calmRain)
+    }
+    // Plain rain next to wind as strong: "!".
+    assertEquals(
+        false,
+        (band(SnapshotAlert("Mưa to", "moderate", "heavy_rain"), SnapshotAlert("Gió mạnh", "moderate", "wind"))
+                as Band.Warning)
+            .calmRain)
+    // Only a watch: "!" as before.
+    assertEquals(false, (band(SnapshotAlert("Lũ", "info", "flood")) as Band.Warning).calmRain)
+  }
 }

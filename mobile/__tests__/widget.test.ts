@@ -11,11 +11,12 @@ const weather = {
   },
 } as WeatherData;
 
-const alert = (severity: Alert['severity'], title: string) => ({id: title, severity, title}) as Alert;
+const alert = (severity: Alert['severity'], title: string, category: string) =>
+  ({id: title, severity, title, category}) as Alert;
 
 test('the widget gets the weather and the alerts the app just loaded', () => {
   const snapshot = widgetSnapshot('Phường Thuận Hoá, Huế', weather,
-    [alert('high', 'Cảnh báo mưa rất to'), alert('moderate', 'Gió mạnh')], 1000);
+    [alert('high', 'Cảnh báo mưa rất to', 'heavy_rain'), alert('moderate', 'Gió mạnh', 'wind')], 1000);
   expect(snapshot).toEqual({
     place: 'Phường Thuận Hoá, Huế',
     temperature: 25.4,
@@ -25,7 +26,11 @@ test('the widget gets the weather and the alerts the app just loaded', () => {
     wind_speed: 14,
     apparent_temperature: 28.1,
     humidity: 92,
-    alerts: [{title: 'Cảnh báo mưa rất to', severity: 'high'}, {title: 'Gió mạnh', severity: 'moderate'}],
+    // The category: plain rain gets a rain cloud on the widget instead of "!".
+    alerts: [
+      {title: 'Cảnh báo mưa rất to', severity: 'high', category: 'heavy_rain'},
+      {title: 'Gió mạnh', severity: 'moderate', category: 'wind'},
+    ],
     checked_at: 1000,
   });
 });

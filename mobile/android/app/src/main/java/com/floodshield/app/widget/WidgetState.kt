@@ -1,5 +1,6 @@
 package com.floodshield.app.widget
 
+import com.floodshield.app.alerts.CalmRain
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -25,7 +26,8 @@ data class Snapshot(
     val checkedAt: Long = 0,
 )
 
-data class SnapshotAlert(val title: String, val severity: String)
+/** [category]: empty in a snapshot saved before 1.0.9 (the band then keeps the "!"). */
+data class SnapshotAlert(val title: String, val severity: String, val category: String = "")
 
 /** The coloured band at the bottom of the widget. */
 sealed interface Band {
@@ -34,8 +36,12 @@ sealed interface Band {
 
   data object Clear : Band
 
-  /** The most serious warning, and how many others there are. */
-  data class Warning(val title: String, val severity: String, val others: Int) : Band
+  /**
+   * The most serious warning, and how many others there are. [calmRain]: only plain rain, shown
+   * with a rain cloud instead of "!" (like the app's Home card).
+   */
+  data class Warning(val title: String, val severity: String, val others: Int, val calmRain: Boolean = false) :
+      Band
 }
 
 /**
@@ -49,7 +55,9 @@ fun bandFor(snapshot: Snapshot?, now: Long): Band {
     return Band.Unknown
   }
   val top = alerts.maxByOrNull { SEVERITY_ORDER.indexOf(it.severity) } ?: return Band.Clear
-  return Band.Warning(top.title, top.severity, alerts.size - 1)
+  val calm = { a: SnapshotAlert -> CalmRain.isCalmRain(a.severity, a.category) }
+  val calmRain = calm(top) && alerts.all { it.severity == "info" || calm(it) }
+  return Band.Warning(top.title, top.severity, alerts.size - 1, calmRain)
 }
 
 /**

@@ -29,7 +29,7 @@ import Svg, {Path} from 'react-native-svg';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {MessageKey, useI18n} from '../../i18n';
 import storage from '../../services/storage';
-import {vh, vw} from '../../services/styleProps';
+import {Layout, useLayout, useStyles} from '../../services/layout';
 
 type TargetId = 'alerts' | 'shelters' | 'emergency';
 
@@ -126,7 +126,7 @@ export const TourProvider = ({
   const api = useMemo(() => ({targets, scroll}), []);
   return (
     <TourContext.Provider value={api}>
-      <View style={styles.fill}>
+      <View style={fixed.fill}>
         {children}
         {active && <TourOverlay api={api} onFinish={onFinish} />}
       </View>
@@ -134,25 +134,24 @@ export const TourProvider = ({
   );
 };
 
-const PAD = vw(2);
-const RADIUS = vw(4);
-const POINTER = vw(12);
+// Around the lit element: the gap, the corners and the pointing hand.
+const sizes = ({vw}: Layout) => ({pad: vw(2), radius: vw(4), pointer: vw(12)});
 // An element not found in this time (still loading, or a phone that never answers the
 // measurement) gets the box in the middle of the screen: never a dimmed screen without buttons.
 // The measuring itself gives up after 20 tries, about 2 s.
 export const GIVE_UP_MS = 2500;
 
 /** The whole screen, minus a rounded hole around `hole`. */
-function dimPath(width: number, height: number, hole: Rect | null) {
+function dimPath(width: number, height: number, hole: Rect | null, pad: number, radius: number) {
   const outer = `M0 0H${width}V${height}H0Z`;
   if (!hole) {
     return outer;
   }
-  const x = hole.x - PAD;
-  const y = hole.y - PAD;
-  const w = hole.width + 2 * PAD;
-  const h = hole.height + 2 * PAD;
-  const r = Math.min(RADIUS, w / 2, h / 2);
+  const x = hole.x - pad;
+  const y = hole.y - pad;
+  const w = hole.width + 2 * pad;
+  const h = hole.height + 2 * pad;
+  const r = Math.min(radius, w / 2, h / 2);
   return (
     outer +
     `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}` +
@@ -164,6 +163,10 @@ function dimPath(width: number, height: number, hole: Rect | null) {
 const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
   const {t} = useI18n();
   const insets = useSafeAreaInsets();
+  const layout = useLayout();
+  const {vh} = layout;
+  const {pad, radius, pointer} = sizes(layout);
+  const styles = useStyles(makeStyles);
   const root = useRef<ViewInstance>(null);
   const [size, setSize] = useState({width: 0, height: 0});
   const [step, setStep] = useState(0);
@@ -206,7 +209,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
     );
     loop.start();
     return () => loop.stop();
-  }, [bounce]);
+  }, [bounce, vh]);
 
   // Find the element: scroll it into view if needed, then measure it relative to this overlay.
   // When it can't be measured, the caption is shown in the middle.
@@ -244,7 +247,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
           const rect = {x: x - rootX, y: y - rootY, width, height};
           const scrollView = api.scroll.current.view;
           const offScreen =
-            rect.y < insets.top + PAD || rect.y + rect.height > size.height * 0.82;
+            rect.y < insets.top + pad || rect.y + rect.height > size.height * 0.82;
           if (offScreen && !scrolled && scrollView) {
             scrolled = true;
             const target = api.scroll.current.offset + rect.y - size.height * 0.35;
@@ -264,7 +267,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
       cancelled = true;
       timers.forEach(clearTimeout);
     };
-  }, [api, step, atLocation, size.height, insets.top]);
+  }, [api, step, atLocation, size.height, insets.top, pad]);
 
   // Even without a layout or an answer to the measurement (see GIVE_UP_MS).
   useEffect(() => {
@@ -286,8 +289,8 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
   const captionPosition = !hole
     ? styles.captionCenter
     : captionBelow
-      ? {top: hole.y + hole.height + PAD + POINTER + vh(1)}
-      : {bottom: size.height - hole.y + PAD + POINTER + vh(1)};
+      ? {top: hole.y + hole.height + pad + pointer + vh(1)}
+      : {bottom: size.height - hole.y + pad + pointer + vh(1)};
 
   return (
     <View
@@ -300,7 +303,7 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
           {size.width > 0 && (
             <Svg width={size.width} height={size.height} style={StyleSheet.absoluteFill}>
               <Path
-                d={dimPath(size.width, size.height, atLocation ? null : hole)}
+                d={dimPath(size.width, size.height, atLocation ? null : hole, pad, radius)}
                 fill="rgba(9,19,40,0.78)"
                 fillRule="evenodd"
               />
@@ -314,20 +317,20 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
                 style={[
                   styles.ring,
                   {
-                    left: hole.x - PAD,
-                    top: hole.y - PAD,
-                    width: hole.width + 2 * PAD,
-                    height: hole.height + 2 * PAD,
+                    left: hole.x - pad,
+                    top: hole.y - pad,
+                    width: hole.width + 2 * pad,
+                    height: hole.height + 2 * pad,
                   },
                 ]}
               />
               <Animated.Text
                 style={[
                   styles.pointer,
-                  {left: hole.x + hole.width / 2 - POINTER / 2, transform: [{translateY: bounce}]},
+                  {left: hole.x + hole.width / 2 - pointer / 2, transform: [{translateY: bounce}]},
                   captionBelow
-                    ? {top: hole.y + hole.height + PAD}
-                    : {top: hole.y - PAD - POINTER * 1.25},
+                    ? {top: hole.y + hole.height + pad}
+                    : {top: hole.y - pad - pointer * 1.25},
                 ]}>
                 {captionBelow ? '👆' : '👇'}
               </Animated.Text>
@@ -365,91 +368,100 @@ const TourOverlay = ({api, onFinish}: {api: TourApi; onFinish: () => void}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const fixed = StyleSheet.create({
   fill: {
     flex: 1,
   },
-  ring: {
-    position: 'absolute',
-    borderWidth: 3,
-    borderColor: '#FFD54F',
-    borderRadius: RADIUS,
-  },
-  pointer: {
-    position: 'absolute',
-    width: POINTER,
-    fontSize: POINTER * 0.8,
-    textAlign: 'center',
-  },
-  caption: {
-    position: 'absolute',
-    left: vw(6),
-    right: vw(6),
-    backgroundColor: 'white',
-    borderRadius: RADIUS,
-    padding: vw(5),
-  },
-  captionCenter: {
-    top: '22%',
-  },
-  locationCard: {
-    maxHeight: '80%',
-  },
-  captionText: {
-    fontSize: vw(5),
-    lineHeight: vw(7.2),
-    color: '#1F2D54',
-    fontWeight: '600',
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: vh(2),
-  },
-  skip: {
-    paddingVertical: vh(1.5),
-    paddingRight: vw(4),
-  },
-  skipText: {
-    fontSize: vw(4.5),
-    color: '#5A6E8C',
-    fontWeight: '600',
-  },
-  next: {
-    backgroundColor: '#1F2D54',
-    borderRadius: vw(3),
-    paddingVertical: vh(1.6),
-    paddingHorizontal: vw(9),
-  },
-  nextText: {
-    color: 'white',
-    fontSize: vw(5),
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  locationIcon: {
-    fontSize: vw(14),
-    textAlign: 'center',
-    marginBottom: vh(1),
-  },
-  locationTitle: {
-    fontSize: vw(6),
-    fontWeight: 'bold',
-    color: '#1F2D54',
-    textAlign: 'center',
-    marginBottom: vh(1.5),
-  },
-  locationText: {
-    fontSize: vw(4.6),
-    lineHeight: vw(6.8),
-    color: '#1F2D54',
-    textAlign: 'center',
-  },
-  continue: {
-    backgroundColor: '#1F2D54',
-    borderRadius: vw(3),
-    paddingVertical: vh(1.8),
-    marginTop: vh(2.5),
-  },
 });
+
+// The dimming covers the whole window, the boxes stay over the app's column (its middle on a
+// wide screen).
+const makeStyles = (layout: Layout) => {
+  const {vw, vh} = layout;
+  const {radius, pointer} = sizes(layout);
+  return StyleSheet.create({
+    ring: {
+      position: 'absolute',
+      borderWidth: 3,
+      borderColor: '#FFD54F',
+      borderRadius: radius,
+    },
+    pointer: {
+      position: 'absolute',
+      width: pointer,
+      fontSize: pointer * 0.8,
+      textAlign: 'center',
+    },
+    caption: {
+      position: 'absolute',
+      left: layout.left + vw(6),
+      width: layout.width - vw(12),
+      backgroundColor: 'white',
+      borderRadius: radius,
+      padding: vw(5),
+    },
+    captionCenter: {
+      top: '22%',
+    },
+    locationCard: {
+      maxHeight: '80%',
+    },
+    captionText: {
+      fontSize: vw(5),
+      lineHeight: vw(7.2),
+      color: '#1F2D54',
+      fontWeight: '600',
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: vh(2),
+    },
+    skip: {
+      paddingVertical: vh(1.5),
+      paddingRight: vw(4),
+    },
+    skipText: {
+      fontSize: vw(4.5),
+      color: '#5A6E8C',
+      fontWeight: '600',
+    },
+    next: {
+      backgroundColor: '#1F2D54',
+      borderRadius: vw(3),
+      paddingVertical: vh(1.6),
+      paddingHorizontal: vw(9),
+    },
+    nextText: {
+      color: 'white',
+      fontSize: vw(5),
+      fontWeight: 'bold',
+      textAlign: 'center',
+    },
+    locationIcon: {
+      fontSize: vw(14),
+      textAlign: 'center',
+      marginBottom: vh(1),
+    },
+    locationTitle: {
+      fontSize: vw(6),
+      fontWeight: 'bold',
+      color: '#1F2D54',
+      textAlign: 'center',
+      marginBottom: vh(1.5),
+    },
+    locationText: {
+      fontSize: vw(4.6),
+      lineHeight: vw(6.8),
+      color: '#1F2D54',
+      textAlign: 'center',
+    },
+    continue: {
+      backgroundColor: '#1F2D54',
+      borderRadius: vw(3),
+      paddingVertical: vh(1.8),
+      marginTop: vh(2.5),
+    },
+  });
+};
